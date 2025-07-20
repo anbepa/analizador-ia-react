@@ -1,8 +1,20 @@
 import React from 'react';
+import { useAppContext } from '../context/AppContext';
+import { downloadHtmlReport } from '../lib/downloadService';
 
-
-
-function ConfigurationPanel({ apiConfig, setApiConfig, onGenerate, onRefine, onDownload, canGenerate, canRefine, canDownload }) {
+function ConfigurationPanel() {
+    const {
+        apiConfig,
+        setApiConfig,
+        handleAnalysis,
+        setIsRefining,
+        canGenerate,
+        canRefine,
+        canDownload,
+        isRefining,
+        reportJson,
+        imageFiles
+    } = useAppContext();
 
     const handleProviderChange = (e) => {
         setApiConfig(prev => ({ ...prev, provider: e.target.value }));
@@ -91,13 +103,13 @@ function ConfigurationPanel({ apiConfig, setApiConfig, onGenerate, onRefine, onD
             </div>
 
             <div id="main-actions" className="mt-6 pt-4 border-t space-y-3">
-                <button onClick={onGenerate} disabled={!canGenerate} className="w-full bg-green-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                <button onClick={() => handleAnalysis(false)} disabled={!canGenerate} className="w-full bg-green-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                     <span>1. Generar Reporte</span>
                 </button>
-                <button onClick={onRefine} disabled={!canRefine} className="w-full bg-blue-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                <button onClick={() => setIsRefining(true)} disabled={!canRefine} className="w-full bg-blue-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                     <span>2. Habilitar Refinamiento</span>
                 </button>
-                <button onClick={onDownload} disabled={!canDownload} className="w-full bg-orange-500 text-white font-semibold py-2 px-6 rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                <button onClick={() => downloadHtmlReport(reportJson, imageFiles)} disabled={!canDownload} className="w-full bg-orange-500 text-white font-semibold py-2 px-6 rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                     <span>📥 Descargar HTML</span>
                 </button>
             </div>

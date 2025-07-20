@@ -1,6 +1,17 @@
 import React from 'react';
+import { useAppContext } from '../context/AppContext';
 
-function ReportDisplay({ reportJson, imageFiles, loading, error, isRefining, onAddStep, onGenerateTicket, onStepDelete }) {
+function ReportDisplay() {
+    const { 
+        reportJson, 
+        imageFiles, 
+        loading, 
+        error, 
+        isRefining, 
+        handleAddStep, 
+        handleGenerateTicket, 
+        handleStepDelete 
+    } = useAppContext();
 
     if (loading.state) {
         return (
@@ -34,7 +45,7 @@ function ReportDisplay({ reportJson, imageFiles, loading, error, isRefining, onA
             <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">Reporte Visual</h2>
             
             {isRefining && (
-                <button onClick={onAddStep} className="bg-green-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-green-700 mb-4">
+                <button onClick={handleAddStep} className="bg-green-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-green-700 mb-4">
                     ➕ Agregar Nuevo Paso
                 </button>
             )}
@@ -70,8 +81,8 @@ function ReportDisplay({ reportJson, imageFiles, loading, error, isRefining, onA
                                         <td>{paso.resultado_esperado_paso || ''}</td>
                                         <td>{paso.resultado_obtenido_paso_y_estado || ''}</td>
                                         <td>
-                                            {isFailure && !isRefining && <button onClick={() => onGenerateTicket(paso.numero_paso)} className="bug-ticket-btn bg-red-100 text-red-700 text-xs font-bold py-1 px-2 rounded hover:bg-red-200">✨ Crear Ticket</button>}
-                                            <button onClick={() => onStepDelete(paso.numero_paso)} data-step={paso.numero_paso} className="delete-step-btn bg-red-500 text-white text-xs font-bold py-1 px-2 rounded hover:bg-red-600">Eliminar</button>
+                                            {isFailure && !isRefining && <button onClick={() => handleGenerateTicket(paso.numero_paso)} className="bug-ticket-btn bg-red-100 text-red-700 text-xs font-bold py-1 px-2 rounded hover:bg-red-200">✨ Crear Ticket</button>}
+                                            <button onClick={() => handleStepDelete(paso.numero_paso)} data-step={paso.numero_paso} className="delete-step-btn bg-red-500 text-white text-xs font-bold py-1 px-2 rounded hover:bg-red-600">Eliminar</button>
                                         </td>
                                     </tr>
                                     {imgIndexEntrada >= 0 && imageFiles[imgIndexEntrada] && (

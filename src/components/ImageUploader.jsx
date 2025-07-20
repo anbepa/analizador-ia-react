@@ -1,7 +1,9 @@
 import React, { useCallback } from 'react';
 import { readFileAsBase64 } from '../lib/apiService';
+import { useAppContext } from '../context/AppContext';
 
-function ImageUploader({ imageFiles, setImageFiles, initialContext, setInitialContext }) {
+function ImageUploader() {
+    const { imageFiles, setImageFiles, initialContext, setInitialContext } = useAppContext();
 
     const processFiles = async (filesToProcess) => {
         const filePromises = Array.from(filesToProcess).map(file => 
@@ -13,7 +15,7 @@ function ImageUploader({ imageFiles, setImageFiles, initialContext, setInitialCo
             }))
         );
         const newImageFiles = await Promise.all(filePromises);
-        setImageFiles(prev => [...prev, ...newImageFiles]);
+        setImageFiles(prev => [...prev, ...newImageFiles].sort((a, b) => a.name.localeCompare(b.name)));
     };
 
     const handleImageUpload = (event) => {

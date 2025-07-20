@@ -1,6 +1,14 @@
 import React from 'react';
+import { useAppContext } from '../context/AppContext';
 
-function RefinementControls({ userContext, setUserContext, onCancel, onSaveAndRefine }) {
+function RefinementControls() {
+    const { 
+        userContext, 
+        setUserContext, 
+        setIsRefining, 
+        handleSaveAndRefine 
+    } = useAppContext();
+
     return (
         <div className="bg-white rounded-xl shadow-md p-6 glassmorphism">
             <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">Contexto Adicional para Refinamiento</h2>
@@ -12,8 +20,8 @@ function RefinementControls({ userContext, setUserContext, onCancel, onSaveAndRe
                 onChange={(e) => setUserContext(e.target.value)}
             />
             <div className="mt-4 flex justify-end space-x-3">
-                <button onClick={onCancel} className="bg-gray-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-600">Cancelar</button>
-                <button onClick={onSaveAndRefine} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700">Guardar y Refinar</button>
+                <button onClick={() => setIsRefining(false)} className="bg-gray-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-600">Cancelar</button>
+                <button onClick={handleSaveAndRefine} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700">Guardar y Refinar</button>
             </div>
         </div>
     );
