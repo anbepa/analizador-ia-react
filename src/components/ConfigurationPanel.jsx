@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { downloadHtmlReport } from '../lib/downloadService';
 
@@ -11,10 +11,20 @@ function ConfigurationPanel() {
         canGenerate,
         canRefine,
         canDownload,
-        reportJson,
+        activeReport,
+        reports, // Get all reports
         imageFiles,
-        scrollToReport // Obtener la función del contexto
+        scrollToReport
     } = useAppContext();
+
+    const [showDownloadOptions, setShowDownloadOptions] = useState(false);
+
+    const geminiModels = [
+        { id: "gemini-1.5-flash-latest", name: "Gemini 1.5 Flash (Latest)" },
+        { id: "gemini-1.5-pro-latest", name: "Gemini 1.5 Pro (Latest)" },
+        { id: "gemini-1.0-pro", name: "Gemini 1.0 Pro" },
+        { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+    ];
 
     const handleProviderChange = (e) => {
         setApiConfig(prev => ({ ...prev, provider: e.target.value }));
@@ -37,7 +47,7 @@ function ConfigurationPanel() {
 
     const handleEnableRefinement = () => {
         setIsRefining(true);
-        scrollToReport(); // Llamar a la función de desplazamiento
+        scrollToReport();
     };
 
     return (
@@ -62,9 +72,15 @@ function ConfigurationPanel() {
                         </div>
                         <div>
                             <label htmlFor="gemini-model-select" className="block text-sm font-medium text-gray-700 mb-1">Modelo de Gemini</label>
-                            <select id="gemini-model-select" value={apiConfig.gemini.model} onChange={(e) => handleConfigChange('gemini', 'model', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
-                                <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (Latest)</option>
-                                <option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (Latest)</option>
+                            <select 
+                                id="gemini-model-select" 
+                                value={apiConfig.gemini.model} 
+                                onChange={(e) => handleConfigChange('gemini', 'model', e.target.value)} 
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                            >
+                                {geminiModels.map(model => (
+                                    <option key={model.id} value={model.id}>{model.name}</option>
+                                ))}
                             </select>
                         </div>
                     </div>
@@ -114,9 +130,28 @@ function ConfigurationPanel() {
                 <button onClick={handleEnableRefinement} disabled={!canRefine} className="w-full bg-blue-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                     <span>2. Habilitar Refinamiento</span>
                 </button>
-                <button onClick={() => downloadHtmlReport(reportJson, imageFiles)} disabled={!canDownload} className="w-full bg-orange-500 text-white font-semibold py-2 px-6 rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
-                    <span>📥 Descargar HTML</span>
-                </button>
+                <div className="relative">
+                    <button 
+                        onClick={() => setShowDownloadOptions(!showDownloadOptions)} 
+                        disabled={!canDownload} 
+                        className="w-full bg-orange-500 text-white font-semibold py-2 px-6 rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                    >
+                        <span>📥 Descargar HTML</span>
+                        <svg className={`w-4 h-4 transition-transform ${showDownloadOptions ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    {showDownloadOptions && (
+                        <div className="absolute z-10 mt-2 w-full bg-white rounded-md shadow-lg">
+                            <ul className="py-1">
+                                <li>
+                                    <a href="#" onClick={(e) => { e.preventDefault(); downloadHtmlReport(activeReport); setShowDownloadOptions(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Descargar Reporte Activo</a>
+                                </li>
+                                <li>
+                                    <a href="#" onClick={(e) => { e.preventDefault(); downloadHtmlReport(reports); setShowDownloadOptions(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Descargar Todos los Reportes</a>
+                                </li>
+                            </ul>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

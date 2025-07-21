@@ -4,11 +4,11 @@ import ImageUploader from './components/ImageUploader';
 import ReportDisplay from './components/ReportDisplay';
 import RefinementControls from './components/RefinementControls';
 import TicketModal from './components/TicketModal';
+import ReportTabs from './components/ReportTabs';
 import { useAppContext } from './context/AppContext';
 
 function App() {
     const { 
-        reportJson, 
         isRefining, 
         modal, 
         closeModal, 
@@ -29,6 +29,7 @@ function App() {
                 </div>
 
                 <div ref={reportRef} className="space-y-8">
+                     <ReportTabs />
                      <ReportDisplay />
                     {isRefining && <RefinementControls />}
                 </div>

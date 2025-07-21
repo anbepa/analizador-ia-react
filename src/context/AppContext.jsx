@@ -2,6 +2,8 @@ import React, { createContext, useState, useEffect, useMemo, useContext, useRef 
 import { callAiApi } from '../lib/apiService';
 import { PROMPT_FLOW_ANALYSIS_FROM_IMAGES, PROMPT_BUG_TICKET, PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT } from '../lib/prompts';
 
+import { loadReports, saveReports } from '../lib/idbService';
+
 const AppContext = createContext();
 
 export const useAppContext = () => {
@@ -19,9 +21,10 @@ export const AppProvider = ({ children }) => {
         openai: { key: '', model: 'gpt-4o' },
         claude: { key: '', model: 'claude-3-sonnet-20240229' }
     });
-    const [imageFiles, setImageFiles] = useState([]);
+    const [currentImageFiles, setCurrentImageFiles] = useState([]);
     const [initialContext, setInitialContext] = useState('');
-    const [reportJson, setReportJson] = useState(null);
+    const [reports, setReports] = useState([]);
+    const [activeReportIndex, setActiveReportIndex] = useState(0);
     const [loading, setLoading] = useState({ state: false, message: '' });
     const [error, setError] = useState(null);
     const [isRefining, setIsRefining] = useState(false);
@@ -29,20 +32,46 @@ export const AppProvider = ({ children }) => {
     const [modal, setModal] = useState({ show: false, title: '', content: '' });
     const reportRef = useRef(null);
 
+    const activeReport = useMemo(() => reports[activeReportIndex] || null, [reports, activeReportIndex]);
+    const activeReportImages = useMemo(() => activeReport?.imageFiles || [], [activeReport]);
+
     useEffect(() => {
         const cachedConfig = localStorage.getItem('qaAppApiConfig');
         if (cachedConfig) {
             setApiConfig(JSON.parse(cachedConfig));
         }
+        
+        loadReports()
+            .then(cachedReports => {
+                if (cachedReports && cachedReports.length > 0) {
+                    setReports(cachedReports);
+                }
+            })
+            .catch(err => {
+                console.error("Error al cargar reportes desde IndexedDB:", err);
+                setError("No se pudieron cargar los reportes guardados.");
+            });
+
     }, []);
 
+    useEffect(() => {
+        saveReports(reports).catch(err => {
+            console.error("Error al guardar reportes en IndexedDB:", err);
+            setError("No se pudieron guardar los cambios en los reportes.");
+        });
+    }, [reports]);
+    
     const canGenerate = useMemo(() => {
         const providerKey = apiConfig[apiConfig.provider]?.key;
-        return providerKey && providerKey.length > 0 && imageFiles.length > 0 && !loading.state;
-    }, [apiConfig, imageFiles, loading.state]);
+        return providerKey && providerKey.length > 0 && currentImageFiles.length > 0 && !loading.state;
+    }, [apiConfig, currentImageFiles, loading.state]);
 
-    const canRefine = useMemo(() => canGenerate && reportJson, [canGenerate, reportJson]);
-    const canDownload = useMemo(() => reportJson && !loading.state, [reportJson, loading.state]);
+    const canRefine = useMemo(() => {
+        const providerKey = apiConfig[apiConfig.provider]?.key;
+        return providerKey && providerKey.length > 0 && activeReport && activeReport.imageFiles && activeReport.imageFiles.length > 0 && !loading.state;
+    }, [apiConfig, activeReport, loading.state]);
+
+    const canDownload = useMemo(() => activeReport && !loading.state, [activeReport, loading.state]);
 
     const scrollToReport = () => {
         setTimeout(() => {
@@ -53,22 +82,30 @@ export const AppProvider = ({ children }) => {
     const handleAnalysis = async (refinement = false, payload = null) => {
         setLoading({ state: true, message: refinement ? 'Refinando análisis...' : 'Realizando análisis inicial...' });
         setError(null);
-        if (!refinement) {
-            setReportJson(null);
-        }
-
+        
         try {
             const prompt = refinement
                 ? PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(payload)
                 : PROMPT_FLOW_ANALYSIS_FROM_IMAGES(initialContext);
 
-            const jsonText = await callAiApi(prompt, imageFiles, apiConfig);
+            const jsonText = await callAiApi(prompt, currentImageFiles, apiConfig);
             const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
             if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
 
             const cleanedJsonText = jsonMatch[1] || jsonMatch[0];
-            const newReport = JSON.parse(cleanedJsonText)[0];
-            setReportJson(newReport);
+            const newReportData = JSON.parse(cleanedJsonText)[0];
+            
+            const newReport = {
+                ...newReportData,
+                imageFiles: [...currentImageFiles] 
+            };
+
+            setReports(prev => {
+                const newReports = [...prev, newReport];
+                setActiveReportIndex(newReports.length - 1);
+                return newReports;
+            });
+
             scrollToReport();
 
         } catch (e) {
@@ -79,16 +116,17 @@ export const AppProvider = ({ children }) => {
             if (refinement) setIsRefining(false);
         }
     };
-
+    
     const handleGenerateTicket = async (stepNumber) => {
-        const failedStep = reportJson.Pasos_Analizados.find(p => p.numero_paso == stepNumber);
+        if (!activeReport) return;
+        const failedStep = activeReport.Pasos_Analizados.find(p => p.numero_paso == stepNumber);
         if (!failedStep) return;
 
         setLoading({ state: true, message: 'Generando borrador de ticket...' });
         setError(null);
 
         try {
-            const prompt = PROMPT_BUG_TICKET(JSON.stringify(failedStep), JSON.stringify(reportJson));
+            const prompt = PROMPT_BUG_TICKET(JSON.stringify(failedStep), JSON.stringify(activeReport));
             const ticketText = await callAiApi(prompt, [], apiConfig);
             setModal({ show: true, title: `Borrador de Ticket para Paso #${stepNumber}`, content: ticketText });
         } catch (e) {
@@ -99,19 +137,22 @@ export const AppProvider = ({ children }) => {
     };
 
     const handleStepDelete = (stepNumber) => {
-        setReportJson(prev => {
-            if (!prev) return null;
-            const updatedSteps = prev.Pasos_Analizados
+        setReports(prev => {
+            const newReports = [...prev];
+            const reportToUpdate = { ...newReports[activeReportIndex] };
+            reportToUpdate.Pasos_Analizados = reportToUpdate.Pasos_Analizados
                 .filter(p => p.numero_paso !== stepNumber)
                 .map((p, index) => ({ ...p, numero_paso: index + 1 }));
-            return { ...prev, Pasos_Analizados: updatedSteps };
+            newReports[activeReportIndex] = reportToUpdate;
+            return newReports;
         });
     };
 
     const handleAddStep = () => {
-        setReportJson(prev => {
-            if (!prev) return null;
-            const newStepNumber = prev.Pasos_Analizados.length + 1;
+        setReports(prev => {
+            const newReports = [...prev];
+            const reportToUpdate = { ...newReports[activeReportIndex] };
+            const newStepNumber = reportToUpdate.Pasos_Analizados.length + 1;
             const newStep = {
                 numero_paso: newStepNumber,
                 descripcion_accion_observada: 'Nueva acción...',
@@ -121,15 +162,18 @@ export const AppProvider = ({ children }) => {
                 imagen_referencia_entrada: 'N/A',
                 imagen_referencia_salida: 'N/A'
             };
-            return { ...prev, Pasos_Analizados: [...prev.Pasos_Analizados, newStep] };
+            reportToUpdate.Pasos_Analizados = [...reportToUpdate.Pasos_Analizados, newStep];
+            newReports[activeReportIndex] = reportToUpdate;
+            return newReports;
         });
     };
 
     const handleSaveAndRefine = () => {
+        scrollToReport(); // Scroll to top of the report section
         const reportContentEl = document.getElementById('report-content');
-        if (!reportContentEl || !reportJson) return;
+        if (!reportContentEl || !activeReport) return;
 
-        const editedReport = JSON.parse(JSON.stringify(reportJson));
+        const editedReport = JSON.parse(JSON.stringify(activeReport));
         const h1 = reportContentEl.querySelector('h1');
         if (h1) editedReport.Nombre_del_Escenario = h1.textContent;
 
@@ -150,20 +194,82 @@ export const AppProvider = ({ children }) => {
 
         editedReport.Pasos_Analizados = updatedSteps;
         editedReport.user_provided_additional_context = userContext.trim();
-        const editedJsonString = JSON.stringify([editedReport], null, 2);
-        handleAnalysis(true, editedJsonString);
+        const { imageFiles, ...reportForPrompt } = editedReport;
+        const editedJsonString = JSON.stringify([reportForPrompt], null, 2);
+        
+        setLoading({ state: true, message: 'Refinando análisis...' });
+        setError(null);
+        try {
+            const prompt = PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(editedJsonString);
+            callAiApi(prompt, activeReport.imageFiles, apiConfig)
+                .then(jsonText => {
+                    const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
+                    if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
+                    const cleanedJsonText = jsonMatch[1] || jsonMatch[0];
+                    const refinedReportData = JSON.parse(cleanedJsonText)[0];
+                    
+                    const refinedReport = {
+                        ...refinedReportData,
+                        imageFiles: activeReport.imageFiles 
+                    };
+
+                    setReports(prev => {
+                        const newReports = [...prev];
+                        newReports[activeReportIndex] = refinedReport;
+                        return newReports;
+                    });
+                })
+                .catch(e => {
+                    setError(`Error durante el refinamiento: ${e.message}`);
+                    console.error(e);
+                })
+                .finally(() => {
+                    setIsRefining(false);
+                    setLoading({ state: false, message: '' });
+                });
+        } catch (e) {
+             setError(`Error preparando el refinamiento: ${e.message}`);
+             console.error(e);
+             setLoading({ state: false, message: '' });
+             setIsRefining(false);
+        }
     };
     
     const closeModal = () => setModal({ show: false, title: '', content: '' });
 
+    const selectReport = (index) => {
+        setActiveReportIndex(index);
+    };
+
+    const deleteReport = (index) => {
+        setReports(prev => prev.filter((_, i) => i !== index));
+        if (activeReportIndex >= index) {
+            setActiveReportIndex(prev => Math.max(0, prev - 1));
+        }
+    };
+
+    const updateReportName = (index, newName) => {
+        setReports(prev => {
+            const newReports = [...prev];
+            newReports[index] = { ...newReports[index], Nombre_del_Escenario: newName };
+            return newReports;
+        });
+    };
+
     const value = {
         apiConfig,
         setApiConfig,
-        imageFiles,
-        setImageFiles,
+        currentImageFiles, 
+        setCurrentImageFiles,
         initialContext,
         setInitialContext,
-        reportJson,
+        reports,
+        activeReport,
+        activeReportImages,
+        activeReportIndex,
+        selectReport,
+        deleteReport,
+        updateReportName,
         loading,
         error,
         isRefining,

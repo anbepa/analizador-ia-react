@@ -4,7 +4,7 @@ import { useAppContext } from '../context/AppContext';
 import BrowserCapture from './BrowserCapture';
 
 function ImageUploader() {
-    const { imageFiles, setImageFiles, initialContext, setInitialContext } = useAppContext();
+    const { currentImageFiles, setCurrentImageFiles, initialContext, setInitialContext } = useAppContext();
 
     const processFiles = useCallback(async (filesToProcess) => {
         const filePromises = Array.from(filesToProcess).map(file => 
@@ -16,8 +16,8 @@ function ImageUploader() {
             }))
         );
         const newImageFiles = await Promise.all(filePromises);
-        setImageFiles(prev => [...prev, ...newImageFiles].sort((a, b) => a.name.localeCompare(b.name)));
-    }, [setImageFiles]);
+        setCurrentImageFiles(prev => [...prev, ...newImageFiles].sort((a, b) => a.name.localeCompare(b.name)));
+    }, [setCurrentImageFiles]);
 
     const handleImageUpload = (event) => {
         if (event.target.files.length === 0) return;
@@ -25,7 +25,7 @@ function ImageUploader() {
     };
 
     const handleRemoveImage = (indexToRemove) => {
-        setImageFiles(prev => prev.filter((_, index) => index !== indexToRemove));
+        setCurrentImageFiles(prev => prev.filter((_, index) => index !== indexToRemove));
     };
 
     const handlePaste = useCallback(async (event) => {
@@ -60,12 +60,12 @@ function ImageUploader() {
             <BrowserCapture onCapture={processFiles} />
             
             <div id="image-preview-container" className="mt-4 space-y-2">
-                {imageFiles.length > 0 && (
+                {currentImageFiles.length > 0 && (
                     <p className="text-sm font-medium text-gray-700 mb-2">
-                        Evidencias Cargadas ({imageFiles.length}):
+                        Evidencias Cargadas ({currentImageFiles.length}):
                     </p>
                 )}
-                {imageFiles.map((img, index) => (
+                {currentImageFiles.map((img, index) => (
                     <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded-md">
                         <div className="flex items-center space-x-2 overflow-hidden">
                             <span className="font-bold text-indigo-600">Img {index + 1}:</span>
