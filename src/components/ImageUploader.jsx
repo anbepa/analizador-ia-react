@@ -1,11 +1,12 @@
 import React, { useCallback } from 'react';
 import { readFileAsBase64 } from '../lib/apiService';
 import { useAppContext } from '../context/AppContext';
+import BrowserCapture from './BrowserCapture';
 
 function ImageUploader() {
     const { imageFiles, setImageFiles, initialContext, setInitialContext } = useAppContext();
 
-    const processFiles = async (filesToProcess) => {
+    const processFiles = useCallback(async (filesToProcess) => {
         const filePromises = Array.from(filesToProcess).map(file => 
             readFileAsBase64(file).then(base64String => ({
                 name: file.name,
@@ -16,7 +17,7 @@ function ImageUploader() {
         );
         const newImageFiles = await Promise.all(filePromises);
         setImageFiles(prev => [...prev, ...newImageFiles].sort((a, b) => a.name.localeCompare(b.name)));
-    };
+    }, [setImageFiles]);
 
     const handleImageUpload = (event) => {
         if (event.target.files.length === 0) return;
@@ -34,7 +35,7 @@ function ImageUploader() {
             const blobs = imageItems.map(item => item.getAsFile());
             processFiles(blobs);
         }
-    }, [setImageFiles]);
+    }, [processFiles]);
     
     React.useEffect(() => {
         document.addEventListener('paste', handlePaste);
@@ -52,6 +53,8 @@ function ImageUploader() {
                 <span className="mt-1 text-xs text-gray-500">PNG, JPG, GIF o pega desde el portapapeles</span>
             </label>
             <input type="file" id="image-upload" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+
+            <BrowserCapture onCapture={processFiles} />
             
             <div id="image-preview-container" className="mt-4 space-y-2">
                 {imageFiles.length > 0 && (

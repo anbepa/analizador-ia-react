@@ -102,3 +102,4 @@ export function readFileAsBase64(file) {
         reader.readAsDataURL(file);
     });
 }
+
