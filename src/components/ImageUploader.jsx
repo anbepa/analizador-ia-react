@@ -21,8 +21,11 @@ function ImageUploader() {
 
     const handleImageUpload = (event) => {
         if (event.target.files.length === 0) return;
-        setImageFiles([]); // Reset on new file selection
         processFiles(event.target.files);
+    };
+
+    const handleRemoveImage = (indexToRemove) => {
+        setImageFiles(prev => prev.filter((_, index) => index !== indexToRemove));
     };
 
     const handlePaste = useCallback(async (event) => {
@@ -68,6 +71,9 @@ function ImageUploader() {
                             <span className="font-bold text-indigo-600">Img {index + 1}:</span>
                             <span className="text-sm text-gray-600 truncate">{img.name}</span>
                         </div>
+                        <button onClick={() => handleRemoveImage(index)} className="text-red-500 hover:text-red-700">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
                     </div>
                 ))}
             </div>

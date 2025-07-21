@@ -4,6 +4,7 @@ function BrowserCapture({ onCapture }) {
     const [isSessionActive, setIsSessionActive] = useState(false);
     const [isCapturing, setIsCapturing] = useState(false);
     const [isVideoReady, setIsVideoReady] = useState(false);
+    const [isPreviewVisible, setIsPreviewVisible] = useState(true);
     const [error, setError] = useState(null);
     const videoRef = useRef(null);
     const streamRef = useRef(null);
@@ -18,6 +19,7 @@ function BrowserCapture({ onCapture }) {
         }
         setIsSessionActive(false);
         setIsVideoReady(false);
+        setIsPreviewVisible(true);
     }, []);
 
     const startCaptureSession = async () => {
@@ -37,6 +39,7 @@ function BrowserCapture({ onCapture }) {
             
             streamRef.current = stream;
             setIsSessionActive(true);
+            setIsPreviewVisible(true);
 
             stream.getVideoTracks()[0].onended = () => {
                 stopCaptureSession();
@@ -53,10 +56,10 @@ function BrowserCapture({ onCapture }) {
     };
 
     useEffect(() => {
-        if (isSessionActive && videoRef.current && streamRef.current) {
+        if (isSessionActive && isPreviewVisible && videoRef.current && streamRef.current) {
             videoRef.current.srcObject = streamRef.current;
         }
-    }, [isSessionActive]);
+    }, [isSessionActive, isPreviewVisible]);
 
     const takeSnapshot = useCallback(() => {
         if (!videoRef.current) return;
@@ -98,39 +101,51 @@ function BrowserCapture({ onCapture }) {
                 <div className="flex flex-col items-center">
                     <button
                         onClick={startCaptureSession}
-                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md transition-colors duration-200"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-200 text-sm"
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         Iniciar Sesión de Captura
                     </button>
                     <p className="text-xs text-gray-500 mt-2 text-center">Podrás tomar múltiples capturas de una pestaña o ventana.</p>
                 </div>
             ) : (
                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-full bg-black rounded-lg overflow-hidden border border-gray-300">
-                        <video 
-                            ref={videoRef} 
-                            autoPlay 
-                            muted 
-                            playsInline
-                            onCanPlay={() => setIsVideoReady(true)}
-                            className="w-full h-auto"
-                        ></video>
-                    </div>
+                    {isPreviewVisible ? (
+                        <div className="w-full bg-black rounded-lg overflow-hidden border border-gray-300">
+                            <video 
+                                ref={videoRef} 
+                                autoPlay 
+                                muted 
+                                playsInline
+                                onCanPlay={() => setIsVideoReady(true)}
+                                className="w-full h-auto"
+                            ></video>
+                        </div>
+                    ) : (
+                        <div className="w-full text-center py-4">
+                            <p className="text-gray-600">La sesión de captura está activa.</p>
+                        </div>
+                    )}
                     <div className="w-full flex flex-col sm:flex-row justify-center items-center gap-3">
                         <button
                             onClick={takeSnapshot}
                             disabled={!isVideoReady || isCapturing}
-                            className="w-full sm:w-auto flex-grow flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-md disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                             {getButtonText()}
                         </button>
                         <button
-                            onClick={stopCaptureSession}
-                            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md transition-colors"
+                            onClick={() => setIsPreviewVisible(!isPreviewVisible)}
+                            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors text-sm"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            {isPreviewVisible ? 'Ocultar Vista Previa' : 'Mostrar Vista Previa'}
+                        </button>
+                        <button
+                            onClick={stopCaptureSession}
+                            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors text-sm"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             Finalizar Sesión
                         </button>
                     </div>
