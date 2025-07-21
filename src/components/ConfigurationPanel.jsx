@@ -11,9 +11,9 @@ function ConfigurationPanel() {
         canGenerate,
         canRefine,
         canDownload,
-        isRefining,
         reportJson,
-        imageFiles
+        imageFiles,
+        scrollToReport // Obtener la función del contexto
     } = useAppContext();
 
     const handleProviderChange = (e) => {
@@ -33,6 +33,11 @@ function ConfigurationPanel() {
     const saveConfigToCache = () => {
         localStorage.setItem('qaAppApiConfig', JSON.stringify(apiConfig));
         alert('¡Configuración guardada!');
+    };
+
+    const handleEnableRefinement = () => {
+        setIsRefining(true);
+        scrollToReport(); // Llamar a la función de desplazamiento
     };
 
     return (
@@ -106,7 +111,7 @@ function ConfigurationPanel() {
                 <button onClick={() => handleAnalysis(false)} disabled={!canGenerate} className="w-full bg-green-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                     <span>1. Generar Reporte</span>
                 </button>
-                <button onClick={() => setIsRefining(true)} disabled={!canRefine} className="w-full bg-blue-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                <button onClick={handleEnableRefinement} disabled={!canRefine} className="w-full bg-blue-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                     <span>2. Habilitar Refinamiento</span>
                 </button>
                 <button onClick={() => downloadHtmlReport(reportJson, imageFiles)} disabled={!canDownload} className="w-full bg-orange-500 text-white font-semibold py-2 px-6 rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">

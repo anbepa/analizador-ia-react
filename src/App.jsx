@@ -5,15 +5,14 @@ import ReportDisplay from './components/ReportDisplay';
 import RefinementControls from './components/RefinementControls';
 import TicketModal from './components/TicketModal';
 import { useAppContext } from './context/AppContext';
-import { downloadHtmlReport } from './lib/downloadService';
 
 function App() {
     const { 
         reportJson, 
-        imageFiles, 
         isRefining, 
         modal, 
-        closeModal 
+        closeModal, 
+        reportRef 
     } = useAppContext();
 
     return (
@@ -29,7 +28,7 @@ function App() {
                     <ImageUploader />
                 </div>
 
-                <div className="space-y-8">
+                <div ref={reportRef} className="space-y-8">
                      <ReportDisplay />
                     {isRefining && <RefinementControls />}
                 </div>

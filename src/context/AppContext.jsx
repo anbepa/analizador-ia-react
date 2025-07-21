@@ -1,11 +1,9 @@
-import React, { createContext, useState, useEffect, useMemo, useContext } from 'react';
+import React, { createContext, useState, useEffect, useMemo, useContext, useRef } from 'react';
 import { callAiApi } from '../lib/apiService';
 import { PROMPT_FLOW_ANALYSIS_FROM_IMAGES, PROMPT_BUG_TICKET, PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT } from '../lib/prompts';
 
-// 1. Crear el Contexto
 const AppContext = createContext();
 
-// Hook personalizado para consumir el contexto fácilmente
 export const useAppContext = () => {
     const context = useContext(AppContext);
     if (context === undefined) {
@@ -14,9 +12,7 @@ export const useAppContext = () => {
     return context;
 };
 
-// 2. Crear el Proveedor del Contexto
 export const AppProvider = ({ children }) => {
-    // --- State Management ---
     const [apiConfig, setApiConfig] = useState({
         provider: 'gemini',
         gemini: { key: '', model: 'gemini-1.5-flash-latest' },
@@ -31,8 +27,8 @@ export const AppProvider = ({ children }) => {
     const [isRefining, setIsRefining] = useState(false);
     const [userContext, setUserContext] = useState('');
     const [modal, setModal] = useState({ show: false, title: '', content: '' });
+    const reportRef = useRef(null);
 
-    // --- Effects ---
     useEffect(() => {
         const cachedConfig = localStorage.getItem('qaAppApiConfig');
         if (cachedConfig) {
@@ -40,7 +36,6 @@ export const AppProvider = ({ children }) => {
         }
     }, []);
 
-    // --- Memoized Button States ---
     const canGenerate = useMemo(() => {
         const providerKey = apiConfig[apiConfig.provider]?.key;
         return providerKey && providerKey.length > 0 && imageFiles.length > 0 && !loading.state;
@@ -49,12 +44,17 @@ export const AppProvider = ({ children }) => {
     const canRefine = useMemo(() => canGenerate && reportJson, [canGenerate, reportJson]);
     const canDownload = useMemo(() => reportJson && !loading.state, [reportJson, loading.state]);
 
-    // --- Core Handlers ---
+    const scrollToReport = () => {
+        setTimeout(() => {
+            reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    };
+
     const handleAnalysis = async (refinement = false, payload = null) => {
         setLoading({ state: true, message: refinement ? 'Refinando análisis...' : 'Realizando análisis inicial...' });
         setError(null);
         if (!refinement) {
-            setReportJson(null); // Clear previous report only on initial analysis
+            setReportJson(null);
         }
 
         try {
@@ -63,13 +63,13 @@ export const AppProvider = ({ children }) => {
                 : PROMPT_FLOW_ANALYSIS_FROM_IMAGES(initialContext);
 
             const jsonText = await callAiApi(prompt, imageFiles, apiConfig);
-
             const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
-            if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido y esperado.");
+            if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
 
             const cleanedJsonText = jsonMatch[1] || jsonMatch[0];
             const newReport = JSON.parse(cleanedJsonText)[0];
             setReportJson(newReport);
+            scrollToReport();
 
         } catch (e) {
             setError(`Error durante el análisis: ${e.message}`);
@@ -104,7 +104,6 @@ export const AppProvider = ({ children }) => {
             const updatedSteps = prev.Pasos_Analizados
                 .filter(p => p.numero_paso !== stepNumber)
                 .map((p, index) => ({ ...p, numero_paso: index + 1 }));
-
             return { ...prev, Pasos_Analizados: updatedSteps };
         });
     };
@@ -180,7 +179,9 @@ export const AppProvider = ({ children }) => {
         handleStepDelete,
         handleAddStep,
         handleSaveAndRefine,
-        closeModal
+        closeModal,
+        reportRef,
+        scrollToReport
     };
 
     return (
