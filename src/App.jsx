@@ -21,7 +21,7 @@ function App() {
     return (
         <div className="container mx-auto p-4 md:p-8 max-w-7xl">
             <header className="text-center mb-8">
-                <h1 className="text-4xl font-bold text-gray-900">Analizador de Pruebas con IA</h1>
+                <h1 className="text-4xl font-bold text-primary">Analizador de Pruebas con IA</h1>
                 <p className="text-lg text-gray-600 mt-2">Analiza y refina flujos de prueba a partir de evidencias visuales.</p>
             </header>
 

@@ -75,7 +75,8 @@ function ReportDisplay() {
                 <h1>{activeReport.Nombre_del_Escenario || 'Informe de Análisis'}</h1>
                 <p className="mb-4"><strong>Conclusión General:</strong> {activeReport.Conclusion_General_Flujo || 'N/A'}</p>
                 <h2>Pasos Analizados:</h2>
-                <table>
+                <div className="overflow-auto">
+                <table className="min-w-full">
                     <thead>
                         <tr>
                             <th style={{ width: '5%' }}>Paso</th>
@@ -123,6 +124,7 @@ function ReportDisplay() {
                         })}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     );
