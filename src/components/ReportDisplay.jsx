@@ -54,7 +54,11 @@ function ReportDisplay() {
                 </button>
             )}
 
-            <div id="report-content" className="report-content" contentEditable={isRefining}>
+            <div 
+                id="report-content" 
+                className={`report-content ${loading.state ? 'opacity-50 pointer-events-none' : ''}`}
+                contentEditable={isRefining && !loading.state}
+            >
                 <h1>{activeReport.Nombre_del_Escenario || 'Informe de Análisis'}</h1>
                 <p className="mb-4"><strong>Conclusión General:</strong> {activeReport.Conclusion_General_Flujo || 'N/A'}</p>
                 <h2>Pasos Analizados:</h2>
@@ -85,8 +89,8 @@ function ReportDisplay() {
                                         <td>{paso.resultado_esperado_paso || ''}</td>
                                         <td>{paso.resultado_obtenido_paso_y_estado || ''}</td>
                                         <td>
-                                            {isFailure && !isRefining && <button onClick={() => handleGenerateTicket(paso.numero_paso)} className="bug-ticket-btn bg-red-100 text-red-700 text-xs font-bold py-1 px-2 rounded hover:bg-red-200">✨ Crear Ticket</button>}
-                                            <button onClick={() => handleStepDelete(paso.numero_paso)} data-step={paso.numero_paso} className="delete-step-btn bg-red-500 text-white text-xs font-bold py-1 px-2 rounded hover:bg-red-600">Eliminar</button>
+                                            {isFailure && !isRefining && <button disabled={loading.state} onClick={() => handleGenerateTicket(paso.numero_paso)} className="bug-ticket-btn bg-red-100 text-red-700 text-xs font-bold py-1 px-2 rounded hover:bg-red-200 disabled:bg-gray-300">✨ Crear Ticket</button>}
+                                            <button disabled={loading.state} onClick={() => handleStepDelete(paso.numero_paso)} data-step={paso.numero_paso} className="delete-step-btn bg-red-500 text-white text-xs font-bold py-1 px-2 rounded hover:bg-red-600 disabled:bg-gray-300">Eliminar</button>
                                         </td>
                                     </tr>
                                     {imgIndexEntrada >= 0 && activeReportImages[imgIndexEntrada] && (

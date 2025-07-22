@@ -3,6 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { downloadHtmlReport } from '../lib/downloadService';
 
 function ConfigurationPanel() {
+    const { showConfigurationPanel } = useAppContext();
     const {
         apiConfig,
         setApiConfig,
@@ -51,7 +52,7 @@ function ConfigurationPanel() {
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-md p-6 glassmorphism">
+        <div className={`bg-white rounded-xl shadow-md p-6 glassmorphism ${!showConfigurationPanel ? 'hidden' : ''}`}>
             <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Configuración y Acciones</h2>
             
             <div className="space-y-4">

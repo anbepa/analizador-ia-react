@@ -6,7 +6,8 @@ function RefinementControls() {
         userContext, 
         setUserContext, 
         setIsRefining, 
-        handleSaveAndRefine 
+        handleSaveAndRefine,
+        loading
     } = useAppContext();
 
     return (
@@ -15,13 +16,26 @@ function RefinementControls() {
             <p className="text-sm text-gray-600 mb-3">Añade aquí cualquier instrucción o aclaración para que la IA la considere en el re-análisis (ej: "las imágenes son logs", "enfócate en el paso 3").</p>
             <textarea 
                 rows="4" 
-                className="w-full p-2 border border-gray-300 rounded-md"
+                className="w-full p-2 border border-gray-300 rounded-md disabled:bg-gray-100"
                 value={userContext}
                 onChange={(e) => setUserContext(e.target.value)}
+                disabled={loading.state}
             />
             <div className="mt-4 flex justify-end space-x-3">
-                <button onClick={() => setIsRefining(false)} className="bg-gray-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-600">Cancelar</button>
-                <button onClick={handleSaveAndRefine} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700">Guardar y Refinar</button>
+                <button 
+                    onClick={() => setIsRefining(false)} 
+                    className="bg-gray-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-600 disabled:bg-gray-400"
+                    disabled={loading.state}
+                >
+                    Cancelar
+                </button>
+                <button 
+                    onClick={handleSaveAndRefine} 
+                    className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-400"
+                    disabled={loading.state}
+                >
+                    Guardar y Refinar
+                </button>
             </div>
         </div>
     );
