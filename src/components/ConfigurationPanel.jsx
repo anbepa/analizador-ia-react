@@ -57,7 +57,9 @@ function ConfigurationPanel() {
             
             <div className="space-y-4">
                 <div>
-                    <label htmlFor="ai-provider-select" className="block text-sm font-medium text-gray-700 mb-1">Proveedor de IA</label>
+                    <label htmlFor="ai-provider-select" className="block text-sm font-medium text-gray-700 mb-1">Proveedor de IA
+                        <span className="ml-1 text-gray-400" title="Selecciona el servicio de IA a utilizar">ⓘ</span>
+                    </label>
                     <select id="ai-provider-select" value={apiConfig.provider} onChange={handleProviderChange} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                         <option value="gemini">Gemini (Google)</option>
                         <option value="openai">OpenAI (ChatGPT)</option>
@@ -68,11 +70,23 @@ function ConfigurationPanel() {
                 {apiConfig.provider === 'gemini' && (
                      <div id="gemini-settings" className="space-y-4">
                         <div>
-                            <label htmlFor="gemini-key" className="block text-sm font-medium text-gray-700 mb-1">Clave API de Gemini</label>
-                            <input type="password" id="gemini-key" value={apiConfig.gemini.key} onChange={(e) => handleConfigChange('gemini', 'key', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="Introduce tu clave de Gemini" />
+                            <label htmlFor="gemini-key" className="block text-sm font-medium text-gray-700 mb-1">Clave API de Gemini
+                                <span className="ml-1 text-gray-400" title="Tu clave secreta de la API">ⓘ</span>
+                            </label>
+                            <input
+                                type="password"
+                                id="gemini-key"
+                                title="Introduce tu clave de Gemini"
+                                value={apiConfig.gemini.key}
+                                onChange={(e) => handleConfigChange('gemini', 'key', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                placeholder="Introduce tu clave de Gemini"
+                            />
                         </div>
                         <div>
-                            <label htmlFor="gemini-model-select" className="block text-sm font-medium text-gray-700 mb-1">Modelo de Gemini</label>
+                            <label htmlFor="gemini-model-select" className="block text-sm font-medium text-gray-700 mb-1">Modelo de Gemini
+                                <span className="ml-1 text-gray-400" title="Versión del modelo IA">ⓘ</span>
+                            </label>
                             <select 
                                 id="gemini-model-select" 
                                 value={apiConfig.gemini.model} 
@@ -90,11 +104,23 @@ function ConfigurationPanel() {
                 {apiConfig.provider === 'openai' && (
                      <div id="openai-settings" className="space-y-4">
                         <div>
-                            <label htmlFor="openai-key" className="block text-sm font-medium text-gray-700 mb-1">Clave API de OpenAI</label>
-                            <input type="password" id="openai-key" value={apiConfig.openai.key} onChange={(e) => handleConfigChange('openai', 'key', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="Introduce tu clave de OpenAI" />
+                            <label htmlFor="openai-key" className="block text-sm font-medium text-gray-700 mb-1">Clave API de OpenAI
+                                <span className="ml-1 text-gray-400" title="Tu clave secreta de la API">ⓘ</span>
+                            </label>
+                            <input
+                                type="password"
+                                id="openai-key"
+                                title="Introduce tu clave de OpenAI"
+                                value={apiConfig.openai.key}
+                                onChange={(e) => handleConfigChange('openai', 'key', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                placeholder="Introduce tu clave de OpenAI"
+                            />
                         </div>
                         <div>
-                            <label htmlFor="openai-model-select" className="block text-sm font-medium text-gray-700 mb-1">Modelo de OpenAI</label>
+                            <label htmlFor="openai-model-select" className="block text-sm font-medium text-gray-700 mb-1">Modelo de OpenAI
+                                <span className="ml-1 text-gray-400" title="Versión del modelo IA">ⓘ</span>
+                            </label>
                             <select id="openai-model-select" value={apiConfig.openai.model} onChange={(e) => handleConfigChange('openai', 'model', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                                 <option value="gpt-4o">GPT-4o</option>
                                 <option value="gpt-4-turbo">GPT-4 Turbo</option>
@@ -107,11 +133,23 @@ function ConfigurationPanel() {
                 {apiConfig.provider === 'claude' && (
                     <div id="claude-settings" className="space-y-4">
                         <div>
-                            <label htmlFor="claude-key" className="block text-sm font-medium text-gray-700 mb-1">Clave API de Claude</label>
-                            <input type="password" id="claude-key" value={apiConfig.claude.key} onChange={(e) => handleConfigChange('claude', 'key', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="Introduce tu clave de Anthropic" />
+                            <label htmlFor="claude-key" className="block text-sm font-medium text-gray-700 mb-1">Clave API de Claude
+                                <span className="ml-1 text-gray-400" title="Tu clave secreta de la API">ⓘ</span>
+                            </label>
+                            <input
+                                type="password"
+                                id="claude-key"
+                                title="Introduce tu clave de Anthropic"
+                                value={apiConfig.claude.key}
+                                onChange={(e) => handleConfigChange('claude', 'key', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                placeholder="Introduce tu clave de Anthropic"
+                            />
                         </div>
                         <div>
-                            <label htmlFor="claude-model-select" className="block text-sm font-medium text-gray-700 mb-1">Modelo de Claude</label>
+                            <label htmlFor="claude-model-select" className="block text-sm font-medium text-gray-700 mb-1">Modelo de Claude
+                                <span className="ml-1 text-gray-400" title="Versión del modelo IA">ⓘ</span>
+                            </label>
                             <select id="claude-model-select" value={apiConfig.claude.model} onChange={(e) => handleConfigChange('claude', 'model', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                                 <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
                                 <option value="claude-3-opus-20240229">Claude 3 Opus</option>
@@ -121,23 +159,39 @@ function ConfigurationPanel() {
                     </div>
                 )}
 
-                <button onClick={saveConfigToCache} className="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">Guardar Configuración</button>
+                <button
+                    onClick={saveConfigToCache}
+                    className="w-full bg-primary text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200 flex items-center justify-center gap-2"
+                >
+                    💾 Guardar Configuración
+                </button>
             </div>
 
             <div id="main-actions" className="mt-6 pt-4 border-t space-y-3">
-                <button onClick={() => handleAnalysis(false)} disabled={!canGenerate} className="w-full bg-green-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
-                    <span>1. Generar Reporte</span>
+                <button
+                    onClick={() => handleAnalysis(false)}
+                    disabled={!canGenerate}
+                    title={canGenerate ? '' : 'Carga evidencias y clave API'}
+                    className="w-full bg-green-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                    <span>🧠 Generar Reporte</span>
                 </button>
-                <button onClick={handleEnableRefinement} disabled={!canRefine} className="w-full bg-blue-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
-                    <span>2. Habilitar Refinamiento</span>
+                <button
+                    onClick={handleEnableRefinement}
+                    disabled={!canRefine}
+                    title={canRefine ? '' : 'Genera un reporte primero'}
+                    className="w-full bg-blue-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                    <span>🔍 Habilitar Refinamiento</span>
                 </button>
                 <div className="relative">
-                    <button 
-                        onClick={() => setShowDownloadOptions(!showDownloadOptions)} 
-                        disabled={!canDownload} 
+                    <button
+                        onClick={() => setShowDownloadOptions(!showDownloadOptions)}
+                        disabled={!canDownload}
+                        title={canDownload ? '' : 'Genera un reporte primero'}
                         className="w-full bg-orange-500 text-white font-semibold py-2 px-6 rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                     >
-                        <span>📥 Descargar HTML</span>
+                        <span>⬇️ Descargar HTML</span>
                         <svg className={`w-4 h-4 transition-transform ${showDownloadOptions ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
                     {showDownloadOptions && (

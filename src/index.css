@@ -10,7 +10,7 @@
 /* Estilos personalizados del proyecto original */
 body {
     font-family: 'Inter', sans-serif;
-    @apply bg-gray-100 text-gray-800;
+    @apply bg-secondary text-gray-800;
 }
 
 .glassmorphism {
@@ -114,4 +114,22 @@ body {
 .report-content[contenteditable="true"] .delete-step-btn {
     display: inline-block;
     margin-left: 5px;
+}
+
+/* Drag & Drop highlight */
+.dropzone-dragging {
+    @apply border-primary bg-primary/10;
+}
+
+/* Thumbnail gallery */
+.thumb-gallery {
+    @apply grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3;
+}
+
+.thumb-gallery img {
+    @apply w-full h-24 object-cover rounded-md shadow-md cursor-pointer;
+}
+
+.thumb-title {
+    @apply text-xs text-center mt-1 font-medium;
 }
