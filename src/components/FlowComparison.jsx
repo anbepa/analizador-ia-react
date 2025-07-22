@@ -1,5 +1,8 @@
 import React, { useState, useCallback } from 'react';
-import { readFileAsBase64 } from '../lib/apiService';
+import { readFileAsBase64, callAiApi } from '../lib/apiService';
+import { PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS } from '../lib/prompts';
+import { useAppContext } from '../context/AppContext';
+import BugReport from './BugReport';
 
 const MAX_IMAGES = 10;
 const MAX_SIZE = 4 * 1024 * 1024; // 4MB
@@ -51,7 +54,13 @@ function FlowComparison({ onComparisonGenerated }) {
                 if (!file.type.match(/image\/(png|jpe?g)/)) return null;
                 if (file.size > MAX_SIZE) return null;
                 const dataUrl = await readFileAsBase64(file);
-                return { name: file.name, dataUrl, annotation: '' };
+                return {
+                    name: file.name,
+                    dataUrl,
+                    base64: dataUrl.split(',')[1],
+                    type: file.type,
+                    annotation: ''
+                };
             })
         );
         setFlow((prev) => [...prev, ...processed.filter(Boolean)]);
@@ -100,24 +109,34 @@ function FlowComparison({ onComparisonGenerated }) {
         setAnnotationText('');
     };
 
+    const { apiConfig } = useAppContext();
+    const [error, setError] = useState(null);
+
     const canGenerate = (flowAImages.length > 0 || flowBImages.length > 0) && !loading;
 
-    const simulateAction = (action) => {
+    const handleGenerateComparison = async () => {
         setLoading(true);
-        const payload = {
-            id: currentGeneratedId,
-            title: currentFlowTitle,
-            sprint: currentFlowSprint,
-            flowA: flowAImages.map((img) => ({ name: img.name, annotation: img.annotation })),
-            flowB: flowBImages.map((img) => ({ name: img.name, annotation: img.annotation })),
-            action,
-        };
-        setTimeout(() => {
-            const data = { ...payload, status: 'ok' };
-            setResultData(data);
-            if (onComparisonGenerated) onComparisonGenerated(data);
+        setError(null);
+        try {
+            const allImages = [...flowAImages, ...flowBImages].map((img) => ({
+                base64: img.base64,
+                type: img.type,
+                dataUrl: img.dataUrl,
+            }));
+
+            const prompt = PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS();
+            const jsonText = await callAiApi(prompt, allImages, apiConfig);
+            const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
+            if (!jsonMatch) throw new Error('La respuesta de la IA no contiene JSON.');
+            const cleaned = jsonMatch[1] || jsonMatch[0];
+            const parsed = JSON.parse(cleaned);
+            setResultData(parsed);
+            if (onComparisonGenerated) onComparisonGenerated(parsed);
+        } catch (e) {
+            setError(e.message);
+        } finally {
             setLoading(false);
-        }, 1000);
+        }
     };
 
     return (
@@ -243,24 +262,17 @@ function FlowComparison({ onComparisonGenerated }) {
                         </button>
                         <button
                             disabled={!canGenerate}
-                            onClick={() => simulateAction('generate')}
+                            onClick={handleGenerateComparison}
                             className="bg-blue-800 text-white rounded font-semibold px-4 py-2 disabled:bg-gray-400"
                         >
                             Generar Comparación
                         </button>
-                        <button
-                            disabled={!canGenerate}
-                            onClick={() => simulateAction('refine')}
-                            className="bg-blue-800 text-white rounded font-semibold px-4 py-2 disabled:bg-gray-400"
-                        >
-                            Guardar y Refinar
-                        </button>
                     </div>
 
+                    {error && <p className="text-danger mt-2">Error: {error}</p>}
+
                     {resultData && (
-                        <pre className="bg-gray-100 p-4 mt-4 rounded text-sm overflow-auto">
-                            {JSON.stringify(resultData, null, 2)}
-                        </pre>
+                        <BugReport data={resultData} onClose={() => setResultData(null)} />
                     )}
                 </div>
             )}
