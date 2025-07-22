@@ -60,7 +60,7 @@ function ConfigurationPanel() {
                     <label htmlFor="ai-provider-select" className="block text-sm font-medium text-gray-700 mb-1">Proveedor de IA
                         <span className="ml-1 text-gray-400" title="Selecciona el servicio de IA a utilizar">ⓘ</span>
                     </label>
-                    <select id="ai-provider-select" value={apiConfig.provider} onChange={handleProviderChange} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <select id="ai-provider-select" value={apiConfig.provider} onChange={handleProviderChange} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary">
                         <option value="gemini">Gemini (Google)</option>
                         <option value="openai">OpenAI (ChatGPT)</option>
                         <option value="claude">Anthropic (Claude)</option>
@@ -161,7 +161,7 @@ function ConfigurationPanel() {
 
                 <button
                     onClick={saveConfigToCache}
-                    className="w-full bg-primary text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200 flex items-center justify-center gap-2"
+                    className="w-full bg-primary text-white font-semibold py-2 px-4 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200 flex items-center justify-center gap-2"
                 >
                     💾 Guardar Configuración
                 </button>
@@ -172,7 +172,7 @@ function ConfigurationPanel() {
                     onClick={() => handleAnalysis(false)}
                     disabled={!canGenerate}
                     title={canGenerate ? '' : 'Carga evidencias y clave API'}
-                    className="w-full bg-green-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                    className="w-full bg-primary text-white font-semibold py-2 px-6 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
                     <span>🧠 Generar Reporte</span>
                 </button>
@@ -180,7 +180,7 @@ function ConfigurationPanel() {
                     onClick={handleEnableRefinement}
                     disabled={!canRefine}
                     title={canRefine ? '' : 'Genera un reporte primero'}
-                    className="w-full bg-blue-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                    className="w-full bg-primary text-white font-semibold py-2 px-6 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
                     <span>🔍 Habilitar Refinamiento</span>
                 </button>
@@ -189,7 +189,7 @@ function ConfigurationPanel() {
                         onClick={() => setShowDownloadOptions(!showDownloadOptions)}
                         disabled={!canDownload}
                         title={canDownload ? '' : 'Genera un reporte primero'}
-                        className="w-full bg-orange-500 text-white font-semibold py-2 px-6 rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                        className="w-full bg-highlight text-black font-semibold py-2 px-6 rounded-md hover:bg-highlight/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-highlight transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                     >
                         <span>⬇️ Descargar HTML</span>
                         <svg className={`w-4 h-4 transition-transform ${showDownloadOptions ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>

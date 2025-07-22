@@ -25,14 +25,16 @@ function App() {
                 <p className="text-lg text-gray-600 mt-2">Analiza y refina flujos de prueba a partir de evidencias visuales.</p>
             </header>
 
-            <div className="flex flex-col gap-8">
-                {isConfigVisible ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <ConfigurationPanel />
-                        <ImageUploader />
+            <ConfigToggler />
+            <div className="flex flex-col gap-8 mt-16 md:mt-0">
+                {isConfigVisible && (
+                    <div className="bg-white rounded-lg shadow-md p-6 glassmorphism">
+                        <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Configuración</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <ConfigurationPanel />
+                            <ImageUploader />
+                        </div>
                     </div>
-                ) : (
-                    reports.length > 0 && <ConfigToggler />
                 )}
 
                 <div ref={reportRef} className="space-y-8">

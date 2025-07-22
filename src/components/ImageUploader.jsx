@@ -73,7 +73,7 @@ function ImageUploader() {
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`w-full cursor-pointer bg-white border-2 border-dashed border-gray-300 rounded-md p-6 flex flex-col items-center justify-center text-center hover:border-indigo-500 transition-colors duration-200 ${isDragging ? 'dropzone-dragging' : ''}`}
+                className={`w-full cursor-pointer bg-white border-2 border-dashed border-gray-300 rounded-md p-6 flex flex-col items-center justify-center text-center hover:border-primary transition-colors duration-200 ${isDragging ? 'dropzone-dragging' : ''}`}
             >
                 <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                 <span className="mt-2 text-sm font-medium text-gray-600">Haz clic para seleccionar o pega imágenes aquí</span>
@@ -95,7 +95,7 @@ function ImageUploader() {
                             <img src={img.dataUrl} alt={img.name} onClick={() => window.open(img.dataUrl, '_blank')} />
                             <button
                                 onClick={() => handleRemoveImage(index)}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-75 hover:opacity-100"
+                                className="absolute -top-2 -right-2 bg-danger text-white rounded-full p-1 opacity-75 hover:opacity-100"
                             >
                                 ✕
                             </button>

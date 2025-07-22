@@ -10,7 +10,7 @@
 /* Estilos personalizados del proyecto original */
 body {
     font-family: 'Inter', sans-serif;
-    @apply bg-secondary text-gray-800;
+    @apply bg-white text-black;
 }
 
 .glassmorphism {
@@ -83,12 +83,13 @@ body {
     border-left: 5px solid #28a745 !important
 }
 
+
 .report-content tr.status-failure td:first-child {
-    border-left: 5px solid #dc3545 !important
+    border-left: 5px solid #E30520 !important
 }
 
 .report-content tr.status-deviation td:first-child {
-    border-left: 5px solid #ffc107 !important
+    border-left: 5px solid #FFD300 !important
 }
 
 .report-content[contenteditable="true"] {

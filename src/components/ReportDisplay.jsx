@@ -16,7 +16,7 @@ function ReportDisplay() {
     if (loading.state && !activeReport) { // Solo muestra el spinner a pantalla completa si no hay reporte activo
         return (
             <div className="text-center py-16">
-                <svg className="animate-spin h-12 w-12 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <svg className="animate-spin h-12 w-12 text-primary mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 <p className="mt-4 font-semibold text-gray-700">{loading.message}</p>
             </div>
         );
@@ -35,13 +35,13 @@ function ReportDisplay() {
     return (
         <div className="bg-white rounded-xl shadow-md p-6 min-h-[300px] glassmorphism">
             {error && (
-                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md mb-4" role="alert">
+                 <div className="bg-danger/10 border border-danger text-danger px-4 py-3 rounded-md mb-4" role="alert">
                     Error: {error}
                 </div>
             )}
             {loading.state && (
                 <div className="text-center py-4">
-                    <svg className="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <svg className="animate-spin h-8 w-8 text-primary mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     <p className="mt-2 font-semibold text-gray-700">{loading.message}</p>
                 </div>
             )}
@@ -55,7 +55,7 @@ function ReportDisplay() {
                             .then(() => alert('Reporte copiado al portapapeles'))
                             .catch(() => alert('No se pudo copiar el reporte'));
                     }}
-                    className="bg-indigo-600 text-white font-semibold py-1 px-3 rounded-md hover:bg-indigo-700 text-sm"
+                    className="bg-primary text-white font-semibold py-1 px-3 rounded-md hover:bg-primary/90 text-sm"
                 >
                     📋 Copiar JSON
                 </button>
@@ -90,21 +90,28 @@ function ReportDisplay() {
                     <tbody>
                         {activeReport.Pasos_Analizados.map((paso) => {
                             const isFailure = paso.resultado_obtenido_paso_y_estado?.toLowerCase().includes('fallido');
-                            const statusClass = isFailure ? 'status-failure' : paso.resultado_obtenido_paso_y_estado?.toLowerCase().includes('exitosa') ? 'status-success' : 'status-deviation';
+                            const isSuccess = paso.resultado_obtenido_paso_y_estado?.toLowerCase().includes('exitosa');
+                            const statusClass = isFailure ? 'status-failure' : isSuccess ? 'status-success' : 'status-deviation';
+                            const statusIcon = isFailure ? '❌' : isSuccess ? '✔️' : '⚠️';
                             const imgIndexEntrada = getImageIndexFromString(paso.imagen_referencia_entrada);
                             const imgIndexSalida = getImageIndexFromString(paso.imagen_referencia_salida);
                             
                             return (
                                 <React.Fragment key={paso.numero_paso}>
-                                    <tr className={statusClass}>
+                                    <tr className={`odd:bg-gray-50 ${statusClass}`}>
                                         <td>{paso.numero_paso}</td>
                                         <td>{paso.descripcion_accion_observada || ''}</td>
                                         <td>{paso.dato_de_entrada_paso || ''}</td>
                                         <td>{paso.resultado_esperado_paso || ''}</td>
-                                        <td>{paso.resultado_obtenido_paso_y_estado || ''}</td>
                                         <td>
-                                            {isFailure && !isRefining && <button disabled={loading.state} onClick={() => handleGenerateTicket(paso.numero_paso)} className="bug-ticket-btn bg-red-100 text-red-700 text-xs font-bold py-1 px-2 rounded hover:bg-red-200 disabled:bg-gray-300">✨ Crear Ticket</button>}
-                                            <button disabled={loading.state} onClick={() => handleStepDelete(paso.numero_paso)} data-step={paso.numero_paso} className="delete-step-btn bg-red-500 text-white text-xs font-bold py-1 px-2 rounded hover:bg-red-600 disabled:bg-gray-300">Eliminar</button>
+                                            <div className="flex items-center gap-1">
+                                                <span>{statusIcon}</span>
+                                                <span>{paso.resultado_obtenido_paso_y_estado || ''}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {isFailure && !isRefining && <button disabled={loading.state} onClick={() => handleGenerateTicket(paso.numero_paso)} className="bug-ticket-btn bg-danger/10 text-danger text-xs font-bold py-1 px-2 rounded hover:bg-danger/20 disabled:bg-gray-300">✨ Crear Ticket</button>}
+                                            <button disabled={loading.state} onClick={() => handleStepDelete(paso.numero_paso)} data-step={paso.numero_paso} className="delete-step-btn bg-danger text-white text-xs font-bold py-1 px-2 rounded hover:bg-danger/90 disabled:bg-gray-300">Eliminar</button>
                                         </td>
                                     </tr>
                                     {imgIndexEntrada >= 0 && activeReportImages[imgIndexEntrada] && (
