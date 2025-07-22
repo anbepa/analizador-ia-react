@@ -29,9 +29,9 @@ function RefinementControls() {
                 >
                     Cancelar
                 </button>
-                <button 
-                    onClick={handleSaveAndRefine} 
-                    className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-400"
+                <button
+                    onClick={handleSaveAndRefine}
+                    className="bg-primary text-white font-semibold py-2 px-4 rounded-md hover:bg-primary/90 disabled:bg-primary/50"
                     disabled={loading.state}
                 >
                     Guardar y Refinar

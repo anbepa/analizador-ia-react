@@ -23,7 +23,7 @@ function TicketModal({ show, title, content, onClose }) {
                     <div className="mt-4 modal-content">{content}</div>
                 </div>
                 <div className="bg-gray-50 px-6 py-3 flex justify-end space-x-3 rounded-b-lg">
-                    <button onClick={copyToClipboard} className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-700">Copiar al Portapapeles</button>
+                    <button onClick={copyToClipboard} className="bg-primary text-white font-semibold py-2 px-4 rounded-md hover:bg-primary/90">Copiar al Portapapeles</button>
                 </div>
             </div>
         </div>

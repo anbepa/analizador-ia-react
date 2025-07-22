@@ -101,7 +101,7 @@ function BrowserCapture({ onCapture }) {
                 <div className="flex flex-col items-center">
                     <button
                         onClick={startCaptureSession}
-                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-200 text-sm"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold py-2 px-4 rounded-md transition-colors duration-200 text-sm"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         Iniciar Sesión de Captura
@@ -137,13 +137,13 @@ function BrowserCapture({ onCapture }) {
                         </button>
                         <button
                             onClick={() => setIsPreviewVisible(!isPreviewVisible)}
-                            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors text-sm"
+                            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold py-2 px-4 rounded-md transition-colors text-sm"
                         >
                             {isPreviewVisible ? 'Ocultar Vista Previa' : 'Mostrar Vista Previa'}
                         </button>
                         <button
                             onClick={stopCaptureSession}
-                            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors text-sm"
+                            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-danger hover:bg-danger/90 text-white font-bold py-2 px-4 rounded-md transition-colors text-sm"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             Finalizar Sesión
@@ -151,7 +151,7 @@ function BrowserCapture({ onCapture }) {
                     </div>
                 </div>
             )}
-            {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
+            {error && <p className="text-danger text-sm mt-3 text-center">{error}</p>}
         </div>
     );
 }
