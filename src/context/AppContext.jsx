@@ -28,6 +28,7 @@ export const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState({ state: false, message: '' });
     const [error, setError] = useState(null);
     const [isRefining, setIsRefining] = useState(false);
+    const [showConfigurationPanel, setShowConfigurationPanel] = useState(true);
     const [userContext, setUserContext] = useState('');
     const [modal, setModal] = useState({ show: false, title: '', content: '' });
     const reportRef = useRef(null);
@@ -256,10 +257,12 @@ export const AppProvider = ({ children }) => {
         });
     };
 
+    const isConfigVisible = showConfigurationPanel || reports.length === 0;
+
     const value = {
         apiConfig,
         setApiConfig,
-        currentImageFiles, 
+        currentImageFiles,
         setCurrentImageFiles,
         initialContext,
         setInitialContext,
@@ -274,6 +277,9 @@ export const AppProvider = ({ children }) => {
         error,
         isRefining,
         setIsRefining,
+        showConfigurationPanel,
+        setShowConfigurationPanel,
+        isConfigVisible,
         userContext,
         setUserContext,
         modal,
