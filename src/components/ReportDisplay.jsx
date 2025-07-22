@@ -46,7 +46,20 @@ function ReportDisplay() {
                 </div>
             )}
 
-            <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">Reporte Visual</h2>
+            <div className="flex justify-between items-center border-b pb-2 mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">Reporte Visual</h2>
+                <button
+                    onClick={() => {
+                        const json = JSON.stringify(activeReport, null, 2);
+                        navigator.clipboard.writeText(json)
+                            .then(() => alert('Reporte copiado al portapapeles'))
+                            .catch(() => alert('No se pudo copiar el reporte'));
+                    }}
+                    className="bg-indigo-600 text-white font-semibold py-1 px-3 rounded-md hover:bg-indigo-700 text-sm"
+                >
+                    📋 Copiar JSON
+                </button>
+            </div>
             
             {isRefining && (
                 <button onClick={handleAddStep} className="bg-green-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-green-700 mb-4">
