@@ -16,7 +16,7 @@ function slugify(str) {
 }
 
 function FlowComparison({ onComparisonGenerated }) {
-    const [showForm, setShowForm] = useState(false);
+    const [showForm, setShowForm] = useState(true);
     const [currentFlowTitle, setCurrentFlowTitle] = useState('');
     const [currentFlowSprint, setCurrentFlowSprint] = useState('');
     const [currentGeneratedId, setCurrentGeneratedId] = useState('');
