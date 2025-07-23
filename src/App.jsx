@@ -18,7 +18,6 @@ function App() {
         reports,
         isConfigVisible
     } = useAppContext();
-    const [comparisonResult, setComparisonResult] = React.useState(null);
 
     return (
         <div className="container mx-auto p-4 md:p-8 max-w-7xl">
@@ -45,16 +44,7 @@ function App() {
                     {isRefining && <RefinementControls />}
                 </div>
 
-                <FlowComparison onComparisonGenerated={setComparisonResult} />
-
-                {comparisonResult && (
-                    <div className="bg-white rounded-xl shadow-md p-6">
-                        <h3 className="text-lg font-semibold mb-2">Resultado de Comparación</h3>
-                        <pre className="bg-gray-100 p-4 rounded text-sm overflow-auto">
-                            {JSON.stringify(comparisonResult, null, 2)}
-                        </pre>
-                    </div>
-                )}
+                <FlowComparison />
             </div>
 
             <TicketModal
