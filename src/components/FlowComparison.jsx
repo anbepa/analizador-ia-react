@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { callAiApi } from '../lib/apiService';
 import { PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS } from '../lib/prompts';
 import { useAppContext } from '../context/AppContext';
+import { loadBugReports, saveBugReports } from '../lib/idbService';
 import BugReport from './BugReport';
 import BugReportTabs from './BugReportTabs';
 import FlowImageUploader from './FlowImageUploader';
@@ -25,14 +26,21 @@ function FlowComparison({ onComparisonGenerated }) {
     const [loading, setLoading] = useState(false);
     const [userContext, setUserContext] = useState('');
 
-    const [bugReports, setBugReports] = useState(() => {
-        const cached = localStorage.getItem('qaBugReports');
-        return cached ? JSON.parse(cached) : [];
-    });
+    const [bugReports, setBugReports] = useState([]);
     const [activeReportIndex, setActiveReportIndex] = useState(0);
 
     useEffect(() => {
-        localStorage.setItem('qaBugReports', JSON.stringify(bugReports));
+        loadBugReports()
+            .then((cached) => {
+                if (cached && cached.length > 0) {
+                    setBugReports(cached);
+                }
+            })
+            .catch((err) => console.error('Error al cargar bugReports', err));
+    }, []);
+
+    useEffect(() => {
+        saveBugReports(bugReports).catch((err) => console.error('Error al guardar bugReports', err));
     }, [bugReports]);
 
     const resetForm = () => {
