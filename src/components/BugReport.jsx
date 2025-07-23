@@ -6,7 +6,7 @@ function BugReport({ data, flowA = [], flowB = [] }) {
 
     const getImageUrl = (ref) => {
         if (!ref || typeof ref !== 'string') return null;
-        const match = ref.match(/([ab])[^0-9]*(\d+)/i);
+        const match = ref.match(/\b([ab])[^0-9]*(\d+)/i);
         if (!match) return null;
         const flow = match[1].toUpperCase();
         const num = parseInt(match[2], 10);
