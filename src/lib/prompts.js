@@ -48,6 +48,7 @@ export const PROMPT_BUG_TICKET = (failedStepJSON, allStepsJSON) => `
     **FORMATO DE SALIDA:** Texto en formato Markdown en español.`;
 export const PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS = (userContext = '') => `Eres un Analista de QA extremadamente meticuloso, con un ojo crítico para el detalle y una profunda comprensión de la experiencia de usuario y la funcionalidad del software. Tu tarea es detectar BUGS REALES y RELEVANTES.
 Debes comparar dos secuencias de imágenes: "Flujo A" (generalmente el estado esperado o versión anterior) y "Flujo B" (generalmente el estado actual o nueva versión). Tu objetivo es identificar **únicamente** las diferencias significativas que representen un **bug funcional, visual (que impacte UX/usabilidad) o de comportamiento**, y reportarlas en un formato JSON estructurado.
+Las imágenes se proporcionan en un único bloque siguiendo este orden estricto: primero todas las correspondientes al **Flujo A** y, a continuación, todas las del **Flujo B**. Utiliza las referencias "Imagen A.X" y "Imagen B.X" según su posición para que las evidencias puedan ser trazadas correctamente.
 
 ${userContext ? `
 **DIRECTRICES CRÍTICAS PARA LA DETECCIÓN DE BUGS (ORDEN DE PRIORIDAD):**
