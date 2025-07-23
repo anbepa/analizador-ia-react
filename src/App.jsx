@@ -15,8 +15,7 @@ function App() {
         modal,
         closeModal,
         reportRef,
-        reports,
-        isConfigVisible
+        showConfigurationPanel
     } = useAppContext();
 
     const [showScenario, setShowScenario] = useState(false);
@@ -34,17 +33,19 @@ function App() {
                 onToggleBugs={() => setShowBugs(!showBugs)}
             />
             <div className="flex flex-col gap-8 mt-16 md:mt-0">
+                {showConfigurationPanel && (
+                    <ConfigurationPanel mode="config" />
+                )}
+
                 {showScenario && (
                     <>
-                        {isConfigVisible && (
-                            <div className="bg-white rounded-lg shadow-md p-6 glassmorphism">
-                                <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Configuración</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <ConfigurationPanel />
-                                    <ImageUploader />
-                                </div>
+                        <div className="bg-white rounded-lg shadow-md p-6 glassmorphism">
+                            <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Generar Escenarios con imágenes</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <ImageUploader />
+                                <ConfigurationPanel mode="actions" />
                             </div>
-                        )}
+                        </div>
 
                         <div ref={reportRef} className="space-y-8">
                             <ReportTabs />
