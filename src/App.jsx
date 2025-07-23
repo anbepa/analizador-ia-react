@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ConfigurationPanel from './components/ConfigurationPanel';
 import ImageUploader from './components/ImageUploader';
 import ReportDisplay from './components/ReportDisplay';
@@ -12,12 +12,15 @@ import { useAppContext } from './context/AppContext';
 function App() {
     const {
         isRefining,
-        modal, 
-        closeModal, 
+        modal,
+        closeModal,
         reportRef,
         reports,
         isConfigVisible
     } = useAppContext();
+
+    const [showScenario, setShowScenario] = useState(false);
+    const [showBugs, setShowBugs] = useState(false);
 
     return (
         <div className="container mx-auto p-4 md:p-8 max-w-7xl">
@@ -26,25 +29,26 @@ function App() {
                 <p className="text-lg text-gray-600 mt-2">Analiza y refina flujos de prueba a partir de evidencias visuales.</p>
             </header>
 
-            <ConfigToggler />
+            <ConfigToggler
+                onToggleScenario={() => setShowScenario(!showScenario)}
+                onToggleBugs={() => setShowBugs(!showBugs)}
+            />
             <div className="flex flex-col gap-8 mt-16 md:mt-0">
-                {isConfigVisible && (
-                    <div className="bg-white rounded-lg shadow-md p-6 glassmorphism">
-                        <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Configuración</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <ConfigurationPanel />
-                            <ImageUploader />
+                {isConfigVisible && <ConfigurationPanel section="settings" />}
+
+                {showScenario && (
+                    <>
+                        <ImageUploader />
+                        <ConfigurationPanel section="actions" />
+                        <div ref={reportRef} className="space-y-8">
+                            <ReportTabs />
+                            <ReportDisplay />
+                            {isRefining && <RefinementControls />}
                         </div>
-                    </div>
+                    </>
                 )}
 
-                <div ref={reportRef} className="space-y-8">
-                     <ReportTabs />
-                     <ReportDisplay />
-                    {isRefining && <RefinementControls />}
-                </div>
-
-                <FlowComparison />
+                {showBugs && <FlowComparison />}
             </div>
 
             <TicketModal

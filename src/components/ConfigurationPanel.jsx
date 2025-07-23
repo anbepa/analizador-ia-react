@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { downloadHtmlReport } from '../lib/downloadService';
 
-function ConfigurationPanel() {
+function ConfigurationPanel({ section = 'full' }) {
     const { showConfigurationPanel } = useAppContext();
     const {
         apiConfig,
@@ -14,7 +14,6 @@ function ConfigurationPanel() {
         canDownload,
         activeReport,
         reports, // Get all reports
-        imageFiles,
         scrollToReport
     } = useAppContext();
 
@@ -51,10 +50,16 @@ function ConfigurationPanel() {
         scrollToReport();
     };
 
+    const shouldShow = section === 'actions' ? true : showConfigurationPanel;
+    if (!shouldShow) return null;
+
     return (
-        <div className={`bg-white rounded-xl shadow-md p-6 glassmorphism ${!showConfigurationPanel ? 'hidden' : ''}`}>
-            <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Configuración y Acciones</h2>
-            
+        <div className="bg-white rounded-xl shadow-md p-6 glassmorphism">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">
+                {section === 'settings' ? 'Configuración' : section === 'actions' ? 'Reporte Visual' : 'Configuración y Acciones'}
+            </h2>
+
+            {section !== 'actions' && (
             <div className="space-y-4">
                 <div>
                     <label htmlFor="ai-provider-select" className="block text-sm font-medium text-gray-700 mb-1">Proveedor de IA
@@ -166,6 +171,7 @@ function ConfigurationPanel() {
                     💾 Guardar Configuración
                 </button>
             </div>
+            )}
 
             <div id="main-actions" className="mt-6 pt-4 border-t space-y-3">
                 <button
