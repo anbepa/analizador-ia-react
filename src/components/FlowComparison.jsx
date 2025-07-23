@@ -272,7 +272,12 @@ function FlowComparison({ onComparisonGenerated }) {
                     {error && <p className="text-danger mt-2">Error: {error}</p>}
 
                     {resultData && (
-                        <BugReport data={resultData} onClose={() => setResultData(null)} />
+                        <BugReport
+                            data={resultData}
+                            flowA={flowAImages}
+                            flowB={flowBImages}
+                            onClose={() => setResultData(null)}
+                        />
                     )}
                 </div>
             )}
