@@ -10,7 +10,7 @@ const ConfigToggler = ({ onToggleScenario, onToggleBugs }) => {
                 onClick={() => setShowConfigurationPanel(!showConfigurationPanel)}
                 className="bg-primary text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-primary/90 transition-colors w-48 md:w-auto"
             >
-                {showConfigurationPanel ? 'Ocultar Configuración' : 'Mostrar Configuración'}
+                Configuración
             </button>
             <button
                 onClick={onToggleScenario}
