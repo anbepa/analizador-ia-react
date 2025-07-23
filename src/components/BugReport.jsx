@@ -123,13 +123,13 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
                                 {imgA && (
                                     <div className="flex flex-col items-start">
                                         <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo A: {bug.imagen_referencia_flujo_a}</span>
-                                        <img src={imgA} alt={bug.imagen_referencia_flujo_a} className="w-32 h-auto rounded border" crossOrigin="anonymous" />
+                                        <img src={imgA} alt={bug.imagen_referencia_flujo_a} className="w-48 h-auto rounded border" crossOrigin="anonymous" />
                                     </div>
                                 )}
                                 {imgB && (
                                     <div className="flex flex-col items-start">
                                         <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo B: {bug.imagen_referencia_flujo_b}</span>
-                                        <img src={imgB} alt={bug.imagen_referencia_flujo_b} className="w-32 h-auto rounded border" crossOrigin="anonymous" />
+                                        <img src={imgB} alt={bug.imagen_referencia_flujo_b} className="w-48 h-auto rounded border" crossOrigin="anonymous" />
                                     </div>
                                 )}
                             </div>
