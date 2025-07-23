@@ -12,6 +12,12 @@ function FlowImageUploader({
 }) {
     const [isDragging, setIsDragging] = useState(false);
 
+    const assignRefs = useCallback((imgs) =>
+        imgs.map((img, idx) => ({
+            ...img,
+            ref: `${label.includes('Flujo B') ? 'B' : 'A'}${idx + 1}`,
+        })), [label]);
+
     const processFiles = useCallback(async (filesToProcess) => {
         const filePromises = Array.from(filesToProcess).map((file) =>
             readFileAsBase64(file).then((dataUrl) => ({
@@ -23,8 +29,10 @@ function FlowImageUploader({
             }))
         );
         const newImages = await Promise.all(filePromises);
-        setImages((prev) => [...prev, ...newImages].sort((a, b) => a.name.localeCompare(b.name)));
-    }, [setImages]);
+        setImages((prev) =>
+            assignRefs([...prev, ...newImages].sort((a, b) => a.name.localeCompare(b.name)))
+        );
+    }, [setImages, assignRefs]);
 
     const handleImageUpload = (e) => {
         if (e.target.files.length === 0) return;
@@ -32,7 +40,7 @@ function FlowImageUploader({
     };
 
     const handleRemoveImage = (index) => {
-        setImages((prev) => prev.filter((_, i) => i !== index));
+        setImages((prev) => assignRefs(prev.filter((_, i) => i !== index)));
     };
 
     const handlePaste = useCallback(
