@@ -17,14 +17,12 @@ function slugify(str) {
 function FlowComparison({ onComparisonGenerated }) {
     const [showForm, setShowForm] = useState(true);
     const [currentFlowTitle, setCurrentFlowTitle] = useState('');
-    const [currentFlowSprint, setCurrentFlowSprint] = useState('');
     const [currentGeneratedId, setCurrentGeneratedId] = useState('');
     const [flowAImages, setFlowAImages] = useState([]);
     const [flowBImages, setFlowBImages] = useState([]);
     const [selectedImage, setSelectedImage] = useState(null); // {flow: 'A'|'B', index: number}
     const [annotationText, setAnnotationText] = useState('');
     const [loading, setLoading] = useState(false);
-    const [resultData, setResultData] = useState(null);
     const [userContext, setUserContext] = useState('');
 
     const [bugReports, setBugReports] = useState(() => {
@@ -39,17 +37,10 @@ function FlowComparison({ onComparisonGenerated }) {
 
     const resetForm = () => {
         setCurrentFlowTitle('');
-        setCurrentFlowSprint('');
         setCurrentGeneratedId('');
         setFlowAImages([]);
         setFlowBImages([]);
-        setResultData(null);
         setUserContext('');
-    };
-
-    const handleCancel = () => {
-        resetForm();
-        setShowForm(false);
     };
 
     const handleTitleChange = (e) => {
@@ -101,12 +92,10 @@ function FlowComparison({ onComparisonGenerated }) {
         const rep = bugReports[index];
         if (!rep) return;
         setCurrentFlowTitle(rep.title);
-        setCurrentFlowSprint(rep.sprint);
         setCurrentGeneratedId(rep.generatedId);
         setFlowAImages(rep.flowA);
         setFlowBImages(rep.flowB);
         setUserContext(rep.context || '');
-        setResultData(rep.data);
         setShowForm(true);
         setActiveReportIndex(index);
     };
@@ -119,7 +108,6 @@ function FlowComparison({ onComparisonGenerated }) {
             }
             return arr;
         });
-        setResultData(null);
     };
 
     const updateReportName = (index, name) => {
@@ -148,7 +136,6 @@ function FlowComparison({ onComparisonGenerated }) {
             const parsed = JSON.parse(cleaned);
             const newReport = {
                 title: currentFlowTitle,
-                sprint: currentFlowSprint,
                 generatedId: currentGeneratedId,
                 context: userContext,
                 flowA: flowAImages,
@@ -160,8 +147,14 @@ function FlowComparison({ onComparisonGenerated }) {
                 setActiveReportIndex(arr.length - 1);
                 return arr;
             });
-            setResultData(parsed);
             if (onComparisonGenerated) onComparisonGenerated(parsed);
+
+            // Clear uploaded images and form fields for next analysis
+            setCurrentFlowTitle('');
+            setCurrentGeneratedId('');
+            setFlowAImages([]);
+            setFlowBImages([]);
+            setUserContext('');
         } catch (e) {
             setError(e.message);
         } finally {
@@ -205,15 +198,6 @@ function FlowComparison({ onComparisonGenerated }) {
                                 className="border border-gray-300 rounded px-3 py-2 w-full"
                             />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Sprint</label>
-                            <input
-                                type="text"
-                                value={currentFlowSprint}
-                                onChange={(e) => setCurrentFlowSprint(e.target.value)}
-                                className="border border-gray-300 rounded px-3 py-2 w-full"
-                            />
-                        </div>
                     </div>
                     {currentGeneratedId && (
                         <p className="text-xs text-gray-500 mt-1">ID: {currentGeneratedId}</p>
@@ -253,12 +237,6 @@ function FlowComparison({ onComparisonGenerated }) {
 
                     <div className="mt-4 flex justify-end space-x-3">
                         <button
-                            onClick={handleCancel}
-                            className="bg-gray-500 text-white rounded font-semibold px-4 py-2"
-                        >
-                            Cancelar
-                        </button>
-                        <button
                             disabled={!canGenerate}
                             onClick={handleGenerateComparison}
                             className="bg-blue-800 text-white rounded font-semibold px-4 py-2 disabled:bg-gray-400"
@@ -276,12 +254,11 @@ function FlowComparison({ onComparisonGenerated }) {
 
                     {error && <p className="text-danger mt-2">Error: {error}</p>}
 
-                    {resultData && (
+                    {bugReports.length > 0 && bugReports[activeReportIndex] && (
                         <BugReport
-                            data={resultData}
-                            flowA={flowAImages}
-                            flowB={flowBImages}
-                            onClose={() => setResultData(null)}
+                            data={bugReports[activeReportIndex].data}
+                            flowA={bugReports[activeReportIndex].flowA}
+                            flowB={bugReports[activeReportIndex].flowB}
                         />
                     )}
                 </div>

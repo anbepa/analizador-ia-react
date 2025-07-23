@@ -1,12 +1,12 @@
 import React, { useRef } from 'react';
 import html2pdf from 'html2pdf.js';
 
-function BugReport({ data, flowA = [], flowB = [], onClose }) {
+function BugReport({ data, flowA = [], flowB = [] }) {
     const reportRef = useRef(null);
 
     const getImageUrl = (ref) => {
         if (!ref || typeof ref !== 'string') return null;
-        const match = ref.match(/Imagen\s+([AB])\.(\d+)/i);
+        const match = ref.match(/imagen\s+([ab])[:\.\s]*?(\d+)/i);
         if (!match) return null;
         const flow = match[1].toUpperCase();
         const idx = parseInt(match[2], 10) - 1;
@@ -71,12 +71,6 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
                         className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded text-sm pdf-hide"
                     >
                         📄 Descargar PDF
-                    </button>
-                    <button
-                        onClick={onClose}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded text-sm pdf-hide"
-                    >
-                        Cerrar Reporte
                     </button>
                 </div>
             </div>
