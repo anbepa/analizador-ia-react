@@ -9,9 +9,11 @@ function BugReport({ data, flowA = [], flowB = [] }) {
         const match = ref.match(/([ab])[^0-9]*(\d+)/i);
         if (!match) return null;
         const flow = match[1].toUpperCase();
-        const idx = parseInt(match[2], 10) - 1;
+        const num = parseInt(match[2], 10);
+        if (isNaN(num)) return null;
         const arr = flow === 'A' ? flowA : flowB;
-        return arr[idx]?.dataUrl || null;
+        const found = arr.find((img) => img.ref === `${flow}${num}`);
+        return found?.dataUrl || arr[num - 1]?.dataUrl || null;
     };
 
     const handleDownload = () => {

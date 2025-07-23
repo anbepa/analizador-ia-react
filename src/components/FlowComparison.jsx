@@ -21,6 +21,9 @@ function FlowComparison({ onComparisonGenerated }) {
     const [currentGeneratedId, setCurrentGeneratedId] = useState('');
     const [flowAImages, setFlowAImages] = useState([]);
     const [flowBImages, setFlowBImages] = useState([]);
+
+    const assignRefs = (arr, prefix) =>
+        arr.map((img, idx) => ({ ...img, ref: `${prefix}${idx + 1}` }));
     const [selectedImage, setSelectedImage] = useState(null); // {flow: 'A'|'B', index: number}
     const [annotationText, setAnnotationText] = useState('');
     const [loading, setLoading] = useState(false);
@@ -33,7 +36,12 @@ function FlowComparison({ onComparisonGenerated }) {
         loadBugReports()
             .then((cached) => {
                 if (cached && cached.length > 0) {
-                    setBugReports(cached);
+                    const withRefs = cached.map((rep) => ({
+                        ...rep,
+                        flowA: assignRefs(rep.flowA || [], 'A'),
+                        flowB: assignRefs(rep.flowB || [], 'B'),
+                    }));
+                    setBugReports(withRefs);
                 }
             })
             .catch((err) => console.error('Error al cargar bugReports', err));
@@ -70,7 +78,7 @@ function FlowComparison({ onComparisonGenerated }) {
             const arr = [...prev];
             const [moved] = arr.splice(from, 1);
             arr.splice(index, 0, moved);
-            return arr;
+            return assignRefs(arr, flow);
         });
     };
 
@@ -101,8 +109,8 @@ function FlowComparison({ onComparisonGenerated }) {
         if (!rep) return;
         setCurrentFlowTitle(rep.title);
         setCurrentGeneratedId(rep.generatedId);
-        setFlowAImages(rep.flowA);
-        setFlowBImages(rep.flowB);
+        setFlowAImages(assignRefs(rep.flowA || [], 'A'));
+        setFlowBImages(assignRefs(rep.flowB || [], 'B'));
         setUserContext(rep.context || '');
         setShowForm(true);
         setActiveReportIndex(index);
@@ -146,8 +154,8 @@ function FlowComparison({ onComparisonGenerated }) {
                 title: currentFlowTitle,
                 generatedId: currentGeneratedId,
                 context: userContext,
-                flowA: flowAImages,
-                flowB: flowBImages,
+                flowA: assignRefs(flowAImages, 'A'),
+                flowB: assignRefs(flowBImages, 'B'),
                 data: parsed,
             };
             setBugReports((prev) => {
