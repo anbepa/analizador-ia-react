@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { callAiApi } from '../lib/apiService';
 import { PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS } from '../lib/prompts';
 import { useAppContext } from '../context/AppContext';
 import BugReport from './BugReport';
+import BugReportTabs from './BugReportTabs';
 import FlowImageUploader from './FlowImageUploader';
 
 function slugify(str) {
@@ -24,6 +25,17 @@ function FlowComparison({ onComparisonGenerated }) {
     const [annotationText, setAnnotationText] = useState('');
     const [loading, setLoading] = useState(false);
     const [resultData, setResultData] = useState(null);
+    const [userContext, setUserContext] = useState('');
+
+    const [bugReports, setBugReports] = useState(() => {
+        const cached = localStorage.getItem('qaBugReports');
+        return cached ? JSON.parse(cached) : [];
+    });
+    const [activeReportIndex, setActiveReportIndex] = useState(0);
+
+    useEffect(() => {
+        localStorage.setItem('qaBugReports', JSON.stringify(bugReports));
+    }, [bugReports]);
 
     const resetForm = () => {
         setCurrentFlowTitle('');
@@ -32,6 +44,7 @@ function FlowComparison({ onComparisonGenerated }) {
         setFlowAImages([]);
         setFlowBImages([]);
         setResultData(null);
+        setUserContext('');
     };
 
     const handleCancel = () => {
@@ -84,6 +97,39 @@ function FlowComparison({ onComparisonGenerated }) {
 
     const canGenerate = (flowAImages.length > 0 || flowBImages.length > 0) && !loading;
 
+    const selectReport = (index) => {
+        const rep = bugReports[index];
+        if (!rep) return;
+        setCurrentFlowTitle(rep.title);
+        setCurrentFlowSprint(rep.sprint);
+        setCurrentGeneratedId(rep.generatedId);
+        setFlowAImages(rep.flowA);
+        setFlowBImages(rep.flowB);
+        setUserContext(rep.context || '');
+        setResultData(rep.data);
+        setShowForm(true);
+        setActiveReportIndex(index);
+    };
+
+    const deleteReport = (index) => {
+        setBugReports((prev) => {
+            const arr = prev.filter((_, i) => i !== index);
+            if (activeReportIndex >= index) {
+                setActiveReportIndex(Math.max(0, activeReportIndex - 1));
+            }
+            return arr;
+        });
+        setResultData(null);
+    };
+
+    const updateReportName = (index, name) => {
+        setBugReports((prev) => {
+            const arr = [...prev];
+            if (arr[index]) arr[index].title = name;
+            return arr;
+        });
+    };
+
     const handleGenerateComparison = async () => {
         setLoading(true);
         setError(null);
@@ -94,12 +140,26 @@ function FlowComparison({ onComparisonGenerated }) {
                 dataUrl: img.dataUrl,
             }));
 
-            const prompt = PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS();
+            const prompt = PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS(userContext);
             const jsonText = await callAiApi(prompt, allImages, apiConfig);
             const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
             if (!jsonMatch) throw new Error('La respuesta de la IA no contiene JSON.');
             const cleaned = jsonMatch[1] || jsonMatch[0];
             const parsed = JSON.parse(cleaned);
+            const newReport = {
+                title: currentFlowTitle,
+                sprint: currentFlowSprint,
+                generatedId: currentGeneratedId,
+                context: userContext,
+                flowA: flowAImages,
+                flowB: flowBImages,
+                data: parsed,
+            };
+            setBugReports((prev) => {
+                const arr = [...prev, newReport];
+                setActiveReportIndex(arr.length - 1);
+                return arr;
+            });
             setResultData(parsed);
             if (onComparisonGenerated) onComparisonGenerated(parsed);
         } catch (e) {
@@ -118,6 +178,16 @@ function FlowComparison({ onComparisonGenerated }) {
                 >
                     Generar Bugs
                 </button>
+            )}
+
+            {bugReports.length > 0 && (
+                <BugReportTabs
+                    reports={bugReports}
+                    activeIndex={activeReportIndex}
+                    selectReport={selectReport}
+                    deleteReport={deleteReport}
+                    updateName={updateReportName}
+                />
             )}
 
             {showForm && (
@@ -169,6 +239,18 @@ function FlowComparison({ onComparisonGenerated }) {
                         />
                     </div>
 
+                    <div className="mt-6">
+                        <label className="block text-sm font-medium mb-1">
+                            Contexto Inicial para Análisis (Opcional)
+                        </label>
+                        <textarea
+                            rows="4"
+                            className="w-full p-2 border border-gray-300 rounded-md"
+                            value={userContext}
+                            onChange={(e) => setUserContext(e.target.value)}
+                        />
+                    </div>
+
                     <div className="mt-4 flex justify-end space-x-3">
                         <button
                             onClick={handleCancel}
@@ -184,6 +266,13 @@ function FlowComparison({ onComparisonGenerated }) {
                             Generar Bugs
                         </button>
                     </div>
+
+                    {loading && (
+                        <div className="text-center py-4">
+                            <svg className="animate-spin h-8 w-8 text-blue-800 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <p className="mt-2 font-semibold text-gray-700">Generando reporte...</p>
+                        </div>
+                    )}
 
                     {error && <p className="text-danger mt-2">Error: {error}</p>}
 
