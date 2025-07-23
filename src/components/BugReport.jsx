@@ -1,9 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import html2pdf from 'html2pdf.js';
 
 function BugReport({ data, flowA = [], flowB = [], onClose }) {
     const reportRef = useRef(null);
-    const [showJSON, setShowJSON] = useState(true);
 
     const getImageUrl = (ref) => {
         if (!ref || typeof ref !== 'string') return null;
@@ -18,6 +17,9 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
     const handleDownload = () => {
         if (!reportRef.current) return;
         const node = reportRef.current;
+        const buttons = node.querySelectorAll('.pdf-hide');
+        buttons.forEach((b) => (b.style.display = 'none'));
+
         const images = node.querySelectorAll('img');
         const loadPromises = Array.from(images).map((img) => {
             if (img.complete) return Promise.resolve();
@@ -40,13 +42,16 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
                 html2canvas: { scale: 2, useCORS: true },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
-            html2pdf().set(opt).from(node).save();
+            const res = html2pdf().set(opt).from(node).save();
+            const restore = () => buttons.forEach((b) => (b.style.display = ''));
+            if (res && typeof res.then === 'function') {
+                res.then(restore);
+            } else {
+                restore();
+            }
         });
     };
 
-    const handleCopyJson = () => {
-        navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-    };
 
     const severityStyles = {
         Alta: { border: 'border-red-600', bg: 'bg-red-50' },
@@ -63,13 +68,13 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
                 <div className="space-x-2 flex">
                     <button
                         onClick={handleDownload}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded text-sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded text-sm pdf-hide"
                     >
                         📄 Descargar PDF
                     </button>
                     <button
                         onClick={onClose}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded text-sm"
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded text-sm pdf-hide"
                     >
                         Cerrar Reporte
                     </button>
@@ -133,22 +138,6 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
                 );
             })}
 
-            <div className="mt-8">
-                <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-lg font-semibold flex items-center gap-2">🧾 Resultado en JSON</h4>
-                    <div className="space-x-2">
-                        <button onClick={handleCopyJson} className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">Copiar</button>
-                        <button onClick={() => setShowJSON((s) => !s)} className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">
-                            {showJSON ? 'Ocultar' : 'Mostrar'}
-                        </button>
-                    </div>
-                </div>
-                {showJSON && (
-                    <pre className="bg-gray-100 p-4 rounded text-sm font-mono text-gray-700 max-h-96 overflow-auto">
-                        {JSON.stringify(data, null, 2)}
-                    </pre>
-                )}
-            </div>
         </div>
     );
 }
