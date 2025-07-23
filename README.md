@@ -57,3 +57,11 @@ Sigue estos pasos para instalar y ejecutar el proyecto en tu máquina local.
 -   `npm run build`: Compila la aplicación para producción.
 -   `npm run lint`: Ejecuta el linter de ESLint.
 -   `npm run preview`: Sirve la compilación de producción localmente.
+
+## Reporte de Bugs Mejorado
+
+El reporte de comparación muestra cada bug en una tarjeta con bordes
+diferenciados según su severidad e incluye miniaturas de las imágenes de
+referencia. Al descargar en PDF, las imágenes se cargan y se incrustan
+correctamente en el documento.
+
