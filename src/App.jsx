@@ -52,7 +52,9 @@ function App() {
 
             <ConfigToggler
                 onToggleScenario={() => setShowScenario(!showScenario)}
-                onToggleBugs={() => setShowBugs(!showBugs)}
+                onToggleBugs={() => {
+                    if (!showBugs) setShowBugs(true);
+                }}
             />
             <div className="flex flex-col gap-8 mt-16 md:mt-0">
                 {showConfigurationPanel && (
