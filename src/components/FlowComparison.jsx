@@ -1,11 +1,9 @@
-import React, { useState, useCallback } from 'react';
-import { readFileAsBase64, callAiApi } from '../lib/apiService';
+import React, { useState } from 'react';
+import { callAiApi } from '../lib/apiService';
 import { PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS } from '../lib/prompts';
 import { useAppContext } from '../context/AppContext';
 import BugReport from './BugReport';
-
-const MAX_IMAGES = 10;
-const MAX_SIZE = 4 * 1024 * 1024; // 4MB
+import FlowImageUploader from './FlowImageUploader';
 
 function slugify(str) {
     return str
@@ -47,30 +45,6 @@ function FlowComparison({ onComparisonGenerated }) {
         setCurrentGeneratedId(slugify(value));
     };
 
-    const processFiles = useCallback(async (files, setFlow, currentList) => {
-        const validFiles = Array.from(files).slice(0, MAX_IMAGES - currentList.length);
-        const processed = await Promise.all(
-            validFiles.map(async (file) => {
-                if (!file.type.match(/image\/(png|jpe?g)/)) return null;
-                if (file.size > MAX_SIZE) return null;
-                const dataUrl = await readFileAsBase64(file);
-                return {
-                    name: file.name,
-                    dataUrl,
-                    base64: dataUrl.split(',')[1],
-                    type: file.type,
-                    annotation: ''
-                };
-            })
-        );
-        setFlow((prev) => [...prev, ...processed.filter(Boolean)]);
-    }, []);
-
-    const handleFileInput = (e, setFlow, currentList) => {
-        if (e.target.files.length === 0) return;
-        processFiles(e.target.files, setFlow, currentList);
-        e.target.value = null;
-    };
 
     const handleDragStart = (index) => (e) => {
         e.dataTransfer.setData('text/plain', index.toString());
@@ -86,10 +60,6 @@ function FlowComparison({ onComparisonGenerated }) {
             arr.splice(index, 0, moved);
             return arr;
         });
-    };
-
-    const removeImage = (index, setFlow) => {
-        setFlow((prev) => prev.filter((_, i) => i !== index));
     };
 
     const openAnnotation = (flow, index) => {
@@ -180,77 +150,23 @@ function FlowComparison({ onComparisonGenerated }) {
                     )}
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-                        <div>
-                            <h3 className="font-semibold mb-2">Flujo A</h3>
-                            <input
-                                type="file"
-                                multiple
-                                accept=".png,.jpg,.jpeg"
-                                onChange={(e) => handleFileInput(e, setFlowAImages, flowAImages)}
-                                className="mb-2"
-                            />
-                            <div className="thumb-gallery">
-                                {flowAImages.map((img, index) => (
-                                    <div
-                                        key={index}
-                                        className="relative group"
-                                        draggable
-                                        onDragStart={handleDragStart(index)}
-                                        onDragOver={(e) => e.preventDefault()}
-                                        onDrop={handleDrop(index, 'A', setFlowAImages)}
-                                    >
-                                        <img
-                                            src={img.dataUrl}
-                                            alt={img.name}
-                                            onClick={() => openAnnotation('A', index)}
-                                        />
-                                        <button
-                                            onClick={() => removeImage(index, setFlowAImages)}
-                                            className="absolute -top-2 -right-2 bg-danger text-white rounded-full p-1 opacity-75 hover:opacity-100"
-                                        >
-                                            ✕
-                                        </button>
-                                        <p className="thumb-title">Img {index + 1}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        <FlowImageUploader
+                            label="Flujo A"
+                            images={flowAImages}
+                            setImages={setFlowAImages}
+                            onImageClick={(idx) => openAnnotation('A', idx)}
+                            onDragStart={handleDragStart}
+                            onDropThumb={(idx) => handleDrop(idx, 'A', setFlowAImages)}
+                        />
 
-                        <div>
-                            <h3 className="font-semibold mb-2">Flujo B</h3>
-                            <input
-                                type="file"
-                                multiple
-                                accept=".png,.jpg,.jpeg"
-                                onChange={(e) => handleFileInput(e, setFlowBImages, flowBImages)}
-                                className="mb-2"
-                            />
-                            <div className="thumb-gallery">
-                                {flowBImages.map((img, index) => (
-                                    <div
-                                        key={index}
-                                        className="relative group"
-                                        draggable
-                                        onDragStart={handleDragStart(index)}
-                                        onDragOver={(e) => e.preventDefault()}
-                                        onDrop={handleDrop(index, 'B', setFlowBImages)}
-                                    >
-                                        <img
-                                            src={img.dataUrl}
-                                            alt={img.name}
-                                            onClick={() => openAnnotation('B', index)}
-                                        />
-                                        <button
-                                            onClick={() => removeImage(index, setFlowBImages)}
-                                            className="absolute -top-2 -right-2 bg-danger text-white rounded-full p-1 opacity-75 hover:opacity-100"
-                                        >
-                                            ✕
-                                        </button>
-                                        <p className="thumb-title">Img {index + 1}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        <FlowImageUploader
+                            label="Flujo B"
+                            images={flowBImages}
+                            setImages={setFlowBImages}
+                            onImageClick={(idx) => openAnnotation('B', idx)}
+                            onDragStart={handleDragStart}
+                            onDropThumb={(idx) => handleDrop(idx, 'B', setFlowBImages)}
+                        />
                     </div>
 
                     <div className="mt-4 flex justify-end space-x-3">
