@@ -12,13 +12,15 @@ import { useAppContext } from './context/AppContext';
 function App() {
     const {
         isRefining,
-        modal, 
-        closeModal, 
+        modal,
+        closeModal,
         reportRef,
         reports,
         isConfigVisible
     } = useAppContext();
-    const [comparisonResult, setComparisonResult] = React.useState(null);
+
+    const [showScenario, setShowScenario] = React.useState(false);
+    const [showBugs, setShowBugs] = React.useState(false);
 
     return (
         <div className="container mx-auto p-4 md:p-8 max-w-7xl">
@@ -27,34 +29,43 @@ function App() {
                 <p className="text-lg text-gray-600 mt-2">Analiza y refina flujos de prueba a partir de evidencias visuales.</p>
             </header>
 
-            <ConfigToggler />
+            <div className="flex flex-wrap gap-2 justify-center mb-4">
+                <ConfigToggler />
+                <button
+                    onClick={() => setShowScenario(!showScenario)}
+                    className="bg-primary text-white font-semibold py-2 px-4 rounded shadow-md hover:bg-primary/90 transition-colors"
+                >
+                    {showScenario ? 'Ocultar Escenarios' : 'Generar Escenarios con imágenes'}
+                </button>
+                <button
+                    onClick={() => setShowBugs(!showBugs)}
+                    className="bg-primary text-white font-semibold py-2 px-4 rounded shadow-md hover:bg-primary/90 transition-colors"
+                >
+                    {showBugs ? 'Ocultar Bugs' : 'Generar Bugs'}
+                </button>
+            </div>
             <div className="flex flex-col gap-8 mt-16 md:mt-0">
-                {isConfigVisible && (
-                    <div className="bg-white rounded-lg shadow-md p-6 glassmorphism">
-                        <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Configuración</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <ConfigurationPanel />
-                            <ImageUploader />
+                {showScenario && (
+                    <>
+                        {isConfigVisible && (
+                            <div className="bg-white rounded-lg shadow-md p-6 glassmorphism">
+                                <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Configuración</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <ConfigurationPanel />
+                                    <ImageUploader />
+                                </div>
+                            </div>
+                        )}
+
+                        <div ref={reportRef} className="space-y-8">
+                            <ReportTabs />
+                            <ReportDisplay />
+                            {isRefining && <RefinementControls />}
                         </div>
-                    </div>
+                    </>
                 )}
 
-                <div ref={reportRef} className="space-y-8">
-                     <ReportTabs />
-                     <ReportDisplay />
-                    {isRefining && <RefinementControls />}
-                </div>
-
-                <FlowComparison onComparisonGenerated={setComparisonResult} />
-
-                {comparisonResult && (
-                    <div className="bg-white rounded-xl shadow-md p-6">
-                        <h3 className="text-lg font-semibold mb-2">Resultado de Comparación</h3>
-                        <pre className="bg-gray-100 p-4 rounded text-sm overflow-auto">
-                            {JSON.stringify(comparisonResult, null, 2)}
-                        </pre>
-                    </div>
-                )}
+                {showBugs && <FlowComparison showForm={showBugs} setShowForm={setShowBugs} />}
             </div>
 
             <TicketModal

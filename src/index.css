@@ -134,3 +134,9 @@ body {
 .thumb-title {
     @apply text-xs text-center mt-1 font-medium;
 }
+
+@media print {
+    .pdf-hide {
+        display: none !important;
+    }
+}

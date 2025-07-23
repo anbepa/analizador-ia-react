@@ -16,14 +16,42 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
 
     const handleDownload = () => {
         if (!reportRef.current) return;
-        const opt = {
-            margin: 10,
-            filename: `reporte_bugs_comparacion_${new Date().toISOString().split('T')[0]}.pdf`,
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(reportRef.current).save();
+        const node = reportRef.current;
+        const buttons = node.querySelectorAll('.pdf-hide');
+        buttons.forEach((b) => (b.style.display = 'none'));
+
+        const images = node.querySelectorAll('img');
+        const loadPromises = Array.from(images).map((img) => {
+            if (img.complete) return Promise.resolve();
+            return new Promise((resolve) => {
+                const onLoad = () => {
+                    img.removeEventListener('load', onLoad);
+                    resolve();
+                };
+                img.addEventListener('load', onLoad);
+                img.addEventListener('error', onLoad);
+            });
+        });
+
+        Promise.all(loadPromises).then(() => {
+            const opt = {
+                margin: 10,
+                filename: `reporte_bugs_comparacion_${new Date()
+                    .toISOString()
+                    .split('T')[0]}.pdf`,
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            const res = html2pdf().set(opt).from(node).save();
+            const restore = () => buttons.forEach((b) => (b.style.display = ''));
+            if (res && typeof res.then === 'function') {
+                res.then(restore);
+            } else {
+                restore();
+            }
+        });
     };
+
 
     const severityStyles = {
         Alta: { border: 'border-red-600', bg: 'bg-red-50' },
@@ -32,7 +60,7 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
     };
 
     return (
-        <div className="mt-6" ref={reportRef}>
+        <div className="mt-6" ref={reportRef} id="pdf-export-section">
             <div className="flex justify-between items-center border-b pb-2 mb-4">
                 <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                     🐞 Reporte de Bugs Encontrados
@@ -40,13 +68,13 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
                 <div className="space-x-2 flex">
                     <button
                         onClick={handleDownload}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded text-sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded text-sm pdf-hide"
                     >
                         📄 Descargar PDF
                     </button>
                     <button
                         onClick={onClose}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded text-sm"
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded text-sm pdf-hide"
                     >
                         Cerrar Reporte
                     </button>
@@ -95,13 +123,13 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
                                 {imgA && (
                                     <div className="flex flex-col items-start">
                                         <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo A: {bug.imagen_referencia_flujo_a}</span>
-                                        <img src={imgA} alt={bug.imagen_referencia_flujo_a} className="w-32 h-auto rounded border" />
+                                        <img src={imgA} alt={bug.imagen_referencia_flujo_a} className="w-32 h-auto rounded border" crossOrigin="anonymous" />
                                     </div>
                                 )}
                                 {imgB && (
                                     <div className="flex flex-col items-start">
                                         <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo B: {bug.imagen_referencia_flujo_b}</span>
-                                        <img src={imgB} alt={bug.imagen_referencia_flujo_b} className="w-32 h-auto rounded border" />
+                                        <img src={imgB} alt={bug.imagen_referencia_flujo_b} className="w-32 h-auto rounded border" crossOrigin="anonymous" />
                                     </div>
                                 )}
                             </div>
@@ -110,12 +138,6 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
                 );
             })}
 
-            <div className="mt-8">
-                <h4 className="text-lg font-semibold mb-2 flex items-center gap-2">🧾 Resultado en JSON</h4>
-                <pre className="bg-gray-100 p-4 rounded text-sm font-mono text-gray-700 max-h-96 overflow-auto">
-                    {JSON.stringify(data, null, 2)}
-                </pre>
-            </div>
         </div>
     );
 }
