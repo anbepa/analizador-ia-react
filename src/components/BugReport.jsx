@@ -23,6 +23,11 @@ function BugReport({ data, flowA = [], flowB = [] }) {
         buttons.forEach((b) => (b.style.display = 'none'));
 
         const images = node.querySelectorAll('img');
+        const pdfImages = node.querySelectorAll('.pdf-image');
+        pdfImages.forEach((img) => {
+            img.dataset.origWidth = img.style.width;
+            img.style.width = '300px';
+        });
         const loadPromises = Array.from(images).map((img) => {
             if (img.complete) return Promise.resolve();
             return new Promise((resolve) => {
@@ -45,7 +50,13 @@ function BugReport({ data, flowA = [], flowB = [] }) {
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
             const res = html2pdf().set(opt).from(node).save();
-            const restore = () => buttons.forEach((b) => (b.style.display = ''));
+            const restore = () => {
+                buttons.forEach((b) => (b.style.display = ''));
+                pdfImages.forEach((img) => {
+                    img.style.width = img.dataset.origWidth || '';
+                    delete img.dataset.origWidth;
+                });
+            };
             if (res && typeof res.then === 'function') {
                 res.then(restore);
             } else {
@@ -119,13 +130,13 @@ function BugReport({ data, flowA = [], flowB = [] }) {
                                 {imgA && (
                                     <div className="flex flex-col items-start">
                                         <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo A: {bug.imagen_referencia_flujo_a}</span>
-                                        <img src={imgA} alt={bug.imagen_referencia_flujo_a} className="w-48 h-auto rounded border" crossOrigin="anonymous" />
+                                        <img src={imgA} alt={bug.imagen_referencia_flujo_a} className="w-48 h-auto rounded border pdf-image" crossOrigin="anonymous" />
                                     </div>
                                 )}
                                 {imgB && (
                                     <div className="flex flex-col items-start">
                                         <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo B: {bug.imagen_referencia_flujo_b}</span>
-                                        <img src={imgB} alt={bug.imagen_referencia_flujo_b} className="w-48 h-auto rounded border" crossOrigin="anonymous" />
+                                        <img src={imgB} alt={bug.imagen_referencia_flujo_b} className="w-48 h-auto rounded border pdf-image" crossOrigin="anonymous" />
                                     </div>
                                 )}
                             </div>
