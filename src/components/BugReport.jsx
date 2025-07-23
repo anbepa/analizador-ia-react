@@ -1,8 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import html2pdf from 'html2pdf.js';
 
 function BugReport({ data, flowA = [], flowB = [], onClose }) {
     const reportRef = useRef(null);
+    const [showJSON, setShowJSON] = useState(true);
 
     const getImageUrl = (ref) => {
         if (!ref || typeof ref !== 'string') return null;
@@ -16,13 +17,35 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
 
     const handleDownload = () => {
         if (!reportRef.current) return;
-        const opt = {
-            margin: 10,
-            filename: `reporte_bugs_comparacion_${new Date().toISOString().split('T')[0]}.pdf`,
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(reportRef.current).save();
+        const node = reportRef.current;
+        const images = node.querySelectorAll('img');
+        const loadPromises = Array.from(images).map((img) => {
+            if (img.complete) return Promise.resolve();
+            return new Promise((resolve) => {
+                const onLoad = () => {
+                    img.removeEventListener('load', onLoad);
+                    resolve();
+                };
+                img.addEventListener('load', onLoad);
+                img.addEventListener('error', onLoad);
+            });
+        });
+
+        Promise.all(loadPromises).then(() => {
+            const opt = {
+                margin: 10,
+                filename: `reporte_bugs_comparacion_${new Date()
+                    .toISOString()
+                    .split('T')[0]}.pdf`,
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(node).save();
+        });
+    };
+
+    const handleCopyJson = () => {
+        navigator.clipboard.writeText(JSON.stringify(data, null, 2));
     };
 
     const severityStyles = {
@@ -32,7 +55,7 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
     };
 
     return (
-        <div className="mt-6" ref={reportRef}>
+        <div className="mt-6" ref={reportRef} id="pdf-export-section">
             <div className="flex justify-between items-center border-b pb-2 mb-4">
                 <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                     🐞 Reporte de Bugs Encontrados
@@ -95,13 +118,13 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
                                 {imgA && (
                                     <div className="flex flex-col items-start">
                                         <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo A: {bug.imagen_referencia_flujo_a}</span>
-                                        <img src={imgA} alt={bug.imagen_referencia_flujo_a} className="w-32 h-auto rounded border" />
+                                        <img src={imgA} alt={bug.imagen_referencia_flujo_a} className="w-32 h-auto rounded border" crossOrigin="anonymous" />
                                     </div>
                                 )}
                                 {imgB && (
                                     <div className="flex flex-col items-start">
                                         <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo B: {bug.imagen_referencia_flujo_b}</span>
-                                        <img src={imgB} alt={bug.imagen_referencia_flujo_b} className="w-32 h-auto rounded border" />
+                                        <img src={imgB} alt={bug.imagen_referencia_flujo_b} className="w-32 h-auto rounded border" crossOrigin="anonymous" />
                                     </div>
                                 )}
                             </div>
@@ -111,10 +134,20 @@ function BugReport({ data, flowA = [], flowB = [], onClose }) {
             })}
 
             <div className="mt-8">
-                <h4 className="text-lg font-semibold mb-2 flex items-center gap-2">🧾 Resultado en JSON</h4>
-                <pre className="bg-gray-100 p-4 rounded text-sm font-mono text-gray-700 max-h-96 overflow-auto">
-                    {JSON.stringify(data, null, 2)}
-                </pre>
+                <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-lg font-semibold flex items-center gap-2">🧾 Resultado en JSON</h4>
+                    <div className="space-x-2">
+                        <button onClick={handleCopyJson} className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">Copiar</button>
+                        <button onClick={() => setShowJSON((s) => !s)} className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">
+                            {showJSON ? 'Ocultar' : 'Mostrar'}
+                        </button>
+                    </div>
+                </div>
+                {showJSON && (
+                    <pre className="bg-gray-100 p-4 rounded text-sm font-mono text-gray-700 max-h-96 overflow-auto">
+                        {JSON.stringify(data, null, 2)}
+                    </pre>
+                )}
             </div>
         </div>
     );
