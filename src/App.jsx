@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ConfigurationPanel from './components/ConfigurationPanel';
 import ImageUploader from './components/ImageUploader';
 import ReportDisplay from './components/ReportDisplay';
@@ -15,11 +15,33 @@ function App() {
         modal,
         closeModal,
         reportRef,
-        showConfigurationPanel
+        showConfigurationPanel,
+        setShowConfigurationPanel
     } = useAppContext();
 
     const [showScenario, setShowScenario] = useState(false);
     const [showBugs, setShowBugs] = useState(false);
+
+    useEffect(() => {
+        if (showScenario) {
+            setShowConfigurationPanel(false);
+            setShowBugs(false);
+        }
+    }, [showScenario, setShowConfigurationPanel]);
+
+    useEffect(() => {
+        if (showBugs) {
+            setShowConfigurationPanel(false);
+            setShowScenario(false);
+        }
+    }, [showBugs, setShowConfigurationPanel]);
+
+    useEffect(() => {
+        if (showConfigurationPanel) {
+            setShowScenario(false);
+            setShowBugs(false);
+        }
+    }, [showConfigurationPanel]);
 
     return (
         <div className="container mx-auto p-4 md:p-8 max-w-7xl">
