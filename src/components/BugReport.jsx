@@ -16,6 +16,11 @@ function BugReport({ data, flowA = [], flowB = [] }) {
         return found?.dataUrl || arr[num - 1]?.dataUrl || null;
     };
 
+    const getFallbackImage = (flow) => {
+        const arr = flow === 'A' ? flowA : flowB;
+        return arr[0]?.dataUrl || null;
+    };
+
     const handleDownload = () => {
         if (!reportRef.current) return;
         const node = reportRef.current;
@@ -89,8 +94,8 @@ function BugReport({ data, flowA = [], flowB = [] }) {
             </div>
             {Array.isArray(data) && data.map((bug, idx) => {
                 const styles = severityStyles[bug.severidad] || { border: 'border-gray-400', bg: 'bg-gray-50' };
-                const imgA = getImageUrl(bug.imagen_referencia_flujo_a);
-                const imgB = getImageUrl(bug.imagen_referencia_flujo_b);
+                const imgA = getImageUrl(bug.imagen_referencia_flujo_a) || getFallbackImage('A');
+                const imgB = getImageUrl(bug.imagen_referencia_flujo_b) || getFallbackImage('B');
 
                 return (
                     <div key={idx} className={`shadow-lg rounded-xl border-l-4 ${styles.border} ${styles.bg} p-4 mb-6`}>
@@ -129,14 +134,14 @@ function BugReport({ data, flowA = [], flowB = [] }) {
                             <div className="mt-3 flex flex-wrap gap-4">
                                 {imgA && (
                                     <div className="flex flex-col items-start">
-                                        <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo A: {bug.imagen_referencia_flujo_a}</span>
-                                        <img src={imgA} alt={bug.imagen_referencia_flujo_a} className="w-48 h-auto rounded border pdf-image" crossOrigin="anonymous" />
+                                        <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo A: {bug.imagen_referencia_flujo_a || flowA[0]?.ref}</span>
+                                        <img src={imgA} alt={bug.imagen_referencia_flujo_a || flowA[0]?.ref} className="w-48 h-auto rounded border pdf-image" crossOrigin="anonymous" />
                                     </div>
                                 )}
                                 {imgB && (
                                     <div className="flex flex-col items-start">
-                                        <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo B: {bug.imagen_referencia_flujo_b}</span>
-                                        <img src={imgB} alt={bug.imagen_referencia_flujo_b} className="w-48 h-auto rounded border pdf-image" crossOrigin="anonymous" />
+                                        <span className="text-sm font-semibold mb-1 flex items-center gap-1">🖼️ Flujo B: {bug.imagen_referencia_flujo_b || flowB[0]?.ref}</span>
+                                        <img src={imgB} alt={bug.imagen_referencia_flujo_b || flowB[0]?.ref} className="w-48 h-auto rounded border pdf-image" crossOrigin="anonymous" />
                                     </div>
                                 )}
                             </div>
