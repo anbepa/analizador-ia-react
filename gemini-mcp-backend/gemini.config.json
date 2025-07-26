@@ -1,13 +1,3 @@
 {
-  "model": "gemini-2.0-flash",
-  "tools": {
-    "mcpServers": {
-      "playwright": {
-        "command": "npx",
-        "args": [
-          "@playwright/mcp@latest"
-        ]
-      }
-    }
-  }
+  "model": "gemini-2.0-flash"
 }

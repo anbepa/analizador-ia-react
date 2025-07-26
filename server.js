@@ -87,48 +87,7 @@ class RateLimiter {
 // Instancia global del rate limiter
 const rateLimiter = new RateLimiter();
 
-// Función para procesar respuestas que contienen screenshots
-function processScreenshotResponse(response) {
-  // Buscar rutas de archivos de imagen en la respuesta (con y sin backticks)
-  const imagePathRegex = /(?:`([^`]*\.(?:jpeg|jpg|png|gif))`|([\/\w\-\.]+\.(?:jpeg|jpg|png|gif)))/g;
-  const matches = [...response.matchAll(imagePathRegex)];
 
-  if (matches.length === 0) {
-    return response;
-  }
-
-  let processedResponse = response;
-
-  for (const match of matches) {
-    // El regex tiene dos grupos de captura: match[1] para backticks, match[2] para rutas sin backticks
-    const imagePath = match[1] || match[2];
-    console.log(`Procesando imagen: ${imagePath}`);
-
-    try {
-      if (fs.existsSync(imagePath)) {
-        // Leer el archivo de imagen y convertirlo a base64
-        const imageBuffer = fs.readFileSync(imagePath);
-        const base64Image = imageBuffer.toString('base64');
-        const mimeType = imagePath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-        const dataUrl = `data:${mimeType};base64,${base64Image}`;
-
-        // Reemplazar la ruta del archivo con la imagen base64
-        processedResponse = processedResponse.replace(
-          match[0],
-          `\n\n📸 Screenshot capturado:\n${dataUrl}\n\n`
-        );
-
-        console.log(`Imagen convertida a base64: ${imagePath}`);
-      } else {
-        console.log(`Archivo no encontrado: ${imagePath}`);
-      }
-    } catch (error) {
-      console.error(`Error procesando imagen ${imagePath}:`, error);
-    }
-  }
-
-  return processedResponse;
-}
 
 // Servir archivos estáticos del frontend (después del build)
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -233,16 +192,23 @@ async function processGeminiWithMCP(prompt, apiKey, model) {
       const tempConfigPath = path.join(__dirname, 'temp-gemini.config.json');
       fs.writeFileSync(tempConfigPath, JSON.stringify(tempConfig, null, 2));
 
-      // Crear prompt especializado para automatización web
-      const systemPrompt = `AGENTE DE AUTOMATIZACIÓN WEB - MODO DIRECTO
+      // Crear prompt especializado para análisis web
+      const systemPrompt = `AGENTE DE ANÁLISIS WEB - MODO DIRECTO
 
-Eres un agente especializado en automatización web. EJECUTA las acciones inmediatamente sin pedir confirmaciones.
+Eres un agente especializado en análisis de contenido web. EJECUTA las acciones inmediatamente sin pedir confirmaciones.
 
 REGLAS ESTRICTAS:
 - NO preguntes por permisos
 - NO pidas confirmaciones  
-- EJECUTA las herramientas directamente
-- RESPONDE solo con el resultado de la acción
+- USA web_fetch para obtener contenido de páginas web
+- ANALIZA y RESUME el contenido obtenido
+- RESPONDE de forma concisa y técnica
+- NO menciones herramientas browser (no están disponibles)
+
+HERRAMIENTAS DISPONIBLES:
+- web_fetch(url) - Obtener contenido HTML de una página
+- Análisis de texto y contenido web
+- Búsquedas y consultas generales
 
 COMANDO: ${prompt}
 
@@ -319,8 +285,7 @@ EJECUTA AHORA:`;
         }
 
         console.log(`MCP respuesta: ${output.substring(0, 100)}...`);
-        const processedResponse = processScreenshotResponse(output.trim());
-        resolve(processedResponse);
+        resolve(output.trim());
       });
 
       cli.on('error', (error) => {
