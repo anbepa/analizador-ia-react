@@ -84,7 +84,10 @@ INSTRUCCIONES CRÍTICAS - SEGUIR ESTRICTAMENTE:
         setConnectionStatus('connecting');
 
         try {
-            const response = await fetch('http://localhost:3000/api/chat', {
+            // Usar URL relativa en producción, localhost en desarrollo
+            const apiUrl = import.meta.env.PROD ? '/api/chat' : 'http://localhost:3000/api/chat';
+            
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

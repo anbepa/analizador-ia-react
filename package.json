@@ -9,9 +9,17 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "backend": "cd gemini-mcp-backend && npm start",
-    "dev:full": "concurrently \"npm run backend\" \"npm run dev\""
+    "dev:full": "concurrently \"npm run backend\" \"npm run dev\"",
+    "build:production": "npm run build && npm run install:backend",
+    "install:backend": "cd gemini-mcp-backend && npm install",
+    "start": "node server.js",
+    "render:build": "npm install && npm run build:production",
+    "render:start": "npm run start",
+    "test:build": "node test-build.js"
   },
   "dependencies": {
+    "dotenv": "^17.2.1",
+    "express": "^4.18.0",
     "html2pdf.js": "^0.10.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
