@@ -17,7 +17,7 @@ export const useAppContext = () => {
 export const AppProvider = ({ children }) => {
     const [apiConfig, setApiConfig] = useState({
         provider: 'gemini',
-        gemini: { key: '', model: 'gemini-1.5-flash-latest' },
+        gemini: { key: '', model: 'gemini-2.0-flash' },
         openai: { key: '', model: 'gpt-4o' },
         claude: { key: '', model: 'claude-3-sonnet-20240229' }
     });
@@ -161,10 +161,46 @@ export const AppProvider = ({ children }) => {
                 resultado_esperado_paso: '',
                 resultado_obtenido_paso_y_estado: 'Pendiente de análisis',
                 imagen_referencia_entrada: 'N/A',
-                imagen_referencia_salida: 'N/A'
+                imagen_referencia_salida: 'N/A',
+                isNewStep: true, // Marcar como paso nuevo para mostrar uploader
+                newStepImages: [] // Array para almacenar imágenes del nuevo paso
             };
             reportToUpdate.Pasos_Analizados = [...reportToUpdate.Pasos_Analizados, newStep];
             newReports[activeReportIndex] = reportToUpdate;
+            return newReports;
+        });
+    };
+
+    const handleAddImageToStep = (stepNumber, imageFiles) => {
+        setReports(prev => {
+            const newReports = [...prev];
+            const reportToUpdate = { ...newReports[activeReportIndex] };
+            const stepIndex = reportToUpdate.Pasos_Analizados.findIndex(p => p.numero_paso === stepNumber);
+            
+            if (stepIndex !== -1) {
+                const updatedStep = { ...reportToUpdate.Pasos_Analizados[stepIndex] };
+                updatedStep.newStepImages = [...(updatedStep.newStepImages || []), ...imageFiles];
+                reportToUpdate.Pasos_Analizados[stepIndex] = updatedStep;
+                newReports[activeReportIndex] = reportToUpdate;
+            }
+            
+            return newReports;
+        });
+    };
+
+    const handleRemoveImageFromStep = (stepNumber, imageIndex) => {
+        setReports(prev => {
+            const newReports = [...prev];
+            const reportToUpdate = { ...newReports[activeReportIndex] };
+            const stepIndex = reportToUpdate.Pasos_Analizados.findIndex(p => p.numero_paso === stepNumber);
+            
+            if (stepIndex !== -1) {
+                const updatedStep = { ...reportToUpdate.Pasos_Analizados[stepIndex] };
+                updatedStep.newStepImages = (updatedStep.newStepImages || []).filter((_, index) => index !== imageIndex);
+                reportToUpdate.Pasos_Analizados[stepIndex] = updatedStep;
+                newReports[activeReportIndex] = reportToUpdate;
+            }
+            
             return newReports;
         });
     };
@@ -195,6 +231,32 @@ export const AppProvider = ({ children }) => {
 
         editedReport.Pasos_Analizados = updatedSteps;
         editedReport.user_provided_additional_context = userContext.trim();
+
+        // Combinar imágenes originales con las nuevas imágenes de los pasos agregados
+        let allImages = [...(activeReport.imageFiles || [])];
+        let imageCounter = allImages.length;
+
+        // Procesar pasos nuevos y agregar sus imágenes
+        editedReport.Pasos_Analizados.forEach(step => {
+            if (step.isNewStep && step.newStepImages && step.newStepImages.length > 0) {
+                step.newStepImages.forEach((img, index) => {
+                    imageCounter++;
+                    allImages.push(img);
+                    
+                    // Actualizar referencias de imágenes en el paso
+                    if (index === 0) {
+                        step.imagen_referencia_entrada = `Imagen ${imageCounter}`;
+                    } else if (index === 1) {
+                        step.imagen_referencia_salida = `Imagen ${imageCounter}`;
+                    }
+                });
+                
+                // Limpiar propiedades temporales
+                delete step.isNewStep;
+                delete step.newStepImages;
+            }
+        });
+
         const { imageFiles, ...reportForPrompt } = editedReport;
         const editedJsonString = JSON.stringify([reportForPrompt], null, 2);
         
@@ -202,7 +264,7 @@ export const AppProvider = ({ children }) => {
         setError(null);
         try {
             const prompt = PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(editedJsonString);
-            callAiApi(prompt, activeReport.imageFiles, apiConfig)
+            callAiApi(prompt, allImages, apiConfig)
                 .then(jsonText => {
                     const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
                     if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
@@ -211,7 +273,7 @@ export const AppProvider = ({ children }) => {
                     
                     const refinedReport = {
                         ...refinedReportData,
-                        imageFiles: activeReport.imageFiles 
+                        imageFiles: allImages 
                     };
 
                     setReports(prev => {
@@ -290,6 +352,8 @@ export const AppProvider = ({ children }) => {
         handleGenerateTicket,
         handleStepDelete,
         handleAddStep,
+        handleAddImageToStep,
+        handleRemoveImageFromStep,
         handleSaveAndRefine,
         closeModal,
         reportRef,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { downloadHtmlReport } from '../lib/downloadService';
+import GeminiChat from './GeminiChat';
 
 function ConfigurationPanel({ mode = 'full' }) {
     const {
@@ -19,6 +20,7 @@ function ConfigurationPanel({ mode = 'full' }) {
     const [showDownloadOptions, setShowDownloadOptions] = useState(false);
 
     const geminiModels = [
+        { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Recomendado para MCP)" },
         { id: "gemini-1.5-flash-latest", name: "Gemini 1.5 Flash (Latest)" },
         { id: "gemini-1.5-pro-latest", name: "Gemini 1.5 Pro (Latest)" },
         { id: "gemini-1.0-pro", name: "Gemini 1.0 Pro" },
@@ -212,6 +214,11 @@ function ConfigurationPanel({ mode = 'full' }) {
                             </ul>
                         </div>
                     )}
+                </div>
+                
+                {/* Gemini Chat Integration */}
+                <div className="pt-3 border-t border-gray-200">
+                    <GeminiChat />
                 </div>
             </div>
             )}

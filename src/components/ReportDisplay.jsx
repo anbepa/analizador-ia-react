@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAppContext } from '../context/AppContext';
+import StepImageUploader from './StepImageUploader';
 
 function ReportDisplay() {
     const { 
@@ -9,8 +10,11 @@ function ReportDisplay() {
         error, 
         isRefining, 
         handleAddStep, 
+        handleAddImageToStep,
+        handleRemoveImageFromStep,
         handleGenerateTicket, 
-        handleStepDelete 
+        handleStepDelete,
+        handleSaveAndRefine
     } = useAppContext();
 
     if (loading.state && !activeReport) { // Solo muestra el spinner a pantalla completa si no hay reporte activo
@@ -126,12 +130,49 @@ function ReportDisplay() {
                                             <img src={activeReportImages[imgIndexSalida].dataUrl} alt={`Evidencia de salida para paso ${paso.numero_paso}`} className="evidence-image" />
                                         </td></tr>
                                     )}
+                                    {/* Mostrar uploader para pasos nuevos */}
+                                    {isRefining && paso.isNewStep && (
+                                        <tr className="evidence-row"><td colSpan="6">
+                                            <StepImageUploader
+                                                stepNumber={paso.numero_paso}
+                                                images={paso.newStepImages || []}
+                                                onAddImages={handleAddImageToStep}
+                                                onRemoveImage={handleRemoveImageFromStep}
+                                            />
+                                        </td></tr>
+                                    )}
                                 </React.Fragment>
                             );
                         })}
                     </tbody>
                 </table>
                 </div>
+                
+                {/* Botón Guardar y Refinar - Solo visible cuando hay pasos nuevos */}
+                {isRefining && activeReport.Pasos_Analizados.some(paso => paso.isNewStep) && (
+                    <div className="mt-6 text-center">
+                        <button 
+                            onClick={handleSaveAndRefine}
+                            disabled={loading.state}
+                            className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                            {loading.state ? (
+                                <>
+                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Refinando...
+                                </>
+                            ) : (
+                                '🔄 Guardar y Refinar'
+                            )}
+                        </button>
+                        <p className="text-sm text-gray-600 mt-2">
+                            Los nuevos pasos y sus imágenes serán enviados a la IA para refinamiento
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );

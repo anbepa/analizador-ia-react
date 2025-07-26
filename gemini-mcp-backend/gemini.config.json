@@ -1,0 +1,12 @@
+{
+  "model": "gemini-2.0-flash",
+  "apiKey": "placeholder-will-be-overridden",
+  "tools": {
+    "mcpServers": {
+      "playwright": {
+        "command": "npx",
+        "args": ["@playwright/mcp@latest"]
+      }
+    }
+  }
+}

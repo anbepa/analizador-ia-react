@@ -34,7 +34,7 @@ export const PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT = (editedReport
     **FORMATO DE SALIDA ESTRICTO JSON EN ESPAÑOL (SIN EXCEPCIONES):**
     La respuesta DEBE ser un array JSON válido que contenga UN ÚNICO objeto. La estructura del objeto y sus campos deben coincidir con la definida en el prompt \`PROMPT_FLOW_ANALYSIS_FROM_IMAGES\`. **ABSOLUTAMENTE PROHIBIDO INCLUIR:** Cualquier texto fuera del array JSON.
     PROCEDE A GENERAR EL ARRAY JSON DEL INFORME DE ANÁLISIS DE FLUJO/SECUENCIA REFINADO, PONIENDO ESPECIAL ATENCIÓN AL "user_provided_additional_context" PARA ENTENDER LA NATURALEZA DE LAS IMÁGENES Y AJUSTAR LA INTERPRETACIÓN Y TERMINOLOGÍA SEGÚN SEA NECESARIO:`;
-    
+
 export const PROMPT_BUG_TICKET = (failedStepJSON, allStepsJSON) => `
     Actúa como un Ingeniero de QA meticuloso. A partir de los siguientes detalles de un paso de prueba fallido y el contexto del flujo completo (ambos en formato JSON), redacta una descripción clara y completa para un ticket de bug en formato Markdown.
     **Flujo Completo (Contexto):** \`\`\`json${allStepsJSON}\`\`\`
