@@ -203,8 +203,8 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Función separada para procesar peticiones de Gemini
-async function processGeminiRequest(prompt, apiKey, model) {
+// Función para usar CLI con MCP - ÚNICA IMPLEMENTACIÓN
+async function processGeminiWithMCP(prompt, apiKey, model) {
   return new Promise((resolve, reject) => {
     try {
       // Leer la configuración base de MCP
@@ -215,44 +215,30 @@ async function processGeminiRequest(prompt, apiKey, model) {
         baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, 'utf8'));
       }
 
-      // Crear configuración temporal con los valores del frontend o variables de entorno
+      // Crear configuración temporal
       const tempConfig = {
         ...baseConfig,
         model: model || baseConfig.model || process.env.GEMINI_MODEL || 'gemini-2.0-flash',
         apiKey: apiKey || baseConfig.apiKey || process.env.GEMINI_API_KEY
       };
 
-      console.log(`API Key configurada: ${tempConfig.apiKey ? 'Sí' : 'No'}`);
-      console.log(`Modelo: ${tempConfig.model}`);
-
       // Escribir configuración temporal
       const tempConfigPath = path.join(__dirname, 'temp-gemini.config.json');
       fs.writeFileSync(tempConfigPath, JSON.stringify(tempConfig, null, 2));
 
-      // Preparar argumentos para el CLI con configuración optimizada
-      const args = [
-        '@google/gemini-cli',
-        '--prompt', prompt,
-        '--model', model || 'gemini-2.0-flash',
-        '--timeout', '60000', // 60 segundos timeout
-        '--verbose' // Para mejor debugging
-      ];
+      // Preparar argumentos para el CLI
+      const args = ['@google/gemini-cli', '--prompt', prompt, '--model', tempConfig.model];
 
       // Preparar variables de entorno
       const env = { ...process.env };
-
-      // Configurar API key como variable de entorno si se proporciona
-      if (apiKey) {
-        env.GEMINI_API_KEY = apiKey;
+      if (tempConfig.apiKey) {
+        env.GEMINI_API_KEY = tempConfig.apiKey;
       }
-
-      // Usar el archivo de configuración temporal
       env.GEMINI_CONFIG_PATH = tempConfigPath;
 
-      const cli = spawn('npx', args, {
-        env,
-        cwd: __dirname
-      });
+      console.log(`Usando CLI con MCP para: ${prompt.substring(0, 50)}...`);
+
+      const cli = spawn('npx', args, { env, cwd: __dirname });
 
       let output = '';
       let errorOutput = '';
@@ -267,25 +253,21 @@ async function processGeminiRequest(prompt, apiKey, model) {
         } catch (cleanupError) {
           console.error('Error limpiando archivo temporal:', cleanupError);
         }
-
-        // Limpiar event listeners para evitar memory leaks
         cli.removeAllListeners();
-
-        // Matar el proceso si aún está corriendo
         if (!cli.killed) {
           cli.kill('SIGTERM');
         }
       };
 
-      // Timeout para evitar procesos colgados (90 segundos para operaciones complejas)
+      // Timeout de 2 minutos para operaciones MCP
       const timeout = setTimeout(() => {
         if (!isResponseSent) {
-          console.error('Timeout: El proceso tardó demasiado en responder');
+          console.error('Timeout MCP: El proceso tardó demasiado');
           isResponseSent = true;
           cleanup();
-          reject(new Error('Timeout: El proceso tardó demasiado en responder'));
+          reject(new Error('Timeout: La operación MCP tardó demasiado en completarse'));
         }
-      }, 90000);
+      }, 120000);
 
       cli.stdout.on('data', (data) => {
         output += data.toString();
@@ -293,44 +275,63 @@ async function processGeminiRequest(prompt, apiKey, model) {
 
       cli.stderr.on('data', (data) => {
         errorOutput += data.toString();
-        console.error(`STDERR: ${data}`);
+        console.error(`MCP STDERR: ${data}`);
       });
 
       cli.on('close', (code) => {
         if (isResponseSent) return;
-
         clearTimeout(timeout);
         isResponseSent = true;
         cleanup();
 
         if (code !== 0) {
-          console.error(`Proceso terminó con código: ${code}`);
-          return reject(new Error(`Error procesando la consulta: ${errorOutput || 'Error desconocido'}`));
+          console.error(`MCP terminó con código: ${code}`);
+          return reject(new Error(`Error MCP: ${errorOutput || 'Error desconocido'}`));
         }
 
-        console.log(`Respuesta generada: ${output.substring(0, 100)}...`);
-
-        // Procesar la respuesta para extraer imágenes guardadas
+        console.log(`MCP respuesta: ${output.substring(0, 100)}...`);
         const processedResponse = processScreenshotResponse(output.trim());
         resolve(processedResponse);
       });
 
       cli.on('error', (error) => {
         if (isResponseSent) return;
-
         clearTimeout(timeout);
         isResponseSent = true;
         cleanup();
-
-        console.error(`Error ejecutando comando: ${error}`);
-        reject(new Error(`Error interno del servidor: ${error.message}`));
+        console.error(`Error MCP: ${error}`);
+        reject(new Error(`Error MCP: ${error.message}`));
       });
 
     } catch (configError) {
-      console.error('Error configurando Gemini CLI:', configError);
-      reject(new Error(`Error de configuración: ${configError.message}`));
+      console.error('Error configurando MCP:', configError);
+      reject(new Error(`Error de configuración MCP: ${configError.message}`));
     }
   });
+}
+
+
+
+// Función principal para procesar peticiones de Gemini - SOLO MCP
+async function processGeminiRequest(prompt, apiKey, model) {
+  try {
+    const finalApiKey = apiKey || process.env.GEMINI_API_KEY;
+
+    if (!finalApiKey) {
+      throw new Error('API key de Gemini no configurada');
+    }
+
+    console.log(`API Key configurada: Sí`);
+    console.log(`Prompt: ${prompt.substring(0, 100)}...`);
+    console.log('🔧 Usando CLI con MCP para todas las consultas');
+
+    // SIEMPRE usar MCP con CLI
+    return await processGeminiWithMCP(prompt, apiKey, model);
+
+  } catch (error) {
+    console.error('Error en processGeminiRequest:', error);
+    throw error;
+  }
 }
 
 // Catch-all handler: enviar el index.html para rutas del frontend (SPA)
