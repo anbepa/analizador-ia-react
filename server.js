@@ -222,17 +222,21 @@ async function processGeminiRequest(prompt, apiKey, model) {
         apiKey: apiKey || baseConfig.apiKey || process.env.GEMINI_API_KEY
       };
 
+      console.log(`API Key configurada: ${tempConfig.apiKey ? 'Sí' : 'No'}`);
+      console.log(`Modelo: ${tempConfig.model}`);
+
       // Escribir configuración temporal
       const tempConfigPath = path.join(__dirname, 'temp-gemini.config.json');
       fs.writeFileSync(tempConfigPath, JSON.stringify(tempConfig, null, 2));
 
-      // Preparar argumentos para el CLI
-      const args = ['@google/gemini-cli', '--prompt', prompt];
-
-      // Agregar modelo si se proporciona
-      if (model) {
-        args.push('--model', model);
-      }
+      // Preparar argumentos para el CLI con configuración optimizada
+      const args = [
+        '@google/gemini-cli',
+        '--prompt', prompt,
+        '--model', model || 'gemini-2.0-flash',
+        '--timeout', '60000', // 60 segundos timeout
+        '--verbose' // Para mejor debugging
+      ];
 
       // Preparar variables de entorno
       const env = { ...process.env };
@@ -273,7 +277,7 @@ async function processGeminiRequest(prompt, apiKey, model) {
         }
       };
 
-      // Timeout para evitar procesos colgados (30 segundos)
+      // Timeout para evitar procesos colgados (90 segundos para operaciones complejas)
       const timeout = setTimeout(() => {
         if (!isResponseSent) {
           console.error('Timeout: El proceso tardó demasiado en responder');
@@ -281,7 +285,7 @@ async function processGeminiRequest(prompt, apiKey, model) {
           cleanup();
           reject(new Error('Timeout: El proceso tardó demasiado en responder'));
         }
-      }, 30000);
+      }, 90000);
 
       cli.stdout.on('data', (data) => {
         output += data.toString();
