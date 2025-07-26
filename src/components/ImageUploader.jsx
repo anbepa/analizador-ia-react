@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { readFileAsBase64 } from '../lib/apiService';
 import { useAppContext } from '../context/AppContext';
-import BrowserCapture from './BrowserCapture';
+
 
 function ImageUploader() {
     const { currentImageFiles, setCurrentImageFiles, initialContext, setInitialContext } = useAppContext();
@@ -81,7 +81,7 @@ function ImageUploader() {
             </label>
             <input type="file" id="image-upload" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
 
-            <BrowserCapture onCapture={processFiles} />
+
 
             <div id="image-preview-container" className="mt-4">
                 {currentImageFiles.length > 0 && (

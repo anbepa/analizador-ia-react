@@ -8,43 +8,6 @@ function GeminiChat() {
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState('disconnected'); // disconnected, connecting, connected, error
-    const [capturedScreenshots, setCapturedScreenshots] = useState([]);
-    const [showSuccessNotification, setShowSuccessNotification] = useState(false);
-
-    // Función para procesar respuestas que contienen imágenes base64
-    const processResponseForImages = (response) => {
-        const images = [];
-        let cleanText = response;
-
-        // Buscar imágenes base64 en la respuesta
-        const imageRegex = /📸 Screenshot capturado:\s*(data:image\/[^;]+;base64,[A-Za-z0-9+/=]+)/g;
-        let match;
-
-        while ((match = imageRegex.exec(response)) !== null) {
-            const dataUrl = match[1];
-            const timestamp = new Date().toLocaleTimeString();
-
-            const imageData = {
-                name: `screenshot_${timestamp}.png`,
-                base64: dataUrl.split(',')[1],
-                type: 'image/png',
-                dataUrl: dataUrl,
-                timestamp: timestamp
-            };
-
-            images.push(imageData);
-
-            // Remover la imagen del texto para que no se muestre duplicada
-            cleanText = cleanText.replace(match[0], `📸 Screenshot procesado: ${timestamp}`);
-        }
-
-        return {
-            text: cleanText,
-            images: images
-        };
-    };
-
-
 
     // Función para optimizar prompts y hacerlos menos conversacionales
     const optimizePrompt = (userPrompt) => {
@@ -59,7 +22,7 @@ INSTRUCCIONES CRÍTICAS - SEGUIR ESTRICTAMENTE:
 5. Si encuentras un formulario que requiere datos, DETENTE y reporta qué información se necesita
 6. Si necesitas información específica, PREGUNTA antes de continuar
 7. Sé directo y conciso en tus respuestas
-8. Toma un screenshot SOLO después de completar la acción solicitada
+8. Proporciona el contenido obtenido de forma clara y estructurada
 9. NO asumas intenciones más allá de lo que se pidió literalmente`;
 
         return optimizedPrompt;
@@ -105,24 +68,8 @@ INSTRUCCIONES CRÍTICAS - SEGUIR ESTRICTAMENTE:
 
             const data = await response.json();
 
-            // Procesar la respuesta para extraer imágenes automáticamente
-            const processedData = processResponseForImages(data.response);
-
-            const botMessage = { type: 'bot', content: processedData.text };
+            const botMessage = { type: 'bot', content: data.response };
             setMessages(prev => [...prev, botMessage]);
-
-            // Si se encontraron imágenes, agregarlas como screenshots
-            if (processedData.images.length > 0) {
-                processedData.images.forEach(imageData => {
-                    setCapturedScreenshots(prev => [...prev, imageData]);
-                    const screenshotMessage = {
-                        type: 'screenshot',
-                        content: `📸 Screenshot capturado automáticamente: ${imageData.timestamp}`,
-                        screenshot: imageData
-                    };
-                    setMessages(prev => [...prev, screenshotMessage]);
-                });
-            }
 
             setConnectionStatus('connected');
 
@@ -144,30 +91,6 @@ INSTRUCCIONES CRÍTICAS - SEGUIR ESTRICTAMENTE:
 
     const clearChat = () => {
         setMessages([]);
-        setCapturedScreenshots([]);
-    };
-
-    const sendScreenshotsToEvidence = () => {
-        if (capturedScreenshots.length > 0) {
-            const count = capturedScreenshots.length;
-            setCurrentImageFiles(prev => [...prev, ...capturedScreenshots]);
-            setCapturedScreenshots([]);
-
-            // Mostrar notificación de éxito
-            setShowSuccessNotification(true);
-
-            // Agregar mensaje de éxito al chat
-            const successMessage = {
-                type: 'success',
-                content: `✅ ${count} screenshot${count > 1 ? 's' : ''} enviado${count > 1 ? 's' : ''} exitosamente a Cargar Evidencias`
-            };
-            setMessages(prev => [...prev, successMessage]);
-
-            // Ocultar notificación después de 3 segundos
-            setTimeout(() => {
-                setShowSuccessNotification(false);
-            }, 3000);
-        }
     };
 
 
@@ -234,8 +157,7 @@ INSTRUCCIONES CRÍTICAS - SEGUIR ESTRICTAMENTE:
                                 ? 'bg-blue-500 text-white ml-auto'
                                 : message.type === 'error'
                                     ? 'bg-red-100 text-red-800 border border-red-200'
-                                    : message.type === 'screenshot'
-                                        ? 'bg-green-50 text-green-800 border border-green-200'
+    
                                         : message.type === 'info'
                                             ? 'bg-blue-50 text-blue-800 border border-blue-200'
                                             : message.type === 'success'
@@ -243,20 +165,7 @@ INSTRUCCIONES CRÍTICAS - SEGUIR ESTRICTAMENTE:
                                                 : 'bg-white text-gray-800 border border-gray-200'
                                 }`}
                         >
-                            {message.type === 'screenshot' && message.screenshot ? (
-                                <div className="space-y-2">
-                                    <p className="text-xs font-medium">{message.content}</p>
-                                    <img
-                                        src={message.screenshot.dataUrl}
-                                        alt="Screenshot capturado"
-                                        className="max-w-full h-auto rounded border cursor-pointer"
-                                        onClick={() => window.open(message.screenshot.dataUrl, '_blank')}
-                                        style={{ maxHeight: '100px' }}
-                                    />
-                                </div>
-                            ) : (
-                                <pre className="whitespace-pre-wrap font-sans">{message.content}</pre>
-                            )}
+                            <pre className="whitespace-pre-wrap font-sans">{message.content}</pre>
                         </div>
                     ))
                 )}
@@ -294,22 +203,7 @@ INSTRUCCIONES CRÍTICAS - SEGUIR ESTRICTAMENTE:
                     Presiona Enter para enviar, Shift+Enter para nueva línea
                 </p>
 
-                {/* Screenshots Actions */}
-                {capturedScreenshots.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs text-gray-600">
-                                📸 {capturedScreenshots.length} screenshot(s) capturado(s)
-                            </span>
-                        </div>
-                        <button
-                            onClick={sendScreenshotsToEvidence}
-                            className="w-full bg-green-500 text-white text-xs font-medium py-2 px-3 rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors duration-200"
-                        >
-                            📋 Enviar a Cargar Evidencias
-                        </button>
-                    </div>
-                )}
+
             </div>
         </div>
     );

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { readFileAsBase64 } from '../lib/apiService';
-import BrowserCapture from './BrowserCapture';
+
 
 function FlowImageUploader({
     label,
@@ -99,7 +99,7 @@ function FlowImageUploader({
             </label>
             <input type="file" id={inputId} multiple accept=".png,.jpg,.jpeg" className="hidden" onChange={handleImageUpload} />
 
-            <BrowserCapture onCapture={processFiles} />
+
 
             <div className="thumb-gallery">
                 {images.map((img, index) => (

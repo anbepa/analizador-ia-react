@@ -15,7 +15,7 @@ Sistema de análisis inteligente con agente especializado en análisis web usand
 - **Frontend**: React 19, Vite, Tailwind CSS
 - **Backend**: Express.js, Gemini CLI
 - **Análisis web**: web_fetch para contenido HTTP
-- **Procesamiento**: html2canvas, DOMPurify
+- **Procesamiento**: DOMPurify, PDF generation
 
 ## 🚀 Instalación
 
