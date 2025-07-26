@@ -13,7 +13,7 @@
     "build:production": "npm run build && npm run install:backend",
     "install:backend": "cd gemini-mcp-backend && npm install",
     "start": "node server.js",
-    "render:build": "npm install && npm run build:production",
+    "render:build": "rm -rf node_modules package-lock.json && npm install && npm run build:production",
     "render:start": "npm run start",
     "test:build": "node test-build.js"
   },
