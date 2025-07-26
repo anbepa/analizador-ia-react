@@ -215,28 +215,57 @@ async function processGeminiWithMCP(prompt, apiKey, model) {
         baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, 'utf8'));
       }
 
-      // Crear configuración temporal
+      // Obtener API key de variables de entorno
+      const apiKeyFromEnv = process.env.GEMINI_API_KEY;
+      
+      // Validar que la API key esté configurada
+      if (!apiKeyFromEnv) {
+        throw new Error('GEMINI_API_KEY no está configurada en las variables de entorno');
+      }
+
+      // Crear configuración temporal SIN API key (el CLI la tomará de la variable de entorno)
       const tempConfig = {
         ...baseConfig,
-        model: model || baseConfig.model || process.env.GEMINI_MODEL || 'gemini-2.0-flash',
-        apiKey: apiKey || baseConfig.apiKey || process.env.GEMINI_API_KEY
+        model: process.env.GEMINI_MODEL || baseConfig.model || 'gemini-2.0-flash'
       };
 
-      // Escribir configuración temporal
+      // Escribir configuración temporal (sin API key)
       const tempConfigPath = path.join(__dirname, 'temp-gemini.config.json');
       fs.writeFileSync(tempConfigPath, JSON.stringify(tempConfig, null, 2));
 
-      // Preparar argumentos para el CLI
-      const args = ['@google/gemini-cli', '--prompt', prompt, '--model', tempConfig.model];
+      // Crear prompt especializado para automatización web
+      const systemPrompt = `AGENTE DE AUTOMATIZACIÓN WEB - MODO DIRECTO
 
-      // Preparar variables de entorno
-      const env = { ...process.env };
-      if (tempConfig.apiKey) {
-        env.GEMINI_API_KEY = tempConfig.apiKey;
-      }
-      env.GEMINI_CONFIG_PATH = tempConfigPath;
+Eres un agente especializado en automatización web. EJECUTA las acciones inmediatamente sin pedir confirmaciones.
+
+REGLAS ESTRICTAS:
+- NO preguntes por permisos
+- NO pidas confirmaciones  
+- EJECUTA las herramientas directamente
+- RESPONDE solo con el resultado de la acción
+
+COMANDO: ${prompt}
+
+EJECUTA AHORA:`;
+
+      // Preparar argumentos para el CLI
+      const args = ['@google/gemini-cli', '--prompt', systemPrompt, '--model', tempConfig.model];
+
+      // Preparar variables de entorno para Gemini CLI
+      const env = { 
+        ...process.env,
+        // Asegurar que la API key esté disponible para el CLI
+        GEMINI_API_KEY: apiKeyFromEnv,
+        // Configurar el archivo de configuración temporal
+        GEMINI_CONFIG_PATH: tempConfigPath,
+        // Configurar el modelo por defecto
+        GEMINI_MODEL: tempConfig.model
+      };
 
       console.log(`Usando CLI con MCP para: ${prompt.substring(0, 50)}...`);
+      console.log(`Comando completo: npx ${args.join(' ')}`);
+      console.log(`API Key en env: ${env.GEMINI_API_KEY ? 'Configurada' : 'NO configurada'}`);
+      console.log(`Archivo config temporal: ${tempConfigPath}`);
 
       const cli = spawn('npx', args, { env, cwd: __dirname });
 
@@ -339,7 +368,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor iniciado en puerto ${PORT}`);
   console.log(`📱 Frontend: http://localhost:${PORT}`);

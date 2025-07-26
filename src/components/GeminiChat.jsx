@@ -86,7 +86,7 @@ INSTRUCCIONES CRÍTICAS - SEGUIR ESTRICTAMENTE:
         try {
             // Usar URL relativa en producción, localhost en desarrollo
             const apiUrl = import.meta.env.PROD ? '/api/chat' : 'http://localhost:3000/api/chat';
-            
+
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
@@ -191,9 +191,9 @@ INSTRUCCIONES CRÍTICAS - SEGUIR ESTRICTAMENTE:
                 <h3 className="text-sm font-medium text-gray-800 flex items-center gap-2">
                     💬 Chat con Gemini MCP
                     <span className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' :
-                            connectionStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
-                                connectionStatus === 'error' ? 'bg-red-500' :
-                                    'bg-gray-400'
+                        connectionStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
+                            connectionStatus === 'error' ? 'bg-red-500' :
+                                'bg-gray-400'
                         }`} title={
                             connectionStatus === 'connected' ? 'Conectado' :
                                 connectionStatus === 'connecting' ? 'Conectando...' :
@@ -231,16 +231,16 @@ INSTRUCCIONES CRÍTICAS - SEGUIR ESTRICTAMENTE:
                         <div
                             key={index}
                             className={`p-2 rounded-lg text-sm max-w-[85%] ${message.type === 'user'
-                                    ? 'bg-blue-500 text-white ml-auto'
-                                    : message.type === 'error'
-                                        ? 'bg-red-100 text-red-800 border border-red-200'
-                                        : message.type === 'screenshot'
-                                            ? 'bg-green-50 text-green-800 border border-green-200'
-                                            : message.type === 'info'
-                                                ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                                                : message.type === 'success'
-                                                    ? 'bg-green-50 text-green-800 border border-green-200'
-                                                    : 'bg-white text-gray-800 border border-gray-200'
+                                ? 'bg-blue-500 text-white ml-auto'
+                                : message.type === 'error'
+                                    ? 'bg-red-100 text-red-800 border border-red-200'
+                                    : message.type === 'screenshot'
+                                        ? 'bg-green-50 text-green-800 border border-green-200'
+                                        : message.type === 'info'
+                                            ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                                            : message.type === 'success'
+                                                ? 'bg-green-50 text-green-800 border border-green-200'
+                                                : 'bg-white text-gray-800 border border-gray-200'
                                 }`}
                         >
                             {message.type === 'screenshot' && message.screenshot ? (
