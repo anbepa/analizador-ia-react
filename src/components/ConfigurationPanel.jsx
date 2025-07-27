@@ -144,8 +144,11 @@ function ConfigurationPanel({ mode = 'full' }) {
                                 <span className="ml-1 text-gray-400" title="Versión del modelo IA">ⓘ</span>
                             </label>
                             <select id="gemini-model-select" value={apiConfig.gemini.model} onChange={(e) => handleConfigChange('gemini', 'model', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
-                                <option value="gemini-pro-vision">Gemini Pro Vision</option>
-                                <option value="gemini-pro">Gemini Pro (solo texto)</option>
+                                <option value="gemini-1.5-flash">Gemini&nbsp;1.5&nbsp;Flash</option>
+                                <option value="gemini-2.0-flash">Gemini&nbsp;2.0&nbsp;Flash</option>
+                                <option value="gemini-2.0-flash-lite">Gemini&nbsp;2.0&nbsp;Flash&#8209;Lite</option>
+                                <option value="gemini-2.5-flash">Gemini&nbsp;2.5&nbsp;Flash</option>
+                                <option value="gemini-2.5-flash-lite">Gemini&nbsp;2.5&nbsp;Flash&#8209;Lite</option>
                             </select>
                         </div>
                     </div>
