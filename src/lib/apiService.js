@@ -57,14 +57,8 @@ export async function callAiApi(prompt, imageFiles, apiConfig) {
              };
             break;
 
-        case 'gemini':
         default:
-            apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${providerConfig.model}:generateContent?key=${providerConfig.key}`;
-            headers = { 'Content-Type': 'application/json' };
-            body = {
-                contents: [{ parts: [{ text: prompt }, ...imageFiles.map(img => ({ inline_data: { mime_type: img.type, data: img.base64 } }))] }]
-            };
-            break;
+            throw new Error(`Proveedor de IA no soportado: ${provider}`);
     }
 
     const response = await fetch(apiUrl, {
@@ -88,7 +82,6 @@ export async function callAiApi(prompt, imageFiles, apiConfig) {
             return result.choices[0].message.content;
         case 'claude':
             return result.content[0].text;
-        case 'gemini':
         default:
              return result.candidates[0].content.parts[0].text;
     }

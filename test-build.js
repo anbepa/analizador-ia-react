@@ -47,8 +47,6 @@ async function testBuild() {
     await runCommand('npm', ['run', 'build']);
 
     // 4. Instalar dependencias del backend
-    console.log('🔧 Instalando dependencias del backend...');
-    await runCommand('npm', ['run', 'install:backend']);
 
     // 5. Verificar archivos generados
     console.log('✅ Verificando archivos generados...');
@@ -56,14 +54,11 @@ async function testBuild() {
     const distExists = fs.existsSync('dist');
     const indexExists = fs.existsSync('dist/index.html');
     const serverExists = fs.existsSync('server.js');
-    const backendDepsExists = fs.existsSync('gemini-mcp-backend/node_modules');
-
     console.log(`📁 dist/: ${distExists ? '✅' : '❌'}`);
     console.log(`📄 dist/index.html: ${indexExists ? '✅' : '❌'}`);
     console.log(`🖥️  server.js: ${serverExists ? '✅' : '❌'}`);
-    console.log(`📦 Backend deps: ${backendDepsExists ? '✅' : '❌'}`);
 
-    if (distExists && indexExists && serverExists && backendDepsExists) {
+    if (distExists && indexExists && serverExists) {
       console.log('\n🎉 ¡Build de producción exitoso!');
       console.log('\n📋 Para probar localmente:');
       console.log('   NODE_ENV=production npm start');
