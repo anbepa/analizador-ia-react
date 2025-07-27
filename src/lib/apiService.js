@@ -57,6 +57,29 @@ export async function callAiApi(prompt, imageFiles, apiConfig) {
              };
             break;
 
+        case 'gemini':
+            apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${providerConfig.model}:generateContent?key=${providerConfig.key}`;
+            headers = {
+                'Content-Type': 'application/json'
+            };
+            body = {
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [
+                            { text: prompt },
+                            ...imageFiles.map(img => ({
+                                inline_data: {
+                                    mime_type: img.type,
+                                    data: img.base64
+                                }
+                            }))
+                        ]
+                    }
+                ]
+            };
+            break;
+
         default:
             throw new Error(`Proveedor de IA no soportado: ${provider}`);
     }
@@ -82,8 +105,10 @@ export async function callAiApi(prompt, imageFiles, apiConfig) {
             return result.choices[0].message.content;
         case 'claude':
             return result.content[0].text;
+        case 'gemini':
+            return result.candidates[0].content.parts[0].text;
         default:
-             return result.candidates[0].content.parts[0].text;
+            throw new Error(`Proveedor de IA no soportado: ${provider}`);
     }
 }
 

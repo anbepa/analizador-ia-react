@@ -60,6 +60,7 @@ function ConfigurationPanel({ mode = 'full' }) {
                     <select id="ai-provider-select" value={apiConfig.provider} onChange={handleProviderChange} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary">
                         <option value="openai">OpenAI (ChatGPT)</option>
                         <option value="claude">Anthropic (Claude)</option>
+                        <option value="gemini">Google (Gemini)</option>
                     </select>
                 </div>
 
@@ -117,6 +118,34 @@ function ConfigurationPanel({ mode = 'full' }) {
                                 <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
                                 <option value="claude-3-opus-20240229">Claude 3 Opus</option>
                                 <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
+                            </select>
+                        </div>
+                    </div>
+                )}
+
+                {apiConfig.provider === 'gemini' && (
+                    <div id="gemini-settings" className="space-y-4">
+                        <div>
+                            <label htmlFor="gemini-key" className="block text-sm font-medium text-gray-700 mb-1">Clave API de Gemini
+                                <span className="ml-1 text-gray-400" title="Tu clave de Google AI Studio">ⓘ</span>
+                            </label>
+                            <input
+                                type="password"
+                                id="gemini-key"
+                                title="Introduce tu clave de Google"
+                                value={apiConfig.gemini.key}
+                                onChange={(e) => handleConfigChange('gemini', 'key', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                placeholder="Clave API de Google"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="gemini-model-select" className="block text-sm font-medium text-gray-700 mb-1">Modelo de Gemini
+                                <span className="ml-1 text-gray-400" title="Versión del modelo IA">ⓘ</span>
+                            </label>
+                            <select id="gemini-model-select" value={apiConfig.gemini.model} onChange={(e) => handleConfigChange('gemini', 'model', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                                <option value="gemini-pro-vision">Gemini Pro Vision</option>
+                                <option value="gemini-pro">Gemini Pro (solo texto)</option>
                             </select>
                         </div>
                     </div>
