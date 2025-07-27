@@ -16,8 +16,7 @@ export const useAppContext = () => {
 
 export const AppProvider = ({ children }) => {
     const [apiConfig, setApiConfig] = useState({
-        provider: 'gemini',
-        gemini: { key: '', model: 'gemini-2.0-flash' },
+        provider: 'openai',
         openai: { key: '', model: 'gpt-4o' },
         claude: { key: '', model: 'claude-3-sonnet-20240229' }
     });

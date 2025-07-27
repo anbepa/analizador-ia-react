@@ -8,12 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "backend": "cd gemini-mcp-backend && npm start",
-    "dev:full": "concurrently \"npm run backend\" \"npm run dev\"",
-    "build:production": "npm run build && npm run install:backend",
-    "install:backend": "cd gemini-mcp-backend && npm install",
     "start": "node server.js",
-    "render:build": "rm -rf node_modules package-lock.json && npm install && npm run build:production",
+    "render:build": "rm -rf node_modules package-lock.json && npm install && npm run build",
     "render:start": "npm run start",
     "test:build": "node test-build.js"
   },

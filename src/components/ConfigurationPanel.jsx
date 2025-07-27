@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { downloadHtmlReport } from '../lib/downloadService';
-import GeminiChat from './GeminiChat';
 
 function ConfigurationPanel({ mode = 'full' }) {
     const {
@@ -18,14 +17,6 @@ function ConfigurationPanel({ mode = 'full' }) {
     } = useAppContext();
 
     const [showDownloadOptions, setShowDownloadOptions] = useState(false);
-
-    const geminiModels = [
-        { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Recomendado para MCP)" },
-        { id: "gemini-1.5-flash-latest", name: "Gemini 1.5 Flash (Latest)" },
-        { id: "gemini-1.5-pro-latest", name: "Gemini 1.5 Pro (Latest)" },
-        { id: "gemini-1.0-pro", name: "Gemini 1.0 Pro" },
-        { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-    ];
 
     const handleProviderChange = (e) => {
         setApiConfig(prev => ({ ...prev, provider: e.target.value }));
@@ -67,45 +58,11 @@ function ConfigurationPanel({ mode = 'full' }) {
                         <span className="ml-1 text-gray-400" title="Selecciona el servicio de IA a utilizar">ⓘ</span>
                     </label>
                     <select id="ai-provider-select" value={apiConfig.provider} onChange={handleProviderChange} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary">
-                        <option value="gemini">Gemini (Google)</option>
                         <option value="openai">OpenAI (ChatGPT)</option>
                         <option value="claude">Anthropic (Claude)</option>
                     </select>
                 </div>
 
-                {apiConfig.provider === 'gemini' && (
-                     <div id="gemini-settings" className="space-y-4">
-                        <div>
-                            <label htmlFor="gemini-key" className="block text-sm font-medium text-gray-700 mb-1">Clave API de Gemini
-                                <span className="ml-1 text-gray-400" title="Tu clave secreta de la API">ⓘ</span>
-                            </label>
-                            <input
-                                type="password"
-                                id="gemini-key"
-                                title="Introduce tu clave de Gemini"
-                                value={apiConfig.gemini.key}
-                                onChange={(e) => handleConfigChange('gemini', 'key', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                                placeholder="Introduce tu clave de Gemini"
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="gemini-model-select" className="block text-sm font-medium text-gray-700 mb-1">Modelo de Gemini
-                                <span className="ml-1 text-gray-400" title="Versión del modelo IA">ⓘ</span>
-                            </label>
-                            <select 
-                                id="gemini-model-select" 
-                                value={apiConfig.gemini.model} 
-                                onChange={(e) => handleConfigChange('gemini', 'model', e.target.value)} 
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                            >
-                                {geminiModels.map(model => (
-                                    <option key={model.id} value={model.id}>{model.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                )}
 
                 {apiConfig.provider === 'openai' && (
                      <div id="openai-settings" className="space-y-4">
@@ -214,11 +171,6 @@ function ConfigurationPanel({ mode = 'full' }) {
                             </ul>
                         </div>
                     )}
-                </div>
-                
-                {/* Gemini Chat Integration */}
-                <div className="pt-3 border-t border-gray-200">
-                    <GeminiChat />
                 </div>
             </div>
             )}
