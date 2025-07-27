@@ -19,7 +19,7 @@ export const AppProvider = ({ children }) => {
         provider: 'openai',
         openai: { key: '', model: 'gpt-4o' },
         claude: { key: '', model: 'claude-3-sonnet-20240229' },
-        gemini: { key: '', model: 'gemini-pro-vision' }
+        gemini: { key: '', model: 'gemini-1.5-flash' }
     });
     const [currentImageFiles, setCurrentImageFiles] = useState([]);
     const [initialContext, setInitialContext] = useState('');
