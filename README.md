@@ -9,6 +9,7 @@ Sistema de análisis inteligente con agente especializado en análisis web.
 - **Análisis de evidencias** - Carga y análisis de imágenes
 - **Interfaz moderna** - React + Tailwind CSS
 - **Backend integrado** - Express.js sencillo para servir el build
+- **Compatibilidad** - Soporte para OpenAI, Anthropic y Google Gemini
 
 ## 🛠️ Tecnologías
 
@@ -22,8 +23,11 @@ Sistema de análisis inteligente con agente especializado en análisis web.
 ### Prerrequisitos
 
 - [Node.js](https://nodejs.org/) (versión 18 o superior)
-- [npm](https://www.npmjs.com/) 
-- API Key de [Google AI Studio](https://aistudio.google.com/app/apikey)
+- [npm](https://www.npmjs.com/)
+- Claves API para los proveedores de IA que utilices:
+  - [OpenAI](https://platform.openai.com/)
+  - [Anthropic](https://www.anthropic.com/)
+  - [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ### Desarrollo Local
 
