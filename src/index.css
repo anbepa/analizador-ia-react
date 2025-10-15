@@ -1,36 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Apple-inspired base styles */
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Inter', sans-serif;
+    @apply bg-background text-secondary-900 leading-relaxed;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  }
 
-
-
-
-/* Estilos personalizados del proyecto original */
-body {
-    font-family: 'Inter', sans-serif;
-    @apply bg-white text-black;
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-secondary-900;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  }
 }
 
-.glassmorphism {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+/* Apple-inspired components */
+@layer components {
+  .apple-card {
+    @apply bg-surface rounded-apple-lg shadow-apple-md border border-secondary-100;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .apple-button {
+    @apply px-6 py-3 font-medium rounded-apple transition-all duration-200 ease-out;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2;
+  }
+
+  .apple-button-primary {
+    @apply apple-button bg-primary text-white;
+    @apply hover:bg-primary-600 active:bg-primary-700;
+    @apply shadow-apple hover:shadow-apple-md;
+  }
+
+  .apple-button-secondary {
+    @apply apple-button bg-secondary-50 text-secondary-700 border border-secondary-200;
+    @apply hover:bg-secondary-100 active:bg-secondary-200;
+  }
+
+  .glassmorphism {
+    @apply apple-card;
+    background: rgba(255, 255, 255, 0.8);
+  }
+
+  /* Animation utilities */
+  .animate-in {
+    animation-duration: 0.2s;
+    animation-fill-mode: both;
+  }
+
+  .fade-in {
+    animation-name: fadeIn;
+  }
+
+  .zoom-in-95 {
+    animation-name: zoomIn95;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes zoomIn95 {
+    from { 
+      opacity: 0; 
+      transform: scale(0.95); 
+    }
+    to { 
+      opacity: 1; 
+      transform: scale(1); 
+    }
+  }
 }
 
 .report-content h1 {
-    color: #3b5a6b;
-    border-bottom: 2px solid #e9ecef;
-    padding-bottom: 10px;
-    font-size: 1.5em;
-    margin-bottom: 1rem;
+    color: #1e293b;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 16px;
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
 }
 
 .report-content h2 {
-    font-size: 1.4em;
-    color: #4a6d7c;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #334155;
     margin-top: 20px;
     margin-bottom: 10px;
     padding-bottom: 5px;
@@ -69,7 +138,8 @@ body {
 }
 
 .report-content img.evidence-image {
-    max-width: 500px;
+    max-width: 250px;
+    width: auto;
     height: auto;
     border: 1px solid #ccc;
     border-radius: 4px;

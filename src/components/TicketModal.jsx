@@ -13,17 +13,45 @@ function TicketModal({ show, title, content, onClose }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl transform transition-all">
-                <div className="p-6">
-                    <div className="flex justify-between items-center border-b pb-3">
-                        <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
-                    </div>
-                    <div className="mt-4 modal-content">{content}</div>
+        <div className="fixed inset-0 bg-surface-overlay backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+            <div className="apple-card w-full max-w-3xl max-h-[90vh] flex flex-col transform animate-in zoom-in-95 duration-200">
+                {/* Header */}
+                <div className="flex justify-between items-center p-6 border-b border-secondary-100">
+                    <h3 className="text-xl font-semibold text-secondary-900">{title}</h3>
+                    <button 
+                        onClick={onClose} 
+                        className="p-2 hover:bg-secondary-100 rounded-apple-lg transition-colors duration-200 text-secondary-500 hover:text-secondary-700"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
-                <div className="bg-gray-50 px-6 py-3 flex justify-end space-x-3 rounded-b-lg">
-                    <button onClick={copyToClipboard} className="bg-primary text-white font-semibold py-2 px-4 rounded-md hover:bg-primary/90">Copiar al Portapapeles</button>
+                
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    <div className="modal-content prose max-w-none">{content}</div>
+                </div>
+                
+                {/* Footer */}
+                <div className="border-t border-secondary-100 px-6 py-4 flex justify-end space-x-3">
+                    <button 
+                        onClick={onClose} 
+                        className="apple-button-secondary"
+                    >
+                        Cerrar
+                    </button>
+                    <button 
+                        onClick={copyToClipboard} 
+                        className="apple-button-primary"
+                    >
+                        <span className="flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            Copiar al Portapapeles
+                        </span>
+                    </button>
                 </div>
             </div>
         </div>

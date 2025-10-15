@@ -61,8 +61,25 @@ export async function callAiApi(prompt, imageFiles, apiConfig) {
         default:
             apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${providerConfig.model}:generateContent?key=${providerConfig.key}`;
             headers = { 'Content-Type': 'application/json' };
+            
+            // Process images for Gemini API
+            const geminiParts = [{ text: prompt }];
+            imageFiles.forEach(img => {
+                if (img.dataURL && img.dataURL.includes(',')) {
+                    const base64Data = img.dataURL.split(',')[1];
+                    const mimeType = img.dataURL.split(',')[0].match(/data:([^;]+)/)?.[1] || img.type || 'image/png';
+                    
+                    geminiParts.push({
+                        inline_data: {
+                            mime_type: mimeType,
+                            data: base64Data
+                        }
+                    });
+                }
+            });
+            
             body = {
-                contents: [{ parts: [{ text: prompt }, ...imageFiles.map(img => ({ inline_data: { mime_type: img.type, data: img.base64 } }))] }]
+                contents: [{ parts: geminiParts }]
             };
             break;
     }
@@ -75,9 +92,38 @@ export async function callAiApi(prompt, imageFiles, apiConfig) {
 
     if (!response.ok) {
         let errorBody;
-        try { errorBody = await response.json(); } 
-        catch (e) { errorBody = await response.text(); }
-        const errorMessage = typeof errorBody === 'object' ? JSON.stringify(errorBody.error.message) : errorBody;
+        try { 
+            errorBody = await response.json(); 
+        } catch (e) { 
+            errorBody = await response.text(); 
+        }
+        
+        let errorMessage = "Error desconocido en la API";
+        
+        if (typeof errorBody === 'object' && errorBody.error) {
+            if (provider === 'gemini' && errorBody.error.message) {
+                const geminiError = errorBody.error.message;
+                if (geminiError.includes('Unable to process input image')) {
+                    errorMessage = "Una o más imágenes no pudieron ser procesadas. Esto puede ser debido a:\n" +
+                                 "• Imágenes corruptas o en formato no válido\n" +
+                                 "• Imágenes demasiado grandes (máximo recomendado: 10MB)\n" +
+                                 "• Contenido de imagen no reconocible\n\n" +
+                                 "Sugerencias:\n" +
+                                 "• Verifica que las imágenes se vean correctamente\n" +
+                                 "• Intenta con imágenes más pequeñas\n" +
+                                 "• Usa formatos comunes (PNG, JPG, WEBP)";
+                } else if (geminiError.includes('quota') || geminiError.includes('limit')) {
+                    errorMessage = "Se ha excedido el límite de la API de Gemini. Intenta más tarde o verifica tu cuota.";
+                } else {
+                    errorMessage = `Error de Gemini: ${geminiError}`;
+                }
+            } else {
+                errorMessage = typeof errorBody.error === 'string' ? errorBody.error : JSON.stringify(errorBody.error);
+            }
+        } else if (typeof errorBody === 'string') {
+            errorMessage = errorBody;
+        }
+        
         throw new Error(errorMessage);
     }
     

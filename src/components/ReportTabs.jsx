@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 
 const ReportTabs = () => {
-    const { reports, activeReportIndex, selectReport, deleteReport, updateReportName } = useAppContext();
+    const { reports, activeReportIndex, selectReport, deleteReport, updateReportName, handleMakeReportPermanent } = useAppContext();
     const [editingIndex, setEditingIndex] = useState(null);
     const [editingValue, setEditingValue] = useState('');
     const inputRef = useRef(null);
@@ -42,43 +42,90 @@ const ReportTabs = () => {
     }
 
     return (
-        <div className="flex flex-wrap border-b border-gray-200">
-            {reports.map((report, index) => (
-                <div
-                    key={index}
-                    className={`flex items-center py-2 px-4 cursor-pointer border-b-2 ${
-                        activeReportIndex === index
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                    onClick={() => selectReport(index)}
-                >
-                    {editingIndex === index ? (
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={editingValue}
-                            onChange={handleNameChange}
-                            onBlur={() => handleSaveName(index)}
-                            onKeyDown={(e) => handleKeyDown(e, index)}
-                            className="bg-transparent border-none focus:ring-0 p-0"
-                        />
-                    ) : (
-                        <span onDoubleClick={() => handleDoubleClick(index, report.Nombre_del_Escenario || `Reporte ${index + 1}`)}>
-                            {report.Nombre_del_Escenario || `Reporte ${index + 1}`}
-                        </span>
-                    )}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            deleteReport(index);
-                        }}
-                        className="ml-2 text-gray-400 hover:text-gray-600"
+        <div className="flex flex-wrap gap-2">
+                {reports.map((report, index) => (
+                    <div
+                        key={index}
+                        className={`flex items-center px-4 py-2 cursor-pointer rounded-lg transition-all duration-200 relative text-sm font-medium ${
+                            activeReportIndex === index
+                                ? 'bg-violet-600 text-white shadow-lg'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-white border border-slate-200'
+                        }`}
+                        onClick={() => selectReport(index)}
                     >
-                        &times;
-                    </button>
-                </div>
-            ))}
+                        {/* Temporary report indicator */}
+                        {report.is_temp && (
+                            <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full animate-pulse ${
+                                activeReportIndex === index ? 'bg-yellow-300' : 'bg-yellow-500'
+                            }`} title="Reporte temporal - se eliminará al cerrar la pestaña">
+                                <div className="w-full h-full rounded-full opacity-75"></div>
+                            </div>
+                        )}
+                        
+                        {editingIndex === index ? (
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={editingValue}
+                                onChange={handleNameChange}
+                                onBlur={() => handleSaveName(index)}
+                                onKeyDown={(e) => handleKeyDown(e, index)}
+                                className="bg-transparent border-none focus:ring-0 p-0 text-white placeholder-white/70 min-w-20"
+                            />
+                        ) : (
+                            <span 
+                                onDoubleClick={() => {
+                                    let scenarioName = report.Nombre_del_Escenario || `Reporte ${index + 1}`;
+                                    if (scenarioName.startsWith('Escenario: ')) {
+                                        scenarioName = scenarioName.substring(11);
+                                    }
+                                    handleDoubleClick(index, scenarioName);
+                                }}
+                                className="font-medium text-sm mr-1"
+                            >
+                                {(() => {
+                                    let scenarioName = report.Nombre_del_Escenario || `Reporte ${index + 1}`;
+                                    if (scenarioName.startsWith('Escenario: ')) {
+                                        scenarioName = scenarioName.substring(11);
+                                    }
+                                    return scenarioName;
+                                })()}
+                            </span>
+                        )}
+
+                        {/* Make permanent button for temporary reports */}
+                        {report.is_temp && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMakeReportPermanent(index);
+                                }}
+                                className={`ml-1 p-1 rounded-full hover:bg-black/10 transition-colors ${
+                                    activeReportIndex === index ? 'text-white/70 hover:text-white' : 'text-secondary-400 hover:text-secondary-600'
+                                }`}
+                                title="Hacer permanente"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </button>
+                        )}
+
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                deleteReport(index);
+                            }}
+                            className={`ml-2 p-1 rounded-full hover:bg-black/10 transition-colors ${
+                                activeReportIndex === index ? 'text-white/70 hover:text-white' : 'text-secondary-400 hover:text-secondary-600'
+                            }`}
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                ))}
         </div>
     );
 };
