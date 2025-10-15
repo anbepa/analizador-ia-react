@@ -16,11 +16,8 @@ function ConfigurationPanel({ mode = 'full' }) {
         // Refinement related states and functions
         isRefining,
         setIsRefining,
-        userContext,
-        setUserContext,
         handleSaveAndRefine,
-        loading,
-        currentImageFiles
+        loading
     } = useAppContext();
 
     const [showDownloadOptions, setShowDownloadOptions] = useState(false);

@@ -58,7 +58,7 @@ export async function callAiApi(prompt, imageFiles, apiConfig) {
             break;
 
         case 'gemini':
-        default:
+        default: {
             apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${providerConfig.model}:generateContent?key=${providerConfig.key}`;
             headers = { 'Content-Type': 'application/json' };
             
@@ -82,6 +82,7 @@ export async function callAiApi(prompt, imageFiles, apiConfig) {
                 contents: [{ parts: geminiParts }]
             };
             break;
+        }
     }
 
     const response = await fetch(apiUrl, {
@@ -94,7 +95,7 @@ export async function callAiApi(prompt, imageFiles, apiConfig) {
         let errorBody;
         try { 
             errorBody = await response.json(); 
-        } catch (e) { 
+        } catch {
             errorBody = await response.text(); 
         }
         

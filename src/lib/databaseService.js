@@ -643,7 +643,7 @@ export const initializeDatabaseCleanup = () => {
   };
 
   // Immediate cleanup on page unload
-  const handleUnload = (e) => {
+  const handleUnload = () => {
     // Set flag to indicate session is ending
     sessionStorage.setItem('qa_session_active', 'false');
     

@@ -12,13 +12,10 @@ function App() {
         modal,
         closeModal,
         reportRef,
-        showConfigurationPanel,
-        setShowConfigurationPanel,
         activeReport,
         // Navegación unificada
         navigationState,
-        setNavigationMode,
-        updateNavigation
+        setNavigationMode
     } = useAppContext();
 
     const [showScenario, setShowScenario] = useState(false);

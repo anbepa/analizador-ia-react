@@ -13,8 +13,7 @@ import {
   initializeDatabaseCleanup,
   makeReportPermanent,
   addStepToReport,
-  deleteStepFromReport as deleteStepFromDB,
-  updateStepInReport
+  deleteStepFromReport as deleteStepFromDB
 } from '../lib/databaseService';
 import { supabase } from '../lib/supabaseClient';
 
@@ -414,7 +413,7 @@ export const AppProvider = ({ children }) => {
             // Update in database if we have an ID
             if (activeReport.id) {
                 // Add step to database
-                const newStep = await addStepToReport(activeReport.id, stepData, currentImageFiles);
+                await addStepToReport(activeReport.id, stepData, currentImageFiles);
                 
                 // Reload the complete report from database to get updated data
                 const { data: updatedReportData } = await supabase
@@ -573,7 +572,7 @@ export const AppProvider = ({ children }) => {
 
         editedReport.Pasos_Analizados = updatedSteps;
         editedReport.user_provided_additional_context = userContext.trim();
-        const { imageFiles, ...reportForPrompt } = editedReport;
+        const { imageFiles: _imageFiles, ...reportForPrompt } = editedReport;
         const editedJsonString = JSON.stringify([reportForPrompt], null, 2);
         
         setLoading({ state: true, message: 'Refinando análisis...' });
