@@ -263,12 +263,12 @@ export const AppProvider = ({ children }) => {
                 initial_context: initialContext
             };
 
-            console.log('Saving new report with images:', newReport.imageFiles?.length || 0, 'images');
+
 
             // Save to database as temporary initially
             try {
                 const savedReport = await saveReportToDB(newReport, true); // Save as temporary
-                console.log('Report saved to database with images:', savedReport.imageFiles?.length || 0, 'images');
+
                 
                 setReports(prev => {
                     const newReports = [...prev, savedReport];
@@ -291,7 +291,7 @@ export const AppProvider = ({ children }) => {
                                 newReports[newReports.length - 1] = currentReport;
                                 return newReports;
                             });
-                            console.log('Report made permanent with images:', currentReport.imageFiles?.length || 0, 'images');
+
                         } else {
                             // Fallback to combining saved data with permanent status
                             setReports(prev => {

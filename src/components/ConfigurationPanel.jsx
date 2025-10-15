@@ -13,7 +13,6 @@ function ConfigurationPanel({ mode = 'full' }) {
         canRefine,
         canDownload,
         activeReport,
-        reports,
         // Refinement related states and functions
         isRefining,
         setIsRefining,

@@ -71,11 +71,7 @@ export const saveReport = async (reportData, isTemporary = false) => {
     // Save images if any, now with proper step associations
     let savedImages = [];
     if (imageFiles && imageFiles.length > 0) {
-      console.log('Saving images for report:', report.id, imageFiles.length, 'images');
       savedImages = await storeImagesForReport(report.id, imageFiles, savedSteps, isTemporary);
-      console.log('Images saved successfully:', savedImages.length, 'images');
-    } else {
-      console.log('No images to save for report:', report.id);
     }
 
     // Return complete report with the original structure for compatibility
@@ -449,40 +445,7 @@ export const saveRefinement = async (originalReportId, refinedReportId, refineme
   }
 };
 
-/**
- * Load all bugs from the database
- */
-export const loadAllBugs = async () => {
-  try {
-    // For now, return mock data since we don't have a bugs table set up
-    console.log('Loading all bugs...');
-    return [
-      {
-        id: 1,
-        report_id: null,
-        step_number: 1,
-        title: 'Bug de ejemplo',
-        description: 'Este es un bug de ejemplo para demostrar la funcionalidad',
-        status: 'open',
-        priority: 'medium',
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 2,
-        report_id: null,
-        step_number: 2,
-        title: 'Error de validación',
-        description: 'Los campos no se validan correctamente en el formulario',
-        status: 'in_progress',
-        priority: 'high',
-        created_at: new Date().toISOString()
-      }
-    ];
-  } catch (error) {
-    console.error('Error loading all bugs:', error);
-    throw error;
-  }
-};
+
 
 /**
  * Load bugs for a specific report
