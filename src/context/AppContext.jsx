@@ -79,6 +79,51 @@ export const AppProvider = ({ children }) => {
             cleaned.Resultado_Esperado_General_Flujo = cleanedField.trim();
         }
         
+        // Clean resultado_obtenido_paso_y_estado fields in Pasos_Analizados
+        if (cleaned.Pasos_Analizados && Array.isArray(cleaned.Pasos_Analizados)) {
+            cleaned.Pasos_Analizados = cleaned.Pasos_Analizados.map(paso => {
+                const cleanedPaso = { ...paso };
+                
+                // Remove JSON-like formatting from resultado_obtenido_paso_y_estado
+                if (cleanedPaso.resultado_obtenido_paso_y_estado) {
+                    let cleanedResult = cleanedPaso.resultado_obtenido_paso_y_estado;
+                    
+                    // Remove opening and closing braces if they wrap the entire content
+                    if (cleanedResult.trim().startsWith('{') && cleanedResult.trim().endsWith('}')) {
+                        cleanedResult = cleanedResult.trim().slice(1, -1).trim();
+                    }
+                    
+                    // Remove JSON property patterns like "estado": "Exitosa", "descripcion": "..."
+                    // and extract just the meaningful text
+                    const jsonPatterns = [
+                        /"estado"\s*:\s*"([^"]+)"\s*,\s*"descripcion"\s*:\s*"([^"]+)"/i,
+                        /"descripcion"\s*:\s*"([^"]+)"\s*,\s*"estado"\s*:\s*"([^"]+)"/i
+                    ];
+                    
+                    for (const pattern of jsonPatterns) {
+                        const match = cleanedResult.match(pattern);
+                        if (match) {
+                            // Extract estado and descripcion from JSON pattern
+                            const estado = match[1] || match[2];
+                            const descripcion = match[2] || match[1];
+                            cleanedResult = `${estado}: ${descripcion}`;
+                            break;
+                        }
+                    }
+                    
+                    cleanedPaso.resultado_obtenido_paso_y_estado = cleanedResult.trim();
+                }
+                
+                // Ensure dato_de_entrada_paso is empty string instead of "N/A" when there's no data
+                // (keeping "N/A" only for reference fields like imagen_referencia_entrada)
+                if (cleanedPaso.dato_de_entrada_paso === 'N/A') {
+                    cleanedPaso.dato_de_entrada_paso = '';
+                }
+                
+                return cleanedPaso;
+            });
+        }
+        
         return cleaned;
     };
 

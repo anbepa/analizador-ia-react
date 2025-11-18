@@ -13,6 +13,7 @@ function App() {
         closeModal,
         reportRef,
         activeReport,
+        loading,
         // Navegación unificada
         navigationState,
         setNavigationMode
@@ -145,18 +146,35 @@ function App() {
                                     {navigationState.viewMode === 'sidebar' && !activeReport && (
                                         <div className="flex items-center justify-center h-96 p-8">
                                             <div className="text-center">
-                                                <div className="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                                    <svg className="w-10 h-10 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                    </svg>
-                                                </div>
-                                                <h3 className="text-2xl font-bold text-slate-900 mb-3">Carga Evidencias Visuales</h3>
-                                                <p className="text-slate-600 mb-6 max-w-md">Sube imágenes usando el panel lateral para generar un reporte de análisis automatizado</p>
-                                                <div className="text-sm text-slate-500">
-                                                    <p>1️⃣ Sube imágenes en "Evidencias Visuales"</p>
-                                                    <p>2️⃣ Agrega contexto adicional (opcional)</p>
-                                                    <p>3️⃣ Haz clic en "🚀 Generar" para crear el reporte</p>
-                                                </div>
+                                                {loading.state ? (
+                                                    // Pantalla de carga durante el análisis
+                                                    <>
+                                                        <div className="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                                            <div className="w-10 h-10 border-4 border-violet-600 border-t-transparent rounded-full animate-spin"></div>
+                                                        </div>
+                                                        <h3 className="text-2xl font-bold text-slate-900 mb-3">Generando análisis con IA</h3>
+                                                        <p className="text-slate-600 mb-6 max-w-md">{loading.message || 'Procesando imágenes...'}</p>
+                                                        <div className="text-sm text-slate-500">
+                                                            <p>⏳ Por favor espera mientras se procesa el análisis</p>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    // Pantalla de bienvenida cuando no hay análisis en proceso
+                                                    <>
+                                                        <div className="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                                            <svg className="w-10 h-10 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                            </svg>
+                                                        </div>
+                                                        <h3 className="text-2xl font-bold text-slate-900 mb-3">Carga Evidencias Visuales</h3>
+                                                        <p className="text-slate-600 mb-6 max-w-md">Sube imágenes usando el panel lateral para generar un reporte de análisis automatizado</p>
+                                                        <div className="text-sm text-slate-500">
+                                                            <p>1️⃣ Sube imágenes en "Evidencias Visuales"</p>
+                                                            <p>2️⃣ Agrega contexto adicional (opcional)</p>
+                                                            <p>3️⃣ Haz clic en "🚀 Generar" para crear el reporte</p>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     )}
