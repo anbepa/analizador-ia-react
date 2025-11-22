@@ -43,13 +43,34 @@ Sigue estos pasos para instalar y ejecutar el proyecto en tu máquina local.
     -   Introduce tu clave de API y selecciona un modelo.
     -   Haz clic en "Guardar Configuración". La configuración se guardará en el almacenamiento local de tu navegador.
 
-4.  **Ejecuta la aplicación en modo de desarrollo:**
+4.  **Configura la clave de Gemini para desarrollo:**
+
+    Crea un archivo `.env.local` en la raíz del proyecto con tu clave de Gemini.
+
+    ```bash
+    echo "GEMINI_API_KEY=tu-clave" > .env.local
+    ```
+
+5.  **Levanta el proxy local de Gemini y la app:**
+
+    En una terminal inicia el proxy, que protege la clave y aplica reintentos.
+
+    ```bash
+    node local-api-server.js
+    ```
+
+    En otra terminal arranca Vite (que ya proxifica `/api` hacia el puerto 3000 definido en `proxy.conf.json`).
 
     ```bash
     npm run dev
     ```
 
     Esto iniciará la aplicación en modo de desarrollo y la abrirá en tu navegador en [http://localhost:5173](http://localhost:5173).
+
+## Proxy de Gemini en producción
+
+-   Las peticiones a `/api/gemini-proxy` en producción son atendidas por la función serverless `api/gemini-proxy.ts`.
+-   Configura la variable `GEMINI_API_KEY` en Vercel para que la función pueda invocar Gemini sin exponer la clave al cliente.
 
 ## Scripts Disponibles
 

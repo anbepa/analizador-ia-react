@@ -59,7 +59,7 @@ function ConfigurationPanel({ mode = 'full' }) {
 
     // Save configuration to localStorage
     const handleSaveConfig = () => {
-        localStorage.setItem('aiConfig', JSON.stringify(apiConfig));
+        localStorage.setItem('qaAppApiConfig', JSON.stringify(apiConfig));
         alert('Configuración guardada exitosamente');
     };
 
@@ -233,6 +233,11 @@ function ConfigurationPanel({ mode = 'full' }) {
                                         placeholder={`Clave API de ${apiConfig.provider.charAt(0).toUpperCase() + apiConfig.provider.slice(1)}`}
                                         className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
                                     />
+                                    {apiConfig.provider === 'gemini' && (
+                                        <p className="mt-2 text-xs text-slate-500">
+                                            En desarrollo y producción la clave de Gemini se lee desde el servidor proxy, no se expone en el navegador.
+                                        </p>
+                                    )}
                                 </div>
                                 
                                 <button

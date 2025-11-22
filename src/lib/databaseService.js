@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient.js';
-import { storeImagesForReport, loadImagesForReport } from './imageService.js';
+import { storeImagesForReport, loadImagesForReports } from './imageService.js';
 
 /**
  * Generate a session ID for the current browser session
@@ -563,46 +563,40 @@ export const loadPermanentReports = async () => {
     if (error) throw error;
     if (!reports) return [];
 
-    // Load images for each report and reconstruct the expected format
-    const reportsWithImages = await Promise.all(
-      reports.map(async (report) => {
-        try {
-          const imageFiles = await loadImagesForReport(report.id);
-          
-          // Reconstruct the original format for compatibility
-          return {
-            Nombre_del_Escenario: report.nombre_del_escenario,
-            Resultado_Esperado_General_Flujo: report.resultado_esperado_general_flujo,
-            Conclusion_General_Flujo: report.conclusion_general_flujo,
-            user_provided_additional_context: report.user_provided_additional_context,
-            initial_context: report.initial_context,
-            Pasos_Analizados: (report.report_steps || []).sort((a, b) => a.numero_paso - b.numero_paso),
-            id: report.id,
-            created_at: report.created_at,
-            updated_at: report.updated_at,
-            is_temp: report.is_temp,
-            session_id: report.session_id,
-            imageFiles
-          };
-        } catch (error) {
-          console.warn(`Error loading images for report ${report.id}:`, error);
-          return {
-            Nombre_del_Escenario: report.nombre_del_escenario,
-            Resultado_Esperado_General_Flujo: report.resultado_esperado_general_flujo,
-            Conclusion_General_Flujo: report.conclusion_general_flujo,
-            user_provided_additional_context: report.user_provided_additional_context,
-            initial_context: report.initial_context,
-            Pasos_Analizados: (report.report_steps || []).sort((a, b) => a.numero_paso - b.numero_paso),
-            id: report.id,
-            created_at: report.created_at,
-            updated_at: report.updated_at,
-            is_temp: report.is_temp,
-            session_id: report.session_id,
-            imageFiles: []
-          };
-        }
-      })
-    );
+    // Load all images in a single query and group them by report to avoid N+1 calls
+    const reportIds = reports.map((report) => report.id);
+    const images = await loadImagesForReports(reportIds);
+    const imagesByReport = images.reduce((acc, image) => {
+      if (!acc[image.report_id]) acc[image.report_id] = [];
+      acc[image.report_id].push(image);
+      return acc;
+    }, {});
+
+    // Reconstruct the original format for compatibility
+    const reportsWithImages = reports.map((report) => {
+      const imageFiles = (imagesByReport[report.id] || []).map((img) => ({
+        id: img.id,
+        name: img.file_name,
+        dataURL: img.image_data,
+        size: img.file_size,
+        type: img.file_type
+      }));
+
+      return {
+        Nombre_del_Escenario: report.nombre_del_escenario,
+        Resultado_Esperado_General_Flujo: report.resultado_esperado_general_flujo,
+        Conclusion_General_Flujo: report.conclusion_general_flujo,
+        user_provided_additional_context: report.user_provided_additional_context,
+        initial_context: report.initial_context,
+        Pasos_Analizados: (report.report_steps || []).sort((a, b) => a.numero_paso - b.numero_paso),
+        id: report.id,
+        created_at: report.created_at,
+        updated_at: report.updated_at,
+        is_temp: report.is_temp,
+        session_id: report.session_id,
+        imageFiles
+      };
+    });
 
     return reportsWithImages;
 

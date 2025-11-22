@@ -163,12 +163,14 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
   }
 
   console.log('Starting to store images for report:', reportId, 'Images count:', imageFiles.length);
-  const savedImages = [];
   const imageStepAssociations = steps ? parseImageReferences(steps, imageFiles) : [];
+
+  // Prepare all image rows up-front to send a single insert request
+  const imagesToInsert = [];
 
   for (let i = 0; i < imageFiles.length; i++) {
     const imageFile = imageFiles[i];
-    
+
     try {
       // Convert to base64 if it's a File object
       let base64Data;
@@ -185,11 +187,11 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
 
       // Find step associations for this image
       const associations = imageStepAssociations.filter(assoc => assoc.imageIndex === i);
-      
-      // If image is associated with steps, create one record per association
+
+      // If the image is associated with steps, create one record per association; otherwise create a single general record
       if (associations.length > 0) {
-        for (const assoc of associations) {
-          const imageData = {
+        associations.forEach((assoc) => {
+          imagesToInsert.push({
             report_id: reportId,
             step_id: assoc.stepId,
             file_name: imageFile.name || `imagen_${i + 1}`,
@@ -200,32 +202,10 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
             step_image_type: assoc.type,
             is_stored_in_storage: false,
             is_temp: isTemporary
-          };
-
-          const { data, error } = await supabase
-            .from('report_images')
-            .insert(imageData)
-            .select()
-            .single();
-
-          if (error) {
-            console.error('Error saving step-associated image:', error);
-            continue;
-          }
-
-          savedImages.push({
-            id: data.id,
-            name: data.file_name,
-            dataURL: data.image_data,
-            size: data.file_size,
-            type: data.file_type,
-            stepId: data.step_id,
-            stepImageType: data.step_image_type
           });
-        }
+        });
       } else {
-        // Save as general image (not associated with specific step)
-        const imageData = {
+        imagesToInsert.push({
           report_id: reportId,
           file_name: imageFile.name || `imagen_${i + 1}`,
           image_data: base64Data,
@@ -235,36 +215,39 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
           step_image_type: 'general',
           is_stored_in_storage: false,
           is_temp: isTemporary
-        };
-
-        const { data, error } = await supabase
-          .from('report_images')
-          .insert(imageData)
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Error saving general image:', error);
-          continue;
-        }
-
-        savedImages.push({
-          id: data.id,
-          name: data.file_name,
-          dataURL: data.image_data,
-          size: data.file_size,
-          type: data.file_type,
-          stepId: null,
-          stepImageType: 'general'
         });
       }
-
     } catch (error) {
       console.error('Error processing image:', error);
     }
   }
 
-  return savedImages;
+  if (imagesToInsert.length === 0) return [];
+
+  // Perform a single bulk insert to reduce roundtrips and latency
+  const { data, error } = await supabase
+    .from('report_images')
+    .insert(imagesToInsert)
+    .select('id, file_name, file_size, file_type, step_id, step_image_type, image_order');
+
+  if (error) {
+    console.error('Error saving images:', error);
+    return [];
+  }
+
+  // Supabase preserves insertion order, so we can pair returned rows with the original payload
+  return (data || []).map((row, index) => {
+    const source = imagesToInsert[index];
+    return {
+      id: row.id,
+      name: row.file_name,
+      dataURL: source.image_data,
+      size: row.file_size,
+      type: row.file_type,
+      stepId: row.step_id,
+      stepImageType: row.step_image_type
+    };
+  });
 };
 
 /**
@@ -295,6 +278,31 @@ export const loadImagesForReport = async (reportId) => {
 
   } catch (error) {
     console.error('Error loading images:', error);
+    return [];
+  }
+};
+
+/**
+ * Load images for multiple reports in a single query to minimize latency
+ */
+export const loadImagesForReports = async (reportIds = []) => {
+  if (!Array.isArray(reportIds) || reportIds.length === 0) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('report_images')
+      .select('*')
+      .in('report_id', reportIds)
+      .order('image_order');
+
+    if (error) {
+      console.error('Error loading images for reports:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error loading images for reports:', error);
     return [];
   }
 };

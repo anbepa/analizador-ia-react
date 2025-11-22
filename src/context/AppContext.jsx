@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect, useMemo, useContext, useRef } from 'react';
 import { callAiApi } from '../lib/apiService';
 import { PROMPT_FLOW_ANALYSIS_FROM_IMAGES, PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT } from '../lib/prompts';
@@ -128,7 +129,7 @@ export const AppProvider = ({ children }) => {
     };
 
     useEffect(() => {
-        const cachedConfig = localStorage.getItem('qaAppApiConfig');
+        const cachedConfig = localStorage.getItem('qaAppApiConfig') || localStorage.getItem('aiConfig');
         if (cachedConfig) {
             setApiConfig(JSON.parse(cachedConfig));
         }
@@ -170,13 +171,17 @@ export const AppProvider = ({ children }) => {
     // No need for a global useEffect that saves all reports
     
     const canGenerate = useMemo(() => {
+        const providerRequiresKey = apiConfig.provider !== 'gemini';
         const providerKey = apiConfig[apiConfig.provider]?.key;
-        return providerKey && providerKey.length > 0 && currentImageFiles.length > 0 && !loading.state;
+        const hasKey = providerRequiresKey ? (providerKey && providerKey.length > 0) : true;
+        return hasKey && currentImageFiles.length > 0 && !loading.state;
     }, [apiConfig, currentImageFiles, loading.state]);
 
     const canRefine = useMemo(() => {
+        const providerRequiresKey = apiConfig.provider !== 'gemini';
         const providerKey = apiConfig[apiConfig.provider]?.key;
-        return providerKey && providerKey.length > 0 && activeReport && activeReport.imageFiles && activeReport.imageFiles.length > 0 && !loading.state;
+        const hasKey = providerRequiresKey ? (providerKey && providerKey.length > 0) : true;
+        return hasKey && activeReport && activeReport.imageFiles && activeReport.imageFiles.length > 0 && !loading.state;
     }, [apiConfig, activeReport, loading.state]);
 
     const canDownload = useMemo(() => activeReport && !loading.state, [activeReport, loading.state]);
@@ -251,7 +256,9 @@ export const AppProvider = ({ children }) => {
                 ? PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(payload)
                 : PROMPT_FLOW_ANALYSIS_FROM_IMAGES(initialContext);
 
-            const jsonText = await callAiApi(prompt, compressedImages, apiConfig);
+            const jsonText = await callAiApi(prompt, compressedImages, apiConfig, {
+                onStatus: (message) => setLoading({ state: true, message })
+            });
             const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
             if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
 
@@ -647,9 +654,11 @@ export const AppProvider = ({ children }) => {
             }
 
             setLoading({ state: true, message: 'Enviando a IA para refinamiento...' });
-            
+
             const prompt = PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(editedJsonString);
-            const jsonText = await callAiApi(prompt, compressedImages, apiConfig);
+            const jsonText = await callAiApi(prompt, compressedImages, apiConfig, {
+                onStatus: (message) => setLoading({ state: true, message })
+            });
             const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
             if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
             
