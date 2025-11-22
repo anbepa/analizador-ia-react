@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import ConfigurationPanel from './components/ConfigurationPanel';
 import ImageUploader from './components/ImageUploader';
 import ReportDisplay from './components/ReportDisplay';
@@ -18,13 +18,6 @@ function App() {
         navigationState,
         setNavigationMode
     } = useAppContext();
-
-    const [showScenario, setShowScenario] = useState(false);
-
-    // Sincronizar estados locales con el sistema de navegación unificado
-    useEffect(() => {
-        setShowScenario(navigationState.viewMode === 'sidebar');
-    }, [navigationState]);
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -48,10 +41,8 @@ function App() {
                                 onClick={() => {
                                     if (navigationState.viewMode === 'sidebar') {
                                         setNavigationMode('default');
-                                        setShowScenario(false);
                                     } else {
                                         setNavigationMode('sidebar');
-                                        setShowScenario(true);
                                     }
                                 }}
                                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
@@ -68,7 +59,6 @@ function App() {
                                 <button
                                     onClick={() => {
                                         setNavigationMode('fullConfig', 'panel-control', 'configuracion');
-                                        setShowScenario(false);
                                     }}
                                     className={`p-2 rounded-lg transition-all duration-200 ${
                                         navigationState.viewMode === 'fullConfig'
