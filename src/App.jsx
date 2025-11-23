@@ -28,7 +28,7 @@ function App() {
 
             {/* Fixed Header with Navigation */}
             <header className="sticky top-0 z-40">
-                <div className="max-w-6xl mx-auto px-6 pt-6">
+                <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-8 lg:px-10 pt-6">
                     <div className="bg-white/80 backdrop-blur-xl border border-white/60 shadow-apple-md rounded-2xl px-6 py-4 flex items-center justify-between">
                         <div className="space-y-1">
                             <div className="flex items-center gap-3">
@@ -72,7 +72,7 @@ function App() {
             </header>
 
             {/* Main Layout with Collapsible Sidebar and Focused Report Area */}
-            <div className="max-w-6xl mx-auto px-6 pb-10">
+            <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-8 lg:px-10 pb-12">
                 <div className="flex gap-6 mt-6">
                     {/* Left Sidebar - Compact Controls & Upload */}
                     <aside
