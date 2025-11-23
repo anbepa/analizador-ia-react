@@ -2,6 +2,15 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 600;
 
+export const config = {
+    maxDuration: 60,
+    api: {
+        bodyParser: {
+            sizeLimit: process.env.GEMINI_PROXY_BODY_LIMIT || '25mb'
+        }
+    }
+};
+
 type RetryableError = Error & { status?: number; details?: unknown };
 
 type GeminiBody = {

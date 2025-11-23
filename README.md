@@ -41,7 +41,7 @@ Sigue estos pasos para instalar y ejecutar el proyecto en tu máquina local.
     ```bash
     cp environments/.env.local.example .env.local
     # Luego edita .env.local con tus valores de GEMINI_API_KEY, VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY
-    # Si envías muchas imágenes (hasta ~30), puedes subir GEMINI_PROXY_BODY_LIMIT (por defecto 150mb)
+    # Si envías muchas imágenes (hasta ~30), puedes subir GEMINI_PROXY_BODY_LIMIT (por defecto 512mb en local)
     ```
 
 4.  **Levanta el proxy local de Gemini y la app:**
