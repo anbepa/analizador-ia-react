@@ -51,7 +51,7 @@ export const AppProvider = ({ children }) => {
     const [navigationState, setNavigationState] = useState({
         activeMainMenu: 'panel-control',
         activeSubMenu: 'configuracion',
-        viewMode: 'fullConfig' // 'sidebar', 'fullConfig'
+        viewMode: 'sidebar' // 'sidebar', 'default'
     });
 
     const activeReport = useMemo(() => reports[activeReportIndex] || null, [reports, activeReportIndex]);
@@ -205,9 +205,6 @@ export const AppProvider = ({ children }) => {
         switch (mode) {
             case 'sidebar':
                 setShowConfigurationPanel(false);
-                break;
-            case 'fullConfig':
-                setShowConfigurationPanel(true);
                 break;
             case 'default':
                 setShowConfigurationPanel(false);
