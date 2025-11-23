@@ -1,95 +1,31 @@
 import { enqueueGeminiCall } from './geminiService';
 
-export async function callAiApi(prompt, imageFiles, apiConfig, options = {}) {
-    const provider = apiConfig.provider;
-    const providerConfig = apiConfig[provider];
+export async function callAiApi(prompt, imageFiles, options = {}) {
     const onStatus = options.onStatus;
+    const model = options.model || 'gemini-1.5-flash-latest';
 
-    const providerRequiresKey = provider !== 'gemini';
+    const apiUrl = '/api/gemini-proxy';
+    const headers = { 'Content-Type': 'application/json' };
 
-    if (providerRequiresKey && (!providerConfig.key || providerConfig.key.trim() === '')) {
-        throw new Error(`Por favor, introduce y guarda una clave de API válida para ${provider.charAt(0).toUpperCase() + provider.slice(1)}.`);
-    }
+    const geminiParts = [{ text: prompt }];
+    imageFiles.forEach(img => {
+        if (img.dataURL && img.dataURL.includes(',')) {
+            const base64Data = img.dataURL.split(',')[1];
+            const mimeType = img.dataURL.split(',')[0].match(/data:([^;]+)/)?.[1] || img.type || 'image/png';
 
-    let apiUrl, headers, body, useGeminiQueue = false;
-
-    switch(provider) {
-        case 'openai':
-            apiUrl = 'https://api.openai.com/v1/chat/completions';
-            headers = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${providerConfig.key}`
-            };
-            body = {
-                model: providerConfig.model,
-                messages: [{
-                    role: 'user',
-                    content: [
-                        { type: 'text', text: prompt },
-                        ...imageFiles.map(img => ({
-                            type: 'image_url',
-                            image_url: { url: img.dataUrl || img.dataURL }
-                        }))
-                    ]
-                }]
-            };
-            break;
-
-        case 'claude':
-             apiUrl = 'https://api.anthropic.com/v1/messages';
-             headers = {
-                'Content-Type': 'application/json',
-                'x-api-key': providerConfig.key,
-                'anthropic-version': '2023-06-01'
-             };
-             body = {
-                model: providerConfig.model,
-                max_tokens: 4096,
-                messages: [{
-                    role: 'user',
-                    content: [
-                        { type: 'text', text: prompt },
-                        ...imageFiles.map(img => ({
-                            type: 'image',
-                            source: {
-                                type: 'base64',
-                                media_type: img.type,
-                                data: img.base64
-                            }
-                        }))
-                    ]
-                }]
-             };
-            break;
-
-        case 'gemini':
-        default: {
-            apiUrl = '/api/gemini-proxy';
-            headers = { 'Content-Type': 'application/json' };
-
-            const geminiParts = [{ text: prompt }];
-            imageFiles.forEach(img => {
-                if (img.dataURL && img.dataURL.includes(',')) {
-                    const base64Data = img.dataURL.split(',')[1];
-                    const mimeType = img.dataURL.split(',')[0].match(/data:([^;]+)/)?.[1] || img.type || 'image/png';
-
-                    geminiParts.push({
-                        inline_data: {
-                            mime_type: mimeType,
-                            data: base64Data
-                        }
-                    });
+            geminiParts.push({
+                inline_data: {
+                    mime_type: mimeType,
+                    data: base64Data
                 }
             });
-
-            body = {
-                model: providerConfig.model,
-                contents: [{ parts: geminiParts }]
-            };
-            useGeminiQueue = true;
-            break;
         }
-    }
+    });
+
+    const body = {
+        model,
+        contents: [{ parts: geminiParts }]
+    };
 
     const performRequest = async () => {
         const response = await fetch(apiUrl, {
@@ -109,7 +45,7 @@ export async function callAiApi(prompt, imageFiles, apiConfig, options = {}) {
             let errorMessage = 'Error desconocido en la API';
 
             if (typeof errorBody === 'object' && errorBody.error) {
-                if (provider === 'gemini' && errorBody.error.message) {
+                if (errorBody.error.message) {
                     const geminiError = errorBody.error.message;
                     if (geminiError.includes('Unable to process input image')) {
                         errorMessage = "Una o más imágenes no pudieron ser procesadas. Esto puede ser debido a:\n" +
@@ -141,19 +77,9 @@ export async function callAiApi(prompt, imageFiles, apiConfig, options = {}) {
         return response.json();
     };
 
-    const result = useGeminiQueue
-        ? await enqueueGeminiCall(performRequest, { onStatus })
-        : await performRequest();
+    const result = await enqueueGeminiCall(performRequest, { onStatus });
 
-    switch(provider) {
-        case 'openai':
-            return result.choices[0].message.content;
-        case 'claude':
-            return result.content[0].text;
-        case 'gemini':
-        default:
-             return result.candidates[0].content.parts[0].text;
-    }
+    return result.candidates[0].content.parts[0].text;
 }
 
 export function readFileAsBase64(file) {

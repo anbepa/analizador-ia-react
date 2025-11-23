@@ -29,12 +29,6 @@ export const useAppContext = () => {
 };
 
 export const AppProvider = ({ children }) => {
-    const [apiConfig, setApiConfig] = useState({
-        provider: 'gemini',
-        gemini: { key: '', model: 'gemini-1.5-flash-latest' },
-        openai: { key: '', model: 'gpt-4o' },
-        claude: { key: '', model: 'claude-3-sonnet-20240229' }
-    });
     const [currentImageFiles, setCurrentImageFiles] = useState([]);
     const [initialContext, setInitialContext] = useState('');
     const [reports, setReports] = useState([]);
@@ -42,7 +36,6 @@ export const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState({ state: false, message: '' });
     const [error, setError] = useState(null);
     const [isRefining, setIsRefining] = useState(false);
-    const [showConfigurationPanel, setShowConfigurationPanel] = useState(true);
     const [userContext, setUserContext] = useState('');
     const [modal, setModal] = useState({ show: false, title: '', content: '' });
     const reportRef = useRef(null);
@@ -129,11 +122,6 @@ export const AppProvider = ({ children }) => {
     };
 
     useEffect(() => {
-        const cachedConfig = localStorage.getItem('qaAppApiConfig') || localStorage.getItem('aiConfig');
-        if (cachedConfig) {
-            setApiConfig(JSON.parse(cachedConfig));
-        }
-        
         // Initialize database cleanup for temporary reports
         const cleanupFunction = initializeDatabaseCleanup();
         
@@ -171,18 +159,12 @@ export const AppProvider = ({ children }) => {
     // No need for a global useEffect that saves all reports
     
     const canGenerate = useMemo(() => {
-        const providerRequiresKey = apiConfig.provider !== 'gemini';
-        const providerKey = apiConfig[apiConfig.provider]?.key;
-        const hasKey = providerRequiresKey ? (providerKey && providerKey.length > 0) : true;
-        return hasKey && currentImageFiles.length > 0 && !loading.state;
-    }, [apiConfig, currentImageFiles, loading.state]);
+        return currentImageFiles.length > 0 && !loading.state;
+    }, [currentImageFiles, loading.state]);
 
     const canRefine = useMemo(() => {
-        const providerRequiresKey = apiConfig.provider !== 'gemini';
-        const providerKey = apiConfig[apiConfig.provider]?.key;
-        const hasKey = providerRequiresKey ? (providerKey && providerKey.length > 0) : true;
-        return hasKey && activeReport && activeReport.imageFiles && activeReport.imageFiles.length > 0 && !loading.state;
-    }, [apiConfig, activeReport, loading.state]);
+        return activeReport && activeReport.imageFiles && activeReport.imageFiles.length > 0 && !loading.state;
+    }, [activeReport, loading.state]);
 
     const canDownload = useMemo(() => activeReport && !loading.state, [activeReport, loading.state]);
 
@@ -201,15 +183,6 @@ export const AppProvider = ({ children }) => {
             ...(subMenu && { activeSubMenu: subMenu })
         }));
         
-        // Sincronizar con estados existentes
-        switch (mode) {
-            case 'sidebar':
-                setShowConfigurationPanel(false);
-                break;
-            case 'default':
-                setShowConfigurationPanel(false);
-                break;
-        }
     };
 
     const updateNavigation = (mainMenu, subMenu = null) => {
@@ -253,7 +226,7 @@ export const AppProvider = ({ children }) => {
                 ? PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(payload)
                 : PROMPT_FLOW_ANALYSIS_FROM_IMAGES(initialContext);
 
-            const jsonText = await callAiApi(prompt, compressedImages, apiConfig, {
+            const jsonText = await callAiApi(prompt, compressedImages, {
                 onStatus: (message) => setLoading({ state: true, message })
             });
             const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
@@ -653,7 +626,7 @@ export const AppProvider = ({ children }) => {
             setLoading({ state: true, message: 'Enviando a IA para refinamiento...' });
 
             const prompt = PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(editedJsonString);
-            const jsonText = await callAiApi(prompt, compressedImages, apiConfig, {
+            const jsonText = await callAiApi(prompt, compressedImages, {
                 onStatus: (message) => setLoading({ state: true, message })
             });
             const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
@@ -825,8 +798,6 @@ export const AppProvider = ({ children }) => {
         });
     };
 
-    const isConfigVisible = showConfigurationPanel || reports.length === 0;
-
     const handleMakeReportPermanent = async (index) => {
         const reportToMakePermanent = reports[index];
         if (!reportToMakePermanent || !reportToMakePermanent.id || !reportToMakePermanent.is_temp) {
@@ -847,8 +818,6 @@ export const AppProvider = ({ children }) => {
     };
 
     const value = {
-        apiConfig,
-        setApiConfig,
         currentImageFiles,
         setCurrentImageFiles,
         initialContext,
@@ -865,9 +834,6 @@ export const AppProvider = ({ children }) => {
         error,
         isRefining,
         setIsRefining,
-        showConfigurationPanel,
-        setShowConfigurationPanel,
-        isConfigVisible,
         userContext,
         setUserContext,
         modal,
