@@ -4,6 +4,8 @@ import http from 'node:http';
 import { URL } from 'node:url';
 import { config as loadEnv } from './local-dotenv.js';
 
+// Load environment variables from .env (and override with .env.local if present)
+loadEnv({ path: '.env' });
 loadEnv({ path: '.env.local' });
 
 const PORT = process.env.PORT || 3000;

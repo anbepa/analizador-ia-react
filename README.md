@@ -43,12 +43,13 @@ Sigue estos pasos para instalar y ejecutar el proyecto en tu máquina local.
     -   Introduce tu clave de API y selecciona un modelo.
     -   Haz clic en "Guardar Configuración". La configuración se guardará en el almacenamiento local de tu navegador.
 
-4.  **Configura la clave de Gemini para desarrollo:**
+4.  **Configura variables de entorno para desarrollo:**
 
-    Crea un archivo `.env.local` en la raíz del proyecto con tu clave de Gemini.
+    Copia el ejemplo y añade tus claves de Gemini y Supabase:
 
     ```bash
-    echo "GEMINI_API_KEY=tu-clave" > .env.local
+    cp .env.example .env
+    # Luego edita .env para definir GEMINI_API_KEY, VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY
     ```
 
 5.  **Levanta el proxy local de Gemini y la app:**
