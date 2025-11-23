@@ -43,16 +43,16 @@ const ReportTabs = () => {
 
     return (
         <div className="flex flex-wrap gap-2">
-                {reports.map((report, index) => (
-                    <div
-                        key={index}
-                        className={`flex items-center px-4 py-2 cursor-pointer rounded-lg transition-all duration-200 relative text-sm font-medium ${
-                            activeReportIndex === index
-                                ? 'bg-violet-600 text-white shadow-lg'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-white border border-slate-200'
-                        }`}
-                        onClick={() => selectReport(index)}
-                    >
+            {reports.map((report, index) => (
+                <div
+                    key={index}
+                    className={`flex items-center px-4 py-2 cursor-pointer rounded-2xl transition-all duration-200 relative text-sm font-medium backdrop-blur ${
+                        activeReportIndex === index
+                            ? 'bg-primary text-white shadow-apple-lg border border-primary/20'
+                            : 'text-secondary-700 hover:text-secondary-900 bg-white/80 border border-secondary-200 hover:border-primary/30 shadow-apple'
+                    }`}
+                    onClick={() => selectReport(index)}
+                >
                         {/* Temporary report indicator */}
                         {report.is_temp && (
                             <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full animate-pulse ${
@@ -70,10 +70,10 @@ const ReportTabs = () => {
                                 onChange={handleNameChange}
                                 onBlur={() => handleSaveName(index)}
                                 onKeyDown={(e) => handleKeyDown(e, index)}
-                                className="bg-transparent border-none focus:ring-0 p-0 text-white placeholder-white/70 min-w-20"
+                                className="bg-transparent border-none focus:ring-0 p-0 text-secondary-900 placeholder-secondary-400 min-w-20"
                             />
                         ) : (
-                            <span 
+                            <span
                                 onDoubleClick={() => {
                                     let scenarioName = report.Nombre_del_Escenario || `Reporte ${index + 1}`;
                                     if (scenarioName.startsWith('Escenario: ')) {
@@ -116,16 +116,18 @@ const ReportTabs = () => {
                                 e.stopPropagation();
                                 deleteReport(index);
                             }}
-                            className={`ml-2 p-1 rounded-full hover:bg-black/10 transition-colors ${
-                                activeReportIndex === index ? 'text-white/70 hover:text-white' : 'text-secondary-400 hover:text-secondary-600'
+                            className={`ml-2 p-1 rounded-full transition-colors ${
+                                activeReportIndex === index
+                                    ? 'text-white/80 hover:text-white hover:bg-white/10'
+                                    : 'text-secondary-400 hover:text-secondary-700 hover:bg-secondary-100'
                             }`}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
-                    </div>
-                ))}
+                </div>
+            ))}
         </div>
     );
 };

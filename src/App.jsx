@@ -13,29 +13,45 @@ function App() {
         reportRef,
         activeReport,
         loading,
-        // Navegación unificada
         navigationState,
         setNavigationMode
     } = useAppContext();
 
+    const showSidebar = navigationState.viewMode === 'sidebar' || isRefining;
+
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen relative bg-gradient-to-br from-secondary-50 via-white to-secondary-100 text-secondary-900">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden -z-10">
+                <div className="absolute -top-24 -left-28 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+                <div className="absolute top-10 right-[-10%] h-[28rem] w-[28rem] rounded-full bg-secondary-100/80 blur-[120px]" />
+            </div>
+
             {/* Fixed Header with Navigation */}
-            <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-50">
-                <div className="px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                                Analizador de Pruebas con IA
-                            </h1>
-                            <span className="text-sm text-slate-500 font-medium">
-                                Analiza flujos de prueba con evidencias visuales
-                            </span>
+            <header className="sticky top-0 z-40">
+                <div className="max-w-6xl mx-auto px-6 pt-6">
+                    <div className="bg-white/80 backdrop-blur-xl border border-white/60 shadow-apple-md rounded-2xl px-6 py-4 flex items-center justify-between">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-white flex items-center justify-center shadow-apple-md">
+                                    <span className="text-lg font-semibold">IA</span>
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-semibold tracking-tight text-secondary-900">Analizador de Pruebas</h1>
+                                    <p className="text-sm text-secondary-600">Flujos guiados para subir evidencias y generar reportes claros</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-secondary-500">
+                                <span className="px-2 py-1 rounded-full bg-secondary-50 border border-secondary-200">Gemini protegido</span>
+                                <span className="px-2 py-1 rounded-full bg-secondary-50 border border-secondary-200">Encola peticiones automáticamente</span>
+                            </div>
                         </div>
 
                         {/* Compact Navigation Controls */}
-                        <div className="flex items-center space-x-3">
-                            {/* Sidebar Toggle */}
+                        <div className="flex items-center gap-3">
+                            <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary-50 border border-secondary-200 text-sm text-secondary-700">
+                                <span className="h-2 w-2 rounded-full bg-success shadow-[0_0_0_4px] shadow-success/10" />
+                                Listo para generar
+                            </div>
                             <button
                                 onClick={() => {
                                     if (navigationState.viewMode === 'sidebar') {
@@ -44,13 +60,11 @@ function App() {
                                         setNavigationMode('sidebar');
                                     }
                                 }}
-                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                                    navigationState.viewMode === 'sidebar'
-                                        ? 'bg-violet-600 text-white shadow-lg'
-                                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                }`}
+                                className={`apple-button ${navigationState.viewMode === 'sidebar'
+                                    ? 'apple-button-primary shadow-apple-lg'
+                                    : 'apple-button-secondary'} text-sm`}
                             >
-                                Área de Trabajo
+                                Área de trabajo
                             </button>
                         </div>
                     </div>
@@ -58,43 +72,48 @@ function App() {
             </header>
 
             {/* Main Layout with Collapsible Sidebar and Focused Report Area */}
-            <div className="flex min-h-[calc(100vh-73px)] bg-slate-50">
-                {/* Left Sidebar - Compact Controls & Upload (20-25%) */}
-                <aside className={`transition-all duration-300 bg-white border-r border-slate-200 shadow-sm ${
-                    (navigationState.viewMode === 'sidebar' || isRefining) ? 'w-72' : 'w-0 overflow-hidden'
-                }`}>
-                    {/* Área de Trabajo - Sidebar simplificado */}
-                    <ConfigurationPanel mode="workspace" />
-                </aside>
-
-                {/* Sidebar Toggle Button (when hidden) */}
-                {navigationState.viewMode !== 'sidebar' && !isRefining && (
-                    <button
-                        onClick={() => setNavigationMode('sidebar')}
-                        className="fixed left-4 top-24 z-30 bg-white border border-slate-200 rounded-lg p-2 shadow-lg hover:shadow-xl transition-all duration-200 text-slate-600 hover:text-slate-900"
-                        title="Mostrar área de trabajo"
+            <div className="max-w-6xl mx-auto px-6 pb-10">
+                <div className="flex gap-6 mt-6">
+                    {/* Left Sidebar - Compact Controls & Upload */}
+                    <aside
+                        className={`transition-all duration-300 ease-out ${
+                            showSidebar ? 'w-[360px] opacity-100' : 'w-0 opacity-0 pointer-events-none'
+                        }`}
+                        aria-hidden={!showSidebar}
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
-                )}
+                        <div className="sticky top-28">
+                            <ConfigurationPanel mode="workspace" />
+                        </div>
+                    </aside>
 
-                {/* Main Report Area (75-80%) - Focused Design */}
-                <main className="flex-1 overflow-hidden">
-                    <div className="h-full overflow-y-auto">
-                        {/* Report Container - Centered with Max Width */}
-                        <div className="max-w-6xl mx-auto px-8 py-8">
-                            {/* Report Tabs - Only show when there are reports */}
+                    {/* Sidebar Toggle Button (when hidden) */}
+                    {!showSidebar && (
+                        <button
+                            onClick={() => setNavigationMode('sidebar')}
+                            className="fixed left-4 top-28 z-30 bg-white/90 backdrop-blur-lg border border-white/60 rounded-full p-3 shadow-apple-md hover:shadow-apple-lg transition-all duration-200 text-secondary-600 hover:text-secondary-900"
+                            title="Mostrar área de trabajo"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    )}
+
+                    {/* Main Report Area */}
+                    <main className="flex-1 min-w-0">
+                        <div className="h-full space-y-4">
+                            {/* Report Tabs */}
                             {activeReport && (
-                                <div className="mb-6">
+                                <div className="bg-white/80 backdrop-blur-xl border border-white/60 shadow-apple-md rounded-2xl px-5 py-4">
                                     <ReportTabs />
                                 </div>
                             )}
 
-                            {/* Main Report Content - White Background with Focus */}
-                            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 min-h-[calc(100vh-200px)]" ref={reportRef}>
-                                {/* Show Report Display ONLY if there's an active report */}
+                            {/* Main Report Content */}
+                            <div
+                                className="bg-white/80 backdrop-blur-xl border border-white/60 shadow-apple-xl rounded-3xl min-h-[calc(100vh-260px)] overflow-hidden"
+                                ref={reportRef}
+                            >
                                 {activeReport && (
                                     <div className="p-8">
                                         <ReportDisplay />
@@ -102,35 +121,42 @@ function App() {
                                 )}
 
                                 {/* Welcome screen when sidebar is open but no reports */}
-                                {navigationState.viewMode === 'sidebar' && !activeReport && (
-                                    <div className="flex items-center justify-center h-96 p-8">
-                                        <div className="text-center">
+                                {showSidebar && !activeReport && (
+                                    <div className="flex items-center justify-center h-[460px] p-10">
+                                        <div className="text-center space-y-6 max-w-xl">
                                             {loading.state ? (
-                                                // Pantalla de carga durante el análisis
                                                 <>
-                                                    <div className="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                                        <div className="w-10 h-10 border-4 border-violet-600 border-t-transparent rounded-full animate-spin"></div>
+                                                    <div className="w-24 h-24 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
+                                                        <div className="w-12 h-12 border-[6px] border-primary/70 border-t-transparent rounded-full animate-spin" />
                                                     </div>
-                                                    <h3 className="text-2xl font-bold text-slate-900 mb-3">Generando análisis con IA</h3>
-                                                    <p className="text-slate-600 mb-6 max-w-md">{loading.message || 'Procesando imágenes...'}</p>
-                                                    <div className="text-sm text-slate-500">
-                                                        <p>⏳ Por favor espera mientras se procesa el análisis</p>
+                                                    <div className="space-y-2">
+                                                        <h3 className="text-2xl font-semibold text-secondary-900">Generando análisis con IA</h3>
+                                                        <p className="text-secondary-600">{loading.message || 'Procesando imágenes...'}</p>
+                                                        <p className="text-sm text-secondary-500">⏳ Espera unos segundos mientras el servicio procesa las evidencias.</p>
                                                     </div>
                                                 </>
                                             ) : (
-                                                // Pantalla de bienvenida cuando no hay análisis en proceso
                                                 <>
-                                                    <div className="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                                        <svg className="w-10 h-10 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <div className="w-24 h-24 bg-secondary-50 border border-secondary-200 rounded-2xl flex items-center justify-center mx-auto">
+                                                        <svg className="w-12 h-12 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                         </svg>
                                                     </div>
-                                                    <h3 className="text-2xl font-bold text-slate-900 mb-3">Carga Evidencias Visuales</h3>
-                                                    <p className="text-slate-600 mb-6 max-w-md">Sube imágenes usando el panel lateral para generar un reporte de análisis automatizado</p>
-                                                    <div className="text-sm text-slate-500">
-                                                        <p>1️⃣ Sube imágenes en "Evidencias Visuales"</p>
-                                                        <p>2️⃣ Agrega contexto adicional (opcional)</p>
-                                                        <p>3️⃣ Haz clic en "🚀 Generar" para crear el reporte</p>
+                                                    <h3 className="text-2xl font-semibold text-secondary-900">Prepara tu análisis</h3>
+                                                    <p className="text-secondary-600">Sube evidencias en el panel lateral y agrega contexto para obtener un reporte pulido.</p>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left text-sm text-secondary-600">
+                                                        <div className="p-4 rounded-2xl bg-secondary-50 border border-secondary-200">
+                                                            <p className="font-semibold text-secondary-800">1. Sube imágenes</p>
+                                                            <p className="text-secondary-600">Arrastra o selecciona tus capturas.</p>
+                                                        </div>
+                                                        <div className="p-4 rounded-2xl bg-secondary-50 border border-secondary-200">
+                                                            <p className="font-semibold text-secondary-800">2. Añade contexto</p>
+                                                            <p className="text-secondary-600">Comparte detalles clave del flujo.</p>
+                                                        </div>
+                                                        <div className="p-4 rounded-2xl bg-secondary-50 border border-secondary-200">
+                                                            <p className="font-semibold text-secondary-800">3. Genera</p>
+                                                            <p className="text-secondary-600">Obtén un reporte listo para compartir.</p>
+                                                        </div>
                                                     </div>
                                                 </>
                                             )}
@@ -138,29 +164,30 @@ function App() {
                                     </div>
                                 )}
 
-                                {!activeReport && navigationState.viewMode !== 'sidebar' && (
-                                    <div className="flex items-center justify-center h-96 p-8">
-                                        <div className="text-center">
-                                            <div className="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                                <svg className="w-10 h-10 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                {/* Full welcome when sidebar hidden */}
+                                {!activeReport && !showSidebar && (
+                                    <div className="flex items-center justify-center h-[460px] p-10">
+                                        <div className="text-center space-y-5 max-w-xl">
+                                            <div className="w-24 h-24 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
+                                                <svg className="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m00V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                                 </svg>
                                             </div>
-                                            <h3 className="text-2xl font-bold text-slate-900 mb-3">Analizador de Pruebas con IA</h3>
-                                            <p className="text-slate-600 mb-6 max-w-md">Mantén el enfoque en los resultados mientras el panel lateral te ayuda a gestionar evidencias y configuración.</p>
+                                            <h3 className="text-2xl font-semibold text-secondary-900">Analizador de Pruebas con IA</h3>
+                                            <p className="text-secondary-600">Activa el panel lateral para empezar a subir evidencias y mantener el foco en la lectura del reporte.</p>
                                             <button
                                                 onClick={() => setNavigationMode('sidebar')}
-                                                className="bg-violet-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-violet-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                                                className="apple-button apple-button-primary text-base px-8 shadow-apple-lg"
                                             >
-                                                Comenzar Análisis
+                                                Abrir área de trabajo
                                             </button>
                                         </div>
                                     </div>
                                 )}
                             </div>
                         </div>
-                    </div>
-                </main>
+                    </main>
+                </div>
             </div>
 
             {/* Modals */}
