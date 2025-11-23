@@ -48,9 +48,11 @@ try {
 
 const app = express()
 const PORT = process.env.PORT || 3000
+const BODY_LIMIT = process.env.GEMINI_PROXY_BODY_LIMIT || '50mb'
 
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: BODY_LIMIT }))
+app.use(express.urlencoded({ limit: BODY_LIMIT, extended: true }))
 
 app.post('/api/gemini-proxy', async (req, res) => {
   try {
@@ -83,6 +85,17 @@ app.post('/api/gemini-proxy', async (req, res) => {
     console.error('[ERROR] Gemini API error:', error.message)
     res.status(500).json({ error: error.message })
   }
+})
+
+app.use((err, req, res, next) => {
+  if (err?.type === 'entity.too.large') {
+    console.error('[ERROR] Payload too large for Gemini proxy', err.message)
+    return res.status(413).json({
+      error: 'Payload too large',
+      message: 'El payload excede el límite permitido. Reduce el tamaño o cantidad de imágenes y vuelve a intentarlo.'
+    })
+  }
+  return next(err)
 })
 
 app.listen(PORT, () => {

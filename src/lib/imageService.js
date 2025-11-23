@@ -224,19 +224,29 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
 
   if (imagesToInsert.length === 0) return [];
 
-  // Perform a single bulk insert to reduce roundtrips and latency
-  const { data, error } = await supabase
-    .from('report_images')
-    .insert(imagesToInsert)
-    .select('id, file_name, file_size, file_type, step_id, step_image_type, image_order');
+  // Insert in manageable batches to avoid oversized payloads
+  const MAX_BATCH = 10;
+  const savedRows = [];
 
-  if (error) {
-    console.error('Error saving images:', error);
-    return [];
+  for (let i = 0; i < imagesToInsert.length; i += MAX_BATCH) {
+    const batch = imagesToInsert.slice(i, i + MAX_BATCH);
+    const { data, error } = await supabase
+      .from('report_images')
+      .insert(batch)
+      .select('id, file_name, file_size, file_type, step_id, step_image_type, image_order');
+
+    if (error) {
+      console.error('Error saving images batch:', error);
+      return [];
+    }
+
+    if (data) {
+      savedRows.push(...data);
+    }
   }
 
-  // Supabase preserves insertion order, so we can pair returned rows with the original payload
-  return (data || []).map((row, index) => {
+  // Supabase preserves insertion order within each batch; batches maintain overall ordering via concatenation
+  return savedRows.map((row, index) => {
     const source = imagesToInsert[index];
     return {
       id: row.id,
@@ -291,7 +301,7 @@ export const loadImagesForReports = async (reportIds = []) => {
   try {
     const { data, error } = await supabase
       .from('report_images')
-      .select('*')
+      .select('id, report_id, file_name, file_size, file_type, image_data, image_order, step_image_type')
       .in('report_id', reportIds)
       .order('image_order');
 
