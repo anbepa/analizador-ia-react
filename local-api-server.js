@@ -48,7 +48,7 @@ try {
 
 const app = express()
 const PORT = process.env.PORT || 3000
-const BODY_LIMIT = process.env.GEMINI_PROXY_BODY_LIMIT || '50mb'
+const BODY_LIMIT = process.env.GEMINI_PROXY_BODY_LIMIT || '150mb'
 
 app.use(cors())
 app.use(express.json({ limit: BODY_LIMIT }))

@@ -6,7 +6,8 @@
    cp environments/.env.local.example .env.local
    ```
 2. Asegúrate de que `local-api-server.js` lea `.env.local` (viene listo por defecto).
-3. Inicia el proxy local y la app con los comandos descritos en el README principal.
+3. Ajusta `GEMINI_PROXY_BODY_LIMIT` si necesitas enviar lotes grandes de imágenes (por defecto 150mb para ~30 imágenes).
+4. Inicia el proxy local y la app con los comandos descritos en el README principal.
 
 ## Producción en Vercel
 1. En tu proyecto de Vercel, crea las variables de entorno desde el panel:

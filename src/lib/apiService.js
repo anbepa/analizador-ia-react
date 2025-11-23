@@ -35,16 +35,22 @@ export async function callAiApi(prompt, imageFiles, options = {}) {
         });
 
         if (!response.ok) {
-            let errorBody;
-            try {
-                errorBody = await response.json();
-            } catch {
-                errorBody = await response.text();
+            const responseText = await response.text().catch(() => '');
+            let errorBody = responseText;
+
+            if (responseText) {
+                try {
+                    errorBody = JSON.parse(responseText);
+                } catch {
+                    errorBody = responseText;
+                }
             }
 
             let errorMessage = 'Error desconocido en la API';
 
-            if (typeof errorBody === 'object' && errorBody.error) {
+            if (response.status === 413) {
+                errorMessage = 'El payload enviado es demasiado grande para el proxy. Reduce el tamaño o la cantidad de imágenes e intenta de nuevo.';
+            } else if (typeof errorBody === 'object' && errorBody.error) {
                 if (errorBody.error.message) {
                     const geminiError = errorBody.error.message;
                     if (geminiError.includes('Unable to process input image')) {
@@ -64,7 +70,7 @@ export async function callAiApi(prompt, imageFiles, options = {}) {
                 } else {
                     errorMessage = typeof errorBody.error === 'string' ? errorBody.error : JSON.stringify(errorBody.error);
                 }
-            } else if (typeof errorBody === 'string') {
+            } else if (typeof errorBody === 'string' && errorBody.trim().length > 0) {
                 errorMessage = errorBody;
             }
 
