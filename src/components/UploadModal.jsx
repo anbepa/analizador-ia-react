@@ -1,20 +1,18 @@
 import React from 'react';
+import ImageUploader from './ImageUploader';
 
-function TicketModal({ show, title, content, onClose }) {
+function UploadModal({ show, onClose }) {
     if (!show) return null;
-
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(content)
-            .then(() => alert('¡Copiado al portapapeles!'))
-            .catch(() => alert('Oops, no se pudo copiar.'));
-    };
 
     return (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-            <div className="glass-panel w-full max-w-3xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-100 rounded-2xl overflow-hidden">
+            <div className="glass-panel w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-100 rounded-2xl overflow-hidden">
                 {/* Header */}
                 <div className="flex justify-between items-center p-6 border-b border-secondary-100 bg-white/50">
-                    <h3 className="text-xl font-bold text-secondary-900">{title}</h3>
+                    <div>
+                        <h3 className="text-xl font-bold text-secondary-900">Gestión de Evidencias</h3>
+                        <p className="text-sm text-secondary-500">Carga imágenes y añade contexto para el análisis</p>
+                    </div>
                     <button
                         onClick={onClose}
                         className="p-2 hover:bg-secondary-100 rounded-xl transition-colors duration-200 text-secondary-500 hover:text-secondary-700"
@@ -26,28 +24,20 @@ function TicketModal({ show, title, content, onClose }) {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 bg-white/30">
-                    <div className="prose max-w-none text-secondary-700 whitespace-pre-wrap font-mono text-sm bg-white p-4 rounded-xl border border-secondary-200 shadow-inner">
-                        {content}
-                    </div>
+                <div className="flex-1 overflow-y-auto p-6 bg-white/30 custom-scrollbar">
+                    <ImageUploader />
                 </div>
 
                 {/* Footer */}
                 <div className="border-t border-secondary-100 px-6 py-4 flex justify-end space-x-3 bg-white/50">
                     <button
                         onClick={onClose}
-                        className="apple-button apple-button-secondary"
-                    >
-                        Cerrar
-                    </button>
-                    <button
-                        onClick={copyToClipboard}
                         className="apple-button apple-button-primary flex items-center gap-2"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                         </svg>
-                        Copiar
+                        Listo
                     </button>
                 </div>
             </div>
@@ -55,4 +45,4 @@ function TicketModal({ show, title, content, onClose }) {
     );
 }
 
-export default TicketModal;
+export default UploadModal;

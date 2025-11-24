@@ -23,7 +23,11 @@ const getSessionId = () => {
 export const saveReport = async (reportData, isTemporary = false) => {
   try {
     const { imageFiles, Pasos_Analizados, ...otherData } = reportData;
-    
+
+    // Check for video URL
+    const videoFile = imageFiles && imageFiles.find(f => f.isVideo || (f.type && f.type.startsWith('video/')));
+    const videoUrl = videoFile ? videoFile.dataURL : null;
+
     // Save basic report data according to the actual schema
     const { data: report, error: reportError } = await supabase
       .from('reports')
@@ -33,6 +37,7 @@ export const saveReport = async (reportData, isTemporary = false) => {
         conclusion_general_flujo: otherData.Conclusion_General_Flujo || null,
         user_provided_additional_context: otherData.user_provided_additional_context || null,
         initial_context: otherData.initial_context || null,
+        video_url: videoUrl,
         is_temp: isTemporary,
         session_id: isTemporary ? getSessionId() : null
       }])
@@ -112,8 +117,8 @@ export const addStepToReport = async (reportId, stepData, newImages = []) => {
       .order('numero_paso', { ascending: false })
       .limit(1);
 
-    const nextStepNumber = existingSteps && existingSteps.length > 0 
-      ? existingSteps[0].numero_paso + 1 
+    const nextStepNumber = existingSteps && existingSteps.length > 0
+      ? existingSteps[0].numero_paso + 1
       : 1;
 
     // Insert the new step
@@ -179,7 +184,7 @@ export const deleteStepFromReport = async (reportId, stepNumber) => {
 
     // Reorder the remaining steps
     if (stepsToReorder && stepsToReorder.length > 0) {
-      const updatePromises = stepsToReorder.map((step, index) => 
+      const updatePromises = stepsToReorder.map((step, index) =>
         supabase
           .from('report_steps')
           .update({ numero_paso: stepNumber + index })
@@ -301,7 +306,7 @@ export const updateReport = async (reportId, reportData) => {
   try {
     console.log('Updating report in database:', reportId, reportData);
     const { imageFiles, Pasos_Analizados, ...otherData } = reportData;
-    
+
     // Update basic report data according to the actual schema
     const { data: report, error: reportError } = await supabase
       .from('reports')
@@ -321,7 +326,7 @@ export const updateReport = async (reportId, reportData) => {
       console.error('Error updating report:', reportError);
       throw reportError;
     }
-    
+
     console.log('Report updated successfully, now updating steps...');
 
     // Update report steps if any
@@ -360,14 +365,14 @@ export const updateReport = async (reportId, reportData) => {
         console.error('Error inserting updated steps:', stepsError);
         throw stepsError;
       }
-      
+
       console.log('Steps updated successfully:', steps.length, 'steps inserted');
     }
 
     // Update report images if any
     if (imageFiles && imageFiles.length > 0) {
       console.log('Updating images for report:', reportId, imageFiles.length, 'images');
-      
+
       // Delete existing images first
       const { error: deleteImagesError } = await supabase
         .from('report_images')
@@ -400,7 +405,7 @@ export const updateReport = async (reportId, reportData) => {
         console.error('Error inserting updated images:', imagesError);
         throw imagesError;
       }
-      
+
       console.log('Images updated successfully:', images.length, 'images inserted');
     }
 
@@ -496,7 +501,7 @@ export const updateBugStatus = async (bugId, newStatus) => {
 export const cleanupTemporaryReports = async () => {
   try {
     const sessionId = getSessionId();
-    
+
     const { error } = await supabase
       .from('reports')
       .delete()
@@ -520,16 +525,16 @@ export const makeReportPermanent = async (reportId) => {
   try {
     const { data, error } = await supabase
       .from('reports')
-      .update({ 
-        is_temp: false, 
-        session_id: null 
+      .update({
+        is_temp: false,
+        session_id: null
       })
       .eq('id', reportId)
       .select()
       .single();
 
     if (error) throw error;
-    
+
     // Also update associated images
     await supabase
       .from('report_images')
@@ -549,7 +554,7 @@ export const makeReportPermanent = async (reportId) => {
 export const loadPermanentReports = async () => {
   try {
     const sessionId = getSessionId();
-    
+
     // Get all permanent reports + current session temporary reports
     const { data: reports, error } = await supabase
       .from('reports')
@@ -577,9 +582,12 @@ export const loadPermanentReports = async () => {
       const imageFiles = (imagesByReport[report.id] || []).map((img) => ({
         id: img.id,
         name: img.file_name,
-        dataURL: img.image_data,
+        dataURL: img.is_video ? img.video_url : img.image_data,
         size: img.file_size,
-        type: img.file_type
+        type: img.file_type,
+        isVideo: img.is_video,
+        fromVideoFrame: img.from_video_frame || false,
+        stepNumber: img.step_number || null
       }));
 
       return {
@@ -640,13 +648,13 @@ export const initializeDatabaseCleanup = () => {
   const handleUnload = () => {
     // Set flag to indicate session is ending
     sessionStorage.setItem('qa_session_active', 'false');
-    
+
     // Try synchronous cleanup (limited time)
     if (navigator.sendBeacon) {
       // For future: could send beacon to server endpoint for cleanup
       console.log('Page unloading, marking session for cleanup');
     }
-    
+
     // Immediate cleanup attempt
     cleanup();
   };
@@ -659,7 +667,7 @@ export const initializeDatabaseCleanup = () => {
       cleanupTimeoutId = setTimeout(async () => {
         const lastActivity = parseInt(sessionStorage.getItem('qa_last_activity') || '0');
         const timeSinceActivity = Date.now() - lastActivity;
-        
+
         // If page has been hidden for more than 5 minutes, cleanup temporary reports
         if (timeSinceActivity > 5 * 60 * 1000) {
           console.log('Page hidden for extended period, cleaning up temporary reports');
@@ -670,7 +678,7 @@ export const initializeDatabaseCleanup = () => {
       isPageActive = true;
       sessionStorage.setItem('qa_session_active', 'true');
       sessionStorage.setItem('qa_last_activity', Date.now().toString());
-      
+
       // Cancel cleanup timeout if page becomes visible again
       if (cleanupTimeoutId) {
         clearTimeout(cleanupTimeoutId);
@@ -683,7 +691,7 @@ export const initializeDatabaseCleanup = () => {
   window.addEventListener('beforeunload', handleUnload);
   window.addEventListener('unload', handleUnload);
   window.addEventListener('pagehide', handleUnload);
-  
+
   // Listen for visibility changes
   document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -697,7 +705,7 @@ export const initializeDatabaseCleanup = () => {
     window.removeEventListener('unload', handleUnload);
     window.removeEventListener('pagehide', handleUnload);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
-    
+
     // Final cleanup
     cleanup();
   };

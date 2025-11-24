@@ -1,23 +1,67 @@
 import React, { useCallback, useState } from 'react';
 import { readFileAsBase64 } from '../lib/apiService';
+import { uploadVideoToSupabase, isVideoFile } from '../lib/videoService';
 import { useAppContext } from '../context/AppContext';
 import BrowserCapture from './BrowserCapture';
 
 function ImageUploader() {
     const { currentImageFiles, setCurrentImageFiles, initialContext, setInitialContext } = useAppContext();
     const [isDragging, setIsDragging] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     const processFiles = useCallback(async (filesToProcess) => {
-        const filePromises = Array.from(filesToProcess).map(file => 
-            readFileAsBase64(file).then(base64String => ({
-                name: file.name,
-                base64: base64String.split(',')[1],
-                type: file.type,
-                dataURL: base64String  // Cambiado de dataUrl a dataURL para consistencia
-            }))
-        );
-        const newImageFiles = await Promise.all(filePromises);
-        setCurrentImageFiles(prev => [...prev, ...newImageFiles].sort((a, b) => a.name.localeCompare(b.name)));
+        setIsProcessing(true);
+        setUploadProgress(0);
+        try {
+            const newFiles = [];
+
+            for (const file of Array.from(filesToProcess)) {
+                if (isVideoFile(file)) {
+                    // Process video file
+                    try {
+                        setUploadProgress(10); // Started
+                        // Upload to Supabase Storage
+                        const publicUrl = await uploadVideoToSupabase(file);
+                        setUploadProgress(100); // Finished
+
+                        newFiles.push({
+                            name: file.name,
+                            type: file.type,
+                            dataURL: publicUrl, // Store URL instead of base64
+                            isVideo: true,
+                            file: file // Keep reference if needed
+                        });
+                    } catch (error) {
+                        console.error('Error uploading video:', error);
+                        alert(`Error al subir el video ${file.name}: ${error.message}`);
+                    }
+                } else if (file.type.startsWith('image/')) {
+                    // Process image file
+                    try {
+                        const base64String = await readFileAsBase64(file);
+                        newFiles.push({
+                            name: file.name,
+                            base64: base64String.split(',')[1],
+                            type: file.type,
+                            dataURL: base64String,
+                            isVideo: false
+                        });
+                    } catch (error) {
+                        console.error('Error reading image:', error);
+                    }
+                }
+            }
+
+            if (newFiles.length > 0) {
+                setCurrentImageFiles(prev => [...prev, ...newFiles].sort((a, b) => a.name.localeCompare(b.name)));
+            }
+        } catch (error) {
+            console.error('Error processing files:', error);
+        } finally {
+            setIsProcessing(false);
+            setUploadProgress(0);
+        }
     }, [setCurrentImageFiles]);
 
     const handleImageUpload = (event) => {
@@ -33,10 +77,13 @@ function ImageUploader() {
         const items = event.clipboardData?.items;
         if (!items) return;
 
-        const imageItems = Array.from(items).filter(item => item.type.startsWith('image/'));
-        if (imageItems.length > 0) {
+        const mediaItems = Array.from(items).filter(item =>
+            item.type.startsWith('image/') || item.type.startsWith('video/')
+        );
+
+        if (mediaItems.length > 0) {
             event.preventDefault();
-            const blobs = imageItems.map(item => item.getAsFile());
+            const blobs = mediaItems.map(item => item.getAsFile());
             processFiles(blobs);
         }
     }, [processFiles]);
@@ -57,7 +104,7 @@ function ImageUploader() {
             processFiles(e.dataTransfer.files);
         }
     };
-    
+
     React.useEffect(() => {
         document.addEventListener('paste', handlePaste);
         return () => {
@@ -72,26 +119,39 @@ function ImageUploader() {
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`group relative w-full cursor-pointer rounded-3xl border border-secondary-200/80 bg-gradient-to-br from-white via-secondary-50 to-secondary-100/80 p-7 flex flex-col items-center justify-center text-center transition-all duration-300 ease-out shadow-apple-lg overflow-hidden ${
-                    isDragging
+                className={`group relative w-full cursor-pointer rounded-3xl border border-secondary-200/80 bg-gradient-to-br from-white via-secondary-50 to-secondary-100/80 p-7 flex flex-col items-center justify-center text-center transition-all duration-300 ease-out shadow-apple-lg overflow-hidden ${isDragging
                         ? 'border-primary/50 bg-primary/5 scale-[1.01] shadow-apple-xl'
                         : 'hover:border-primary/40 hover:shadow-apple-xl'
-                }`}
+                    }`}
             >
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/60 via-secondary-50/80 to-primary/10" />
                 <div className="relative flex flex-col items-center gap-3">
-                    <div className="p-3 rounded-2xl bg-white shadow-apple">
-                        <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                        </svg>
-                    </div>
-                    <div className="space-y-1">
-                        <p className="text-base font-semibold text-secondary-800">Arrastra imágenes o haz clic para seleccionarlas</p>
-                        <p className="text-xs text-secondary-500">PNG, JPG, GIF • también puedes pegar desde el portapapeles</p>
-                    </div>
+                    {isProcessing ? (
+                        <div className="flex flex-col items-center animate-pulse w-full max-w-xs">
+                            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
+                            <p className="text-sm font-medium text-primary">Procesando archivos...</p>
+                            {uploadProgress > 0 && (
+                                <div className="w-full bg-secondary-200 rounded-full h-2 mt-2">
+                                    <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <>
+                            <div className="p-3 rounded-2xl bg-white shadow-apple">
+                                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                                </svg>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-base font-semibold text-secondary-800">Arrastra imágenes/videos o haz clic</p>
+                                <p className="text-xs text-secondary-500">PNG, JPG, MP4, WEBM • también puedes pegar</p>
+                            </div>
+                        </>
+                    )}
                 </div>
             </label>
-            <input type="file" id="image-upload" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+            <input type="file" id="image-upload" multiple accept="image/*,video/*" className="hidden" onChange={handleImageUpload} />
 
             <BrowserCapture onCapture={processFiles} />
 
@@ -105,22 +165,33 @@ function ImageUploader() {
                             <span className="text-xs text-secondary-500">Haz clic en una miniatura para ampliarla</span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {currentImageFiles.map((img, index) => (
+                            {currentImageFiles.map((file, index) => (
                                 <div key={index} className="relative group">
-                                    <div className="aspect-video bg-white rounded-2xl overflow-hidden shadow-apple-md hover:shadow-apple-lg transition-all duration-300 border border-secondary-100">
-                                        <img
-                                            src={img.dataURL}
-                                            alt={img.name}
-                                            onClick={() => window.open(img.dataURL, '_blank')}
-                                            className="w-full h-full object-cover cursor-pointer hover:scale-[1.02] transition-transform duration-300"
-                                        />
-                                        <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors duration-200 flex items-center justify-center opacity-0 hover:opacity-100">
-                                            <div className="bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-apple">
-                                                <svg className="w-5 h-5 text-secondary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                                </svg>
+                                    <div className="aspect-video bg-white rounded-2xl overflow-hidden shadow-apple-md hover:shadow-apple-lg transition-all duration-300 border border-secondary-100 relative">
+                                        {file.isVideo ? (
+                                            <video
+                                                src={file.dataURL}
+                                                className="w-full h-full object-cover"
+                                                controls
+                                            />
+                                        ) : (
+                                            <img
+                                                src={file.dataURL}
+                                                alt={file.name}
+                                                onClick={() => window.open(file.dataURL, '_blank')}
+                                                className="w-full h-full object-cover cursor-pointer hover:scale-[1.02] transition-transform duration-300"
+                                            />
+                                        )}
+
+                                        {!file.isVideo && (
+                                            <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors duration-200 flex items-center justify-center opacity-0 hover:opacity-100 pointer-events-none">
+                                                <div className="bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-apple">
+                                                    <svg className="w-5 h-5 text-secondary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                                    </svg>
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                     <button
                                         onClick={() => handleRemoveImage(index)}
@@ -129,8 +200,10 @@ function ImageUploader() {
                                         ×
                                     </button>
                                     <div className="mt-3 text-center">
-                                        <p className="text-sm font-semibold text-secondary-800">Imagen {index + 1}</p>
-                                        <p className="text-xs text-secondary-500 truncate">{img.name}</p>
+                                        <p className="text-sm font-semibold text-secondary-800">
+                                            {file.isVideo ? 'Video' : 'Imagen'} {index + 1}
+                                        </p>
+                                        <p className="text-xs text-secondary-500 truncate">{file.name}</p>
                                     </div>
                                 </div>
                             ))}

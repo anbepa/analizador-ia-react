@@ -3,13 +3,39 @@ export const PROMPT_FLOW_ANALYSIS_FROM_IMAGES = (annotationsContext = '') => `
     Tu tarea es analizar una secuencia de evidencias que representan un flujo de proceso YA EJECUTADO, y generar un informe detallado en formato JSON. Este informe debe documentar las acciones observadas, los datos de entrada (si son visibles o inferibles), los elementos clave, y los resultados esperados y obtenidos para cada paso, culminando en una conclusión general.
     Las evidencias se proporcionan en el orden en que ocurrieron los pasos del flujo.
     **ENTRADA PROPORCIONADA:**
-    * **Evidencias del Flujo Ejecutado:** (Las evidencias adjuntas en la solicitud, en orden secuencial estricto. La primera evidencia es "Imagen 1", la segunda "Imagen 2", etc.).
+    * **Evidencias del Flujo Ejecutado:** (Las evidencias adjuntas en la solicitud, en orden secuencial estricto. Pueden ser imágenes o videos. La primera evidencia es "Evidencia 1", la segunda "Evidencia 2", etc.).
     ${annotationsContext ? `* **CONTEXTO ADICIONAL DEL USUARIO (PRIORIDAD ALTA):** ${annotationsContext}` : ''}
     **INSTRUCCIONES DETALLADAS PARA EL ANÁLISIS Y GENERACIÓN DEL INFORME:**
     1.  **SECUENCIA DE EVIDENCIAS Y ANOTACIONES:** Analiza las evidencias EN EL ORDEN ESTRICTO proporcionado. ${annotationsContext ? 'Utiliza el CONTEXTO ADICIONAL como la guía principal para entender el objetivo y la naturaleza del flujo.' : ''}
-    2.  **IDENTIFICACIÓN DE PASOS Y ACCIONES:** Describe para cada paso: "descripcion_accion_observada", "imagen_referencia_entrada", "imagen_referencia_salida", "elemento_clave_y_ubicacion_aproximada", "dato_de_entrada_paso", "resultado_esperado_paso", "resultado_obtenido_paso_y_estado". Para "imagen_referencia_entrada" y "imagen_referencia_salida", usa el formato exacto "Imagen X", donde X es el número de la evidencia comenzando en 1. La evidencia de salida de un paso es usualmente la de entrada del siguiente.
+    2.  **IDENTIFICACIÓN DE PASOS Y ACCIONES:** Describe para cada paso: "descripcion_accion_observada", "imagen_referencia_entrada", "imagen_referencia_salida", "elemento_clave_y_ubicacion_aproximada", "dato_de_entrada_paso", "resultado_esperado_paso", "resultado_obtenido_paso_y_estado". Para "imagen_referencia_entrada" y "imagen_referencia_salida", usa el formato exacto "Evidencia X", donde X es el número de la evidencia comenzando en 1. La evidencia de salida de un paso es usualmente la de entrada del siguiente.
         **IMPORTANTE SOBRE "dato_de_entrada_paso":** Si no hay ningún dato de entrada visible o inferible en las evidencias, deja este campo como cadena vacía (""). NO uses "N/A".
         **IMPORTANTE SOBRE "resultado_obtenido_paso_y_estado":** Este campo debe contener ÚNICAMENTE texto plano descriptivo y el estado (Exitosa/Fallido/Exitosa con desviaciones/Inconclusivo). NO uses llaves {}, corchetes [], ni formato JSON. Ejemplo correcto: "Exitosa: Se visualiza correctamente el formulario de login". Ejemplo INCORRECTO: "{"estado": "Exitosa", "descripcion": "..."}"
+        
+        **⚠️ CRÍTICO - TIMESTAMPS PARA VIDEOS (OBLIGATORIO):**
+        Si la evidencia es un VIDEO (no una imagen estática), DEBES incluir OBLIGATORIAMENTE el campo "video_timestamp" en CADA paso del análisis.
+        
+        **Formato del timestamp:**
+        - Usa formato MM:SS para videos menores a 1 hora (ejemplo: "00:15", "01:30", "05:45")
+        - Usa formato HH:MM:SS para videos de 1 hora o más (ejemplo: "01:15:30")
+        
+        **Reglas para timestamps:**
+        - El timestamp debe indicar el momento EXACTO en el video donde ocurre la acción descrita
+        - Cada paso DEBE tener su propio timestamp único
+        - Los timestamps deben estar en orden cronológico
+        - Sé lo más preciso posible (segundo exacto)
+        
+        **Ejemplo de paso con video:**
+        {
+          "numero_paso": 1,
+          "descripcion_accion_observada": "Usuario hace clic en el botón 'Aprobar'",
+          "video_timestamp": "00:05",
+          "imagen_referencia_entrada": "Evidencia 1",
+          "imagen_referencia_salida": "Evidencia 1",
+          ...
+        }
+        
+        **IMPORTANTE:** Si NO incluyes "video_timestamp" en cada paso cuando hay un video, el sistema NO podrá generar capturas de pantalla automáticas y el análisis estará INCOMPLETO.
+        
     3.  **CONCLUSIONES GENERALES DEL FLUJO:** Infiere "Nombre_del_Escenario", "Resultado_Esperado_General_Flujo", y "Conclusion_General_Flujo". Para "Resultado_Esperado_General_Flujo", NO incluyas el prefijo "Resultado Esperado General del Flujo:" ni "Resultado Esperado General:", escribe DIRECTAMENTE el resultado esperado.
     4.  **NÚMERO DE PASO:** Asegúrate que "numero_paso" sea un entero secuencial comenzando en 1.
     **CASO DE EVIDENCIAS NO INTERPRETABLES / ERROR INTERNO:**
@@ -39,7 +65,7 @@ export const PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT = (editedReport
     **FORMATO DE SALIDA ESTRICTO JSON EN ESPAÑOL (SIN EXCEPCIONES):**
     La respuesta DEBE ser un array JSON válido que contenga UN ÚNICO objeto. La estructura del objeto y sus campos deben coincidir con la definida en el prompt \`PROMPT_FLOW_ANALYSIS_FROM_IMAGES\`. **ABSOLUTAMENTE PROHIBIDO INCLUIR:** Cualquier texto fuera del array JSON.
     PROCEDE A GENERAR EL ARRAY JSON DEL INFORME DE ANÁLISIS DE FLUJO/SECUENCIA REFINADO, PONIENDO ESPECIAL ATENCIÓN AL "user_provided_additional_context" PARA ENTENDER LA NATURALEZA DE LAS EVIDENCIAS Y AJUSTAR LA INTERPRETACIÓN Y TERMINOLOGÍA SEGÚN SEA NECESARIO:`;
-    
+
 
 export const PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS = (userContext = '') => `Eres un Analista de QA extremadamente meticuloso, con un ojo crítico para el detalle y una profunda comprensión de la experiencia de usuario y la funcionalidad del software. Tu tarea es detectar BUGS REALES y RELEVANTES.
 Debes comparar dos secuencias de flujos: "Flujo A" (generalmente el estado esperado o versión anterior) y "Flujo B" (generalmente el estado actual o nueva versión). Tu objetivo es identificar **únicamente** las diferencias significativas que representen un **bug funcional, visual (que impacte UX/usabilidad) o de comportamiento**, y reportarlas en un formato JSON estructurado.

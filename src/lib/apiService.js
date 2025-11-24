@@ -1,17 +1,30 @@
 import { enqueueGeminiCall } from './geminiService';
 
-export async function callAiApi(prompt, imageFiles, options = {}) {
+export async function callAiApi(prompt, files, options = {}) {
     const onStatus = options.onStatus;
-    const model = options.model || 'gemini-1.5-flash-latest';
+    const model = options.model || 'gemini-2.0-flash'; // Default to 2.0 Flash for video support
 
     const apiUrl = '/api/gemini-proxy';
     const headers = { 'Content-Type': 'application/json' };
 
     const geminiParts = [{ text: prompt }];
-    imageFiles.forEach(img => {
-        if (img.dataURL && img.dataURL.includes(',')) {
-            const base64Data = img.dataURL.split(',')[1];
-            const mimeType = img.dataURL.split(',')[0].match(/data:([^;]+)/)?.[1] || img.type || 'image/png';
+    let hasVideo = false;
+
+    // Process files (images or videos)
+    files.forEach(file => {
+        if (file.isVideo && file.dataURL) {
+            // It's a video URL from Supabase
+            hasVideo = true;
+            geminiParts.push({
+                file_data: {
+                    mime_type: file.type || 'video/mp4',
+                    file_uri: file.dataURL // We send the URL, backend will handle it
+                }
+            });
+        } else if (file.dataURL && file.dataURL.includes(',')) {
+            // It's a base64 image
+            const base64Data = file.dataURL.split(',')[1];
+            const mimeType = file.dataURL.split(',')[0].match(/data:([^;]+)/)?.[1] || file.type || 'image/png';
 
             geminiParts.push({
                 inline_data: {
@@ -24,7 +37,8 @@ export async function callAiApi(prompt, imageFiles, options = {}) {
 
     const body = {
         model,
-        contents: [{ parts: geminiParts }]
+        contents: [{ parts: geminiParts }],
+        hasVideo // Flag to tell backend to handle video
     };
 
     const performRequest = async () => {
@@ -55,13 +69,13 @@ export async function callAiApi(prompt, imageFiles, options = {}) {
                     const geminiError = errorBody.error.message;
                     if (geminiError.includes('Unable to process input image')) {
                         errorMessage = "Una o más imágenes no pudieron ser procesadas. Esto puede ser debido a:\n" +
-                                     "• Imágenes corruptas o en formato no válido\n" +
-                                     "• Imágenes demasiado grandes (máximo recomendado: 10MB)\n" +
-                                     "• Contenido de imagen no reconocible\n\n" +
-                                     "Sugerencias:\n" +
-                                     "• Verifica que las imágenes se vean correctamente\n" +
-                                     "• Intenta con imágenes más pequeñas\n" +
-                                     "• Usa formatos comunes (PNG, JPG, WEBP)";
+                            "• Imágenes corruptas o en formato no válido\n" +
+                            "• Imágenes demasiado grandes (máximo recomendado: 10MB)\n" +
+                            "• Contenido de imagen no reconocible\n\n" +
+                            "Sugerencias:\n" +
+                            "• Verifica que las imágenes se vean correctamente\n" +
+                            "• Intenta con imágenes más pequeñas\n" +
+                            "• Usa formatos comunes (PNG, JPG, WEBP)";
                     } else if (geminiError.includes('quota') || geminiError.includes('limit')) {
                         errorMessage = 'Se ha excedido el límite de la API de Gemini. Intenta más tarde o verifica tu cuota.';
                     } else {

@@ -1,11 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Apple-inspired base styles */
 @layer base {
+  :root {
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --glass-surface: rgba(255, 255, 255, 0.7);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  }
+
   * {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -16,197 +21,151 @@
   }
   
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Inter', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     @apply bg-background text-secondary-900 leading-relaxed;
-    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.1) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.1) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.1) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%);
+    background-attachment: fixed;
   }
 
   h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
     @apply font-semibold text-secondary-900;
-    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-secondary-300 rounded-full;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-secondary-400;
   }
 }
 
-/* Apple-inspired components */
 @layer components {
-  .apple-card {
-    @apply bg-surface rounded-apple-lg shadow-apple-md border border-secondary-100;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-xl border border-white/50 shadow-apple-lg;
+  }
+
+  .glass-card {
+    @apply bg-white/60 backdrop-blur-md border border-white/40 shadow-apple-md transition-all duration-300;
   }
 
   .apple-button {
-    @apply px-6 py-3 font-medium rounded-apple transition-all duration-200 ease-out;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2;
+    @apply px-5 py-2.5 font-medium rounded-xl transition-all duration-200 ease-out active:scale-95;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-1;
   }
 
   .apple-button-primary {
     @apply apple-button bg-primary text-white;
-    @apply hover:bg-primary-600 active:bg-primary-700;
-    @apply shadow-apple hover:shadow-apple-md;
+    @apply hover:bg-primary-600 hover:shadow-lg hover:shadow-primary/20;
   }
 
   .apple-button-secondary {
-    @apply apple-button bg-secondary-50 text-secondary-700 border border-secondary-200;
-    @apply hover:bg-secondary-100 active:bg-secondary-200;
+    @apply apple-button bg-white text-secondary-700 border border-secondary-200;
+    @apply hover:bg-secondary-50 hover:border-secondary-300 hover:shadow-sm;
   }
 
-  .glassmorphism {
-    @apply apple-card;
-    background: rgba(255, 255, 255, 0.8);
+  .input-field {
+    @apply w-full px-4 py-2.5 bg-white/50 border border-secondary-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none;
   }
+}
 
-  /* Animation utilities */
-  .animate-in {
-    animation-duration: 0.2s;
-    animation-fill-mode: both;
-  }
-
-  .fade-in {
-    animation-name: fadeIn;
-  }
-
-  .zoom-in-95 {
-    animation-name: zoomIn95;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes zoomIn95 {
-    from { 
-      opacity: 0; 
-      transform: scale(0.95); 
-    }
-    to { 
-      opacity: 1; 
-      transform: scale(1); 
-    }
-  }
+/* Report Content Styles */
+.report-content {
+  font-family: 'Inter', sans-serif;
 }
 
 .report-content h1 {
-    color: #1e293b;
-    border-bottom: 2px solid #e2e8f0;
-    padding-bottom: 16px;
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 2rem;
+  @apply text-3xl font-bold text-secondary-900 border-b-2 border-secondary-100 pb-4 mb-6 font-display;
 }
 
 .report-content h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #334155;
-    margin-top: 20px;
-    margin-bottom: 10px;
-    padding-bottom: 5px;
-    border-bottom: 1px dashed #e0e0e0
+  @apply text-xl font-semibold text-secondary-800 mt-8 mb-4 pb-2 border-b border-dashed border-secondary-200 flex items-center gap-2;
 }
 
 .report-content table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 20px;
-    font-size: .9em;
-    table-layout: fixed;
-}
-
-.report-content th,
-.report-content td {
-    border: 1px solid #ddd;
-    padding: 10px 8px;
-    text-align: left;
-    vertical-align: top;
-    overflow-wrap: break-word;
-    word-wrap: break-word;
-    word-break: break-word;
+  @apply w-full border-collapse mb-6 text-sm rounded-lg overflow-hidden ring-1 ring-secondary-200/50;
+  table-layout: fixed;
 }
 
 .report-content th {
-    background-color: #f2f2f2;
-    font-weight: 600
+  @apply bg-secondary-50/80 text-secondary-700 font-semibold px-4 py-3 text-left border-b border-secondary-200;
+}
+
+.report-content td {
+  @apply px-4 py-3 border-b border-secondary-100 align-top text-secondary-600;
+  word-wrap: break-word;
+}
+
+.report-content tr:last-child td {
+  border-bottom: none;
 }
 
 .report-content tr.evidence-row td {
-    padding: 10px;
-    text-align: center;
-    background-color: #fdfdfd;
-    border-top: none;
+  @apply bg-secondary-50/30 p-4;
 }
 
 .report-content img.evidence-image {
-    max-width: 250px;
-    width: auto;
-    height: auto;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    display: block;
-    margin: 5px auto;
-    background-color: #fff;
-    object-fit: contain;
+  @apply max-w-[300px] w-auto h-auto rounded-lg border border-secondary-200 shadow-sm mx-auto bg-white p-1 transition-transform duration-300 hover:scale-105;
 }
 
-.report-content tr.status-success td:first-child {
-    border-left: 5px solid #28a745 !important
+/* Status Indicators */
+.status-success td:first-child {
+  border-left: 4px solid #34C759 !important;
 }
 
-
-.report-content tr.status-failure td:first-child {
-    border-left: 5px solid #E30520 !important
+.status-failure td:first-child {
+  border-left: 4px solid #FF3B30 !important;
 }
 
-.report-content tr.status-deviation td:first-child {
-    border-left: 5px solid #FFD300 !important
+.status-deviation td:first-child {
+  border-left: 4px solid #FF9500 !important;
 }
 
+/* Editable Styles */
 .report-content[contenteditable="true"] {
-    outline: 2px dashed #4f46e5;
-    padding: 1rem;
-    border-radius: 0.5rem;
+  @apply outline-dashed outline-2 outline-primary/50 p-4 rounded-xl bg-white/40;
 }
 
-.modal-content {
-    white-space: pre-wrap;
-    background-color: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    padding: 1.5rem;
-    max-height: 60vh;
-    overflow-y: auto;
+.report-content[contenteditable="true"]:focus {
+  @apply outline-primary bg-white/60;
 }
 
-.report-content .delete-step-btn {
-    display: none;
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.report-content[contenteditable="true"] .delete-step-btn {
-    display: inline-block;
-    margin-left: 5px;
-}
-
-/* Drag & Drop highlight */
-.dropzone-dragging {
-    @apply border-primary bg-primary/10;
-}
-
-/* Thumbnail gallery */
-.thumb-gallery {
-    @apply grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3;
-}
-
-.thumb-gallery img {
-    @apply w-full h-24 object-cover rounded-md shadow-md cursor-pointer;
-}
-
-.thumb-title {
-    @apply text-xs text-center mt-1 font-medium;
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
 }
 
 @media print {
-    .pdf-hide {
-        display: none !important;
-    }
+  body {
+    background: white;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .report-content {
+    box-shadow: none;
+    border: none;
+  }
 }

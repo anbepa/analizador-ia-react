@@ -4,17 +4,17 @@ import { callAiApi } from '../lib/apiService';
 import { PROMPT_FLOW_ANALYSIS_FROM_IMAGES, PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT } from '../lib/prompts';
 import { validateAndCleanImages, compressImageIfNeeded } from '../lib/imageService';
 
-import { 
-  loadReports as loadReportsFromDB, 
-  saveReport as saveReportToDB, 
-  updateReport as updateReportInDB,
-  deleteReport as deleteReportFromDB,
-  saveRefinement,
-  testDatabaseConnection,
-  initializeDatabaseCleanup,
-  makeReportPermanent,
-  addStepToReport,
-  deleteStepFromReport as deleteStepFromDB
+import {
+    loadReports as loadReportsFromDB,
+    saveReport as saveReportToDB,
+    updateReport as updateReportInDB,
+    deleteReport as deleteReportFromDB,
+    saveRefinement,
+    testDatabaseConnection,
+    initializeDatabaseCleanup,
+    makeReportPermanent,
+    addStepToReport,
+    deleteStepFromReport as deleteStepFromDB
 } from '../lib/databaseService';
 import { supabase } from '../lib/supabaseClient';
 
@@ -39,7 +39,7 @@ export const AppProvider = ({ children }) => {
     const [userContext, setUserContext] = useState('');
     const [modal, setModal] = useState({ show: false, title: '', content: '' });
     const reportRef = useRef(null);
-    
+
     // Estados para navegación unificada
     const [navigationState, setNavigationState] = useState({
         activeMainMenu: 'panel-control',
@@ -53,9 +53,9 @@ export const AppProvider = ({ children }) => {
     // Function to clean AI response fields from redundant text
     const cleanReportData = (reportData) => {
         if (!reportData) return reportData;
-        
+
         const cleaned = { ...reportData };
-        
+
         // Clean Resultado_Esperado_General_Flujo field
         if (cleaned.Resultado_Esperado_General_Flujo) {
             let cleanedField = cleaned.Resultado_Esperado_General_Flujo;
@@ -65,35 +65,35 @@ export const AppProvider = ({ children }) => {
                 /^Resultado Esperado General:\s*/i,
                 /^Resultado Esperado:\s*/i
             ];
-            
+
             for (const pattern of patterns) {
                 cleanedField = cleanedField.replace(pattern, '');
             }
-            
+
             cleaned.Resultado_Esperado_General_Flujo = cleanedField.trim();
         }
-        
+
         // Clean resultado_obtenido_paso_y_estado fields in Pasos_Analizados
         if (cleaned.Pasos_Analizados && Array.isArray(cleaned.Pasos_Analizados)) {
             cleaned.Pasos_Analizados = cleaned.Pasos_Analizados.map(paso => {
                 const cleanedPaso = { ...paso };
-                
+
                 // Remove JSON-like formatting from resultado_obtenido_paso_y_estado
                 if (cleanedPaso.resultado_obtenido_paso_y_estado) {
                     let cleanedResult = cleanedPaso.resultado_obtenido_paso_y_estado;
-                    
+
                     // Remove opening and closing braces if they wrap the entire content
                     if (cleanedResult.trim().startsWith('{') && cleanedResult.trim().endsWith('}')) {
                         cleanedResult = cleanedResult.trim().slice(1, -1).trim();
                     }
-                    
+
                     // Remove JSON property patterns like "estado": "Exitosa", "descripcion": "..."
                     // and extract just the meaningful text
                     const jsonPatterns = [
                         /"estado"\s*:\s*"([^"]+)"\s*,\s*"descripcion"\s*:\s*"([^"]+)"/i,
                         /"descripcion"\s*:\s*"([^"]+)"\s*,\s*"estado"\s*:\s*"([^"]+)"/i
                     ];
-                    
+
                     for (const pattern of jsonPatterns) {
                         const match = cleanedResult.match(pattern);
                         if (match) {
@@ -104,27 +104,27 @@ export const AppProvider = ({ children }) => {
                             break;
                         }
                     }
-                    
+
                     cleanedPaso.resultado_obtenido_paso_y_estado = cleanedResult.trim();
                 }
-                
+
                 // Ensure dato_de_entrada_paso is empty string instead of "N/A" when there's no data
                 // (keeping "N/A" only for reference fields like imagen_referencia_entrada)
                 if (cleanedPaso.dato_de_entrada_paso === 'N/A') {
                     cleanedPaso.dato_de_entrada_paso = '';
                 }
-                
+
                 return cleanedPaso;
             });
         }
-        
+
         return cleaned;
     };
 
     useEffect(() => {
         // Initialize database cleanup for temporary reports
         const cleanupFunction = initializeDatabaseCleanup();
-        
+
         // Test database connection and load reports
         const initializeDatabase = async () => {
             try {
@@ -157,7 +157,7 @@ export const AppProvider = ({ children }) => {
 
     // Auto-save is now handled within specific operations (handleAnalysis, etc.)
     // No need for a global useEffect that saves all reports
-    
+
     const canGenerate = useMemo(() => {
         return currentImageFiles.length > 0 && !loading.state;
     }, [currentImageFiles, loading.state]);
@@ -182,7 +182,7 @@ export const AppProvider = ({ children }) => {
             ...(mainMenu && { activeMainMenu: mainMenu }),
             ...(subMenu && { activeSubMenu: subMenu })
         }));
-        
+
     };
 
     const updateNavigation = (mainMenu, subMenu = null) => {
@@ -196,26 +196,30 @@ export const AppProvider = ({ children }) => {
     const handleAnalysis = async (refinement = false, payload = null) => {
         setLoading({ state: true, message: refinement ? 'Refinando análisis...' : 'Realizando análisis inicial...' });
         setError(null);
-        
+
         try {
             // Validate and clean images before sending to API
             let imagesToSend = validateAndCleanImages(currentImageFiles);
-            
+
             if (imagesToSend.length === 0) {
                 throw new Error("No hay imágenes válidas para el análisis. Por favor, carga imágenes válidas primero.");
             }
 
-            setLoading({ state: true, message: `Preparando ${imagesToSend.length} imágenes para análisis...` });
+            setLoading({ state: true, message: `Preparando ${imagesToSend.length} evidencias para análisis...` });
 
-            // Compress large images to avoid API issues
+            // Compress large images to avoid API issues (skip videos)
             const compressedImages = [];
             for (let i = 0; i < imagesToSend.length; i++) {
-                setLoading({ state: true, message: `Optimizando imagen ${i + 1} de ${imagesToSend.length}...` });
-                try {
-                    const compressed = await compressImageIfNeeded(imagesToSend[i]);
-                    compressedImages.push(compressed);
-                } catch (compressError) {
-                    console.warn(`Failed to compress image ${i + 1}, using original:`, compressError);
+                if (!imagesToSend[i].isVideo) {
+                    setLoading({ state: true, message: `Optimizando imagen ${i + 1} de ${imagesToSend.length}...` });
+                    try {
+                        const compressed = await compressImageIfNeeded(imagesToSend[i]);
+                        compressedImages.push(compressed);
+                    } catch (compressError) {
+                        console.warn(`Failed to compress image ${i + 1}, using original:`, compressError);
+                        compressedImages.push(imagesToSend[i]);
+                    }
+                } else {
                     compressedImages.push(imagesToSend[i]);
                 }
             }
@@ -234,23 +238,23 @@ export const AppProvider = ({ children }) => {
 
             const cleanedJsonText = jsonMatch[1] || jsonMatch[0];
             let parsedResponse;
-            
+
             try {
                 parsedResponse = JSON.parse(cleanedJsonText);
             } catch (parseError) {
                 throw new Error("La respuesta de la API no contiene JSON válido: " + parseError.message);
             }
-            
+
             // Handle both array and single object responses
             let newReportData = Array.isArray(parsedResponse) ? parsedResponse[0] : parsedResponse;
-            
+
             if (!newReportData) {
                 throw new Error("La respuesta de la API está vacía o no contiene datos válidos.");
             }
-            
+
             // Clean the report data to remove redundant text
             newReportData = cleanReportData(newReportData);
-            
+
             // Fix missing numero_paso values to ensure database compatibility
             if (newReportData.Pasos_Analizados && Array.isArray(newReportData.Pasos_Analizados)) {
                 newReportData.Pasos_Analizados = newReportData.Pasos_Analizados.map((paso, index) => ({
@@ -261,22 +265,133 @@ export const AppProvider = ({ children }) => {
                 // If Pasos_Analizados is missing or invalid, create a basic structure
                 newReportData.Pasos_Analizados = [{
                     numero_paso: 1,
-                    descripcion_accion_observada: "Análisis inicial de imágenes",
-                    imagen_referencia_entrada: "Imagen 1",
-                    imagen_referencia_salida: compressedImages.length > 1 ? "Imagen 2" : "Imagen 1",
+                    descripcion_accion_observada: "Análisis inicial de evidencias",
+                    imagen_referencia_entrada: "Evidencia 1",
+                    imagen_referencia_salida: compressedImages.length > 1 ? "Evidencia 2" : "Evidencia 1",
                     elemento_clave_y_ubicacion_aproximada: "Elementos de la interfaz",
                     dato_de_entrada_paso: "N/A",
                     resultado_esperado_paso: "Visualización correcta",
                     resultado_obtenido_paso_y_estado: "Pendiente de análisis"
                 }];
             }
-            
+
+            // Check if we have a video and timestamps
+            const videoFile = compressedImages.find(f => f.isVideo);
+            const hasTimestamps = newReportData.Pasos_Analizados.some(paso => paso.video_timestamp);
+
+            console.log('[VIDEO-ANALYSIS] Video detected:', !!videoFile);
+            console.log('[VIDEO-ANALYSIS] Timestamps in response:', hasTimestamps);
+            console.log('[VIDEO-ANALYSIS] Steps:', newReportData.Pasos_Analizados.map(p => ({
+                step: p.numero_paso,
+                timestamp: p.video_timestamp || 'MISSING'
+            })));
+
+            // Extract frames if we have video
+            if (videoFile) {
+                if (hasTimestamps) {
+                    // Use Gemini-provided timestamps
+                    setLoading({ state: true, message: 'Extrayendo capturas de pantalla del video (timestamps de IA)...' });
+
+                    try {
+                        const { processVideoSteps } = await import('../lib/frameExtractionService');
+
+                        const stepsWithFrames = await processVideoSteps(
+                            videoFile.dataURL,
+                            newReportData.Pasos_Analizados
+                        );
+
+                        newReportData.Pasos_Analizados = stepsWithFrames;
+
+                        const frameImages = stepsWithFrames
+                            .filter(step => step.frame_url)
+                            .map((step, idx) => ({
+                                name: `frame_step_${step.numero_paso}.jpg`,
+                                dataURL: step.frame_url,
+                                type: 'image/jpeg',
+                                isVideo: false,
+                                fromVideoFrame: true,
+                                stepNumber: step.numero_paso
+                            }));
+
+                        compressedImages.push(...frameImages);
+
+                        console.log(`[FRAME-EXTRACT] Successfully extracted ${frameImages.length} frames from video using AI timestamps`);
+                    } catch (frameError) {
+                        console.error('Error extracting frames:', frameError);
+                    }
+                } else {
+                    // Fallback: Extract frames at regular intervals
+                    console.log('[VIDEO-ANALYSIS] Using fallback: extracting frames at regular intervals');
+                    setLoading({ state: true, message: 'Extrayendo capturas de pantalla del video (intervalos automáticos)...' });
+
+                    try {
+                        // Calculate intervals based on number of steps
+                        const numSteps = newReportData.Pasos_Analizados.length;
+
+                        // For fallback, we'll distribute frames evenly across a short video
+                        // Assuming most screen recordings are 5-30 seconds
+                        // We'll use a conservative approach: distribute across 6 seconds per step
+                        const timestamps = newReportData.Pasos_Analizados.map((paso, index) => {
+                            // Distribute frames: step 1 at 1s, step 2 at 3s, step 3 at 5s, etc.
+                            const seconds = (index * 2) + 1;
+                            const minutes = Math.floor(seconds / 60);
+                            const secs = seconds % 60;
+                            const timestamp = `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+                            return {
+                                stepNumber: paso.numero_paso,
+                                timestamp: timestamp,
+                                seconds: seconds
+                            };
+                        });
+
+                        console.log('[VIDEO-ANALYSIS] Generated automatic timestamps:', timestamps);
+
+                        // Request frame extraction
+                        const { requestFrameExtraction } = await import('../lib/frameExtractionService');
+                        const frames = await requestFrameExtraction(videoFile.dataURL, timestamps);
+
+                        console.log('[VIDEO-ANALYSIS] Received frames from backend:', frames);
+
+                        // Associate frames with steps
+                        newReportData.Pasos_Analizados = newReportData.Pasos_Analizados.map(paso => {
+                            const frameData = frames.find(f => f.stepNumber === paso.numero_paso);
+                            if (frameData) {
+                                return {
+                                    ...paso,
+                                    frame_url: frameData.url,
+                                    video_timestamp: frameData.timestamp,
+                                    auto_timestamp: true // Flag to indicate this was auto-generated
+                                };
+                            }
+                            return paso;
+                        });
+
+                        // Convert frames to image files
+                        const frameImages = frames.map(frame => ({
+                            name: `frame_step_${frame.stepNumber}.jpg`,
+                            dataURL: frame.url,
+                            type: 'image/jpeg',
+                            isVideo: false,
+                            fromVideoFrame: true,
+                            stepNumber: frame.stepNumber
+                        }));
+
+                        compressedImages.push(...frameImages);
+
+                        console.log(`[FRAME-EXTRACT] Successfully extracted ${frameImages.length} frames using automatic intervals`);
+                    } catch (frameError) {
+                        console.error('Error extracting frames with fallback:', frameError);
+                        setError('⚠️ Nota: No se pudieron extraer capturas automáticas del video. Puedes ver el video completo en el reporte.');
+                    }
+                }
+            }
             // Clean scenario name to avoid duplication of "Escenario:" prefix
             let cleanedScenarioName = newReportData.Nombre_del_Escenario || '';
             if (cleanedScenarioName.startsWith('Escenario: ')) {
                 cleanedScenarioName = cleanedScenarioName.substring(11); // Remove "Escenario: " prefix
             }
-            
+
             const newReport = {
                 ...newReportData,
                 Nombre_del_Escenario: cleanedScenarioName,
@@ -290,7 +405,7 @@ export const AppProvider = ({ children }) => {
             try {
                 const savedReport = await saveReportToDB(newReport, true); // Save as temporary
 
-                
+
                 setReports(prev => {
                     const newReports = [...prev, savedReport];
                     setActiveReportIndex(newReports.length - 1);
@@ -301,11 +416,11 @@ export const AppProvider = ({ children }) => {
                 if (savedReport.id) {
                     try {
                         const permanentReport = await makeReportPermanent(savedReport.id);
-                        
+
                         // Reload the complete report with images from database
                         const reloadedReports = await loadReportsFromDB();
                         const currentReport = reloadedReports.find(r => r.id === savedReport.id);
-                        
+
                         if (currentReport) {
                             setReports(prev => {
                                 const newReports = [...prev];
@@ -347,7 +462,7 @@ export const AppProvider = ({ children }) => {
             if (refinement) setIsRefining(false);
         }
     };
-    
+
 
 
     const handleStepDelete = async (stepNumber) => {
@@ -360,7 +475,7 @@ export const AppProvider = ({ children }) => {
             // Update in database if we have an ID
             if (activeReport.id) {
                 await deleteStepFromDB(activeReport.id, stepNumber);
-                
+
                 // Reload the complete report from database to get updated data
                 const { data: updatedReportData } = await supabase
                     .from('reports')
@@ -436,7 +551,7 @@ export const AppProvider = ({ children }) => {
             if (activeReport.id) {
                 // Add step to database
                 await addStepToReport(activeReport.id, stepData, currentImageFiles);
-                
+
                 // Reload the complete report from database to get updated data
                 const { data: updatedReportData } = await supabase
                     .from('reports')
@@ -528,7 +643,7 @@ export const AppProvider = ({ children }) => {
         if (activeReport.id) {
             try {
                 const dbStep = await addStepToReport(activeReport.id, newStepData);
-                
+
                 // Update local state with the database step
                 const updatedReport = { ...activeReport };
                 const localStep = {
@@ -596,14 +711,14 @@ export const AppProvider = ({ children }) => {
         editedReport.user_provided_additional_context = userContext.trim();
         const { imageFiles: _imageFiles, ...reportForPrompt } = editedReport;
         const editedJsonString = JSON.stringify([reportForPrompt], null, 2);
-        
+
         setLoading({ state: true, message: 'Refinando análisis...' });
         setError(null);
-        
+
         try {
             // Validate and clean images before sending to API
             let imagesToSend = validateAndCleanImages(activeReport.imageFiles);
-            
+
             if (imagesToSend.length === 0) {
                 throw new Error("No hay imágenes válidas para el análisis. Por favor, verifica que las imágenes estén cargadas correctamente.");
             }
@@ -631,26 +746,26 @@ export const AppProvider = ({ children }) => {
             });
             const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
             if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
-            
+
             const cleanedJsonText = jsonMatch[1] || jsonMatch[0];
             let parsedRefinedResponse;
-            
+
             try {
                 parsedRefinedResponse = JSON.parse(cleanedJsonText);
             } catch (parseError) {
                 throw new Error("La respuesta de refinamiento no contiene JSON válido: " + parseError.message);
             }
-            
+
             // Handle both array and single object responses
             let refinedReportData = Array.isArray(parsedRefinedResponse) ? parsedRefinedResponse[0] : parsedRefinedResponse;
-            
+
             if (!refinedReportData) {
                 throw new Error("La respuesta de refinamiento está vacía o no contiene datos válidos.");
             }
-            
+
             // Clean the report data to remove redundant text
             refinedReportData = cleanReportData(refinedReportData);
-            
+
             // Fix missing numero_paso values to ensure database compatibility
             if (refinedReportData.Pasos_Analizados && Array.isArray(refinedReportData.Pasos_Analizados)) {
                 refinedReportData.Pasos_Analizados = refinedReportData.Pasos_Analizados.map((paso, index) => ({
@@ -662,13 +777,13 @@ export const AppProvider = ({ children }) => {
                 console.warn("Refinement didn't return valid Pasos_Analizados, keeping original");
                 refinedReportData.Pasos_Analizados = activeReport.Pasos_Analizados;
             }
-            
+
             // Clean scenario name to avoid duplication of "Escenario:" prefix
             let cleanedScenarioName = refinedReportData.Nombre_del_Escenario || '';
             if (cleanedScenarioName.startsWith('Escenario: ')) {
                 cleanedScenarioName = cleanedScenarioName.substring(11); // Remove "Escenario: " prefix
             }
-            
+
             const refinedReport = {
                 ...refinedReportData,
                 Nombre_del_Escenario: cleanedScenarioName,
@@ -681,19 +796,19 @@ export const AppProvider = ({ children }) => {
                 setLoading({ state: true, message: 'Guardando refinamiento en base de datos...' });
                 try {
                     console.log('Saving refinement to database for report ID:', activeReport.id);
-                    
+
                     // Add the existing report ID to the refined report
                     const refinedReportWithId = { ...refinedReport, id: activeReport.id };
-                    
+
                     // Update the existing report in the database
                     const updatedReport = await updateReportInDB(activeReport.id, refinedReportWithId);
                     console.log('Report updated successfully in database:', updatedReport.id);
-                    
+
                     // Reload the images from database to ensure they are properly retrieved
                     console.log('Reloading images for refined report...');
                     const reloadedReport = await loadReportsFromDB();
                     const currentReport = reloadedReport.find(r => r.id === activeReport.id);
-                    
+
                     if (currentReport && currentReport.imageFiles) {
                         console.log('Images reloaded successfully:', currentReport.imageFiles.length, 'images');
                         updatedReport.imageFiles = currentReport.imageFiles;
@@ -701,10 +816,10 @@ export const AppProvider = ({ children }) => {
                         console.warn('Failed to reload images, keeping original images');
                         updatedReport.imageFiles = activeReport.imageFiles;
                     }
-                    
+
                     // Create refinement history record
                     await saveRefinement(
-                        activeReport.id, 
+                        activeReport.id,
                         activeReport.id, // Same ID since we're updating, not creating new
                         'ai_assisted',
                         'Refinamiento con contexto adicional del usuario',
@@ -718,7 +833,7 @@ export const AppProvider = ({ children }) => {
                         newReports[activeReportIndex] = updatedReport;
                         return newReports;
                     });
-                    
+
                     setLoading({ state: true, message: 'Refinamiento guardado exitosamente' });
                     console.log('Refinement completed and saved successfully');
                 } catch (dbError) {
@@ -748,7 +863,7 @@ export const AppProvider = ({ children }) => {
             setLoading({ state: false, message: '' });
         }
     };
-    
+
     const closeModal = () => setModal({ show: false, title: '', content: '' });
 
     const selectReport = (index) => {
@@ -757,7 +872,7 @@ export const AppProvider = ({ children }) => {
 
     const deleteReport = async (index) => {
         const reportToDelete = reports[index];
-        
+
         // Delete from database if it has an ID
         if (reportToDelete && reportToDelete.id) {
             try {
