@@ -7,17 +7,31 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+.pnpm-store
+
+# Build
 dist
 dist-ssr
+build
+out
+
+# Local Environment
 *.local
 .env
+.env.development.local
+.env.test.local
+.env.production.local
 .env.local
 environments/.env.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
 .idea
 .DS_Store
 *.suo
@@ -25,3 +39,22 @@ environments/.env.local
 *.njsproj
 *.sln
 *.sw?
+
+# Testing
+coverage
+.nyc_output
+
+# Temporary files
+tmp/
+temp/
+Escenario*/
+
+# OS Generated
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
