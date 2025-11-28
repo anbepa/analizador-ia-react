@@ -10,28 +10,22 @@ export const PROMPT_FLOW_ANALYSIS_FROM_IMAGES = (annotationsContext = '') => `
         "pasos": [
             {
                 "numero_paso": 1,
-                "descripcion": "Descripción detallada de la acción",
-                "dato_de_entrada_paso": "Datos ingresados o 'N/A'",
-                "resultado_esperado_paso": "Qué debería pasar",
-                "resultado_obtenido_paso_y_estado": "Exitoso: Lo que pasó realmente",
+                "descripcion": "Descripción detallada de la acción observada",
                 "imagen_referencia": "Evidencia 1"
             },
             {
                 "numero_paso": 2,
-                "descripcion": "Siguiente acción",
-                "dato_de_entrada_paso": "Fecha: 27/11/2025, Categoría: Modificación, Número: 12",
-                "resultado_esperado_paso": "Debe aparecer modal de confirmación",
-                "resultado_obtenido_paso_y_estado": "Exitoso: Apareció el modal correctamente",
+                "descripcion": "Siguiente acción observada",
                 "imagen_referencia": "Evidencia 2"
             }
         ],
         "resultado_esperado": "Resultado esperado general del flujo completo",
-        "resultado_obtenido": "Resultado obtenido general del flujo completo",
+        "resultado_obtenido": "Resultado obtenido general del flujo completo - describe lo que observaste en las evidencias",
         "estado_general": "Exitoso"
     }
     
     ❌ NO USES: "orden", "datos_ancla", "trazabilidad", "step_number"
-    ✅ USA EXACTAMENTE: "numero_paso", "dato_de_entrada_paso", "resultado_esperado_paso", "resultado_obtenido_paso_y_estado"
+    ✅ USA EXACTAMENTE: "numero_paso", "descripcion", "imagen_referencia"
     
     ---
     
@@ -103,36 +97,21 @@ export const PROMPT_FLOW_ANALYSIS_FROM_IMAGES = (annotationsContext = '') => `
           * "Base de datos con tabla 'obligaciones' poblada"
           * "Ninguna precondición específica" (si realmente no hay)
 
-    4.  **PASOS (ESTRUCTURA DETALLADA OBLIGATORIA):**
+    4.  **PASOS:**
         - Describe SOLO lo que ves en las imágenes, en orden cronológico.
         - Cada paso debe referenciar una imagen específica.
         - NO INVENTES pasos de login o navegación si no hay capturas.
+        - Sé descriptivo y detallado en cada paso.
         
         **CAMPOS OBLIGATORIOS PARA CADA PASO:**
         
         a) **numero_paso** (número): El orden secuencial (1, 2, 3, etc.)
         
-        b) **descripcion** (string): Descripción detallada de la acción observada.
-           - Ejemplo: "En 'Solicitud mantenimiento' seleccionar: Fecha '27/11/2025', Categoría 'Modificación a las condiciones iniciales', Número de caso '12'"
+        b) **descripcion** (string): Descripción DETALLADA de la acción observada.
+           - Incluye todos los datos relevantes que veas en la evidencia
+           - Ejemplo: "En 'Solicitud mantenimiento' seleccionar: Fecha mantenimiento '27/11/2025', Categoría 'Modificación a las condiciones iniciales', Número de caso '12', Tipo 'Cambio fecha de vencimiento total', Causal 'Solicitud del cliente' y hacer clic en 'Continuar'"
         
-        c) **dato_de_entrada_paso** (string, OBLIGATORIO): Los datos específicos ingresados o seleccionados.
-           - Si hay datos visibles: "Fecha: 27/11/2025, Categoría: Modificación a las condiciones iniciales, Número de caso: 12"
-           - Si es navegación sin datos: "N/A"
-           - NUNCA dejes este campo vacío o null
-        
-        d) **resultado_esperado_paso** (string, OBLIGATORIO): Qué debería suceder inmediatamente después.
-           - Ejemplo: "Se debe desplegar la ventana emergente 'Solicitud mantenimiento'"
-           - Ejemplo: "El botón 'Continuar' debe habilitarse"
-           - NUNCA uses "N/A" - siempre hay un resultado esperado
-        
-        e) **resultado_obtenido_paso_y_estado** (string, OBLIGATORIO): Qué pasó realmente.
-           - Formato: "Estado: Descripción"
-           - Ejemplo: "Exitoso: Se desplegó la ventana emergente correctamente"
-           - Ejemplo: "Exitoso: El botón se habilitó y permitió continuar"
-           - Ejemplo: "Fallido: Apareció mensaje de error 'Campo obligatorio'"
-           - NUNCA uses solo "Pendiente" - describe lo que observas en la evidencia
-        
-        f) **imagen_referencia** (string, OBLIGATORIO): "Evidencia 1", "Evidencia 2", etc.
+        c) **imagen_referencia** (string, OBLIGATORIO): "Evidencia 1", "Evidencia 2", etc.
 
     5.  **RESULTADO ESPERADO (FASE 1 - Deducción Lógica ANTES de validar):**
         - Analiza el PROPÓSITO del flujo observando las primeras imágenes.
@@ -181,61 +160,41 @@ export const PROMPT_FLOW_ANALYSIS_FROM_IMAGES = (annotationsContext = '') => `
 
     **FORMATO DE SALIDA (JSON ÚNICAMENTE):**
     
-    CRÍTICO: "pasos" debe ser un ARRAY DE OBJETOS con TODOS los campos especificados.
-    
-    **EJEMPLO COMPLETO DE UN PASO BIEN FORMADO:**
-    {
-        "numero_paso": 2,
-        "descripcion": "En 'Solicitud mantenimiento' seleccionar: Fecha mantenimiento '27/11/2025', Categoría 'Modificación a las condiciones iniciales', Número de caso '12', Tipo 'Cambio fecha de vencimiento total', Causal 'Solicitud del cliente' y dar clic en 'Continuar'.",
-        "dato_de_entrada_paso": "Fecha: 27/11/2025, Categoría: Modificación a las condiciones iniciales, Número de caso: 12, Tipo: Cambio fecha de vencimiento total, Causal: Solicitud del cliente",
-        "resultado_esperado_paso": "Se debe desplegar una ventana emergente 'Solicitud mantenimiento' con opciones de carga",
-        "resultado_obtenido_paso_y_estado": "Exitoso: Se desplegó la ventana emergente con las opciones 'Carga individual' y 'Carga masiva'",
-        "imagen_referencia": "Evidencia 2"
-    }
+    CRÍTICO: "pasos" debe ser un ARRAY DE OBJETOS con los campos: numero_paso, descripcion, imagen_referencia.
     
     INCORRECTO (NO HAGAS ESTO):
     "pasos": ["Paso 1", "Paso 2"]  // ❌ Array de strings
     "pasos": [{ "orden": 1, "descripcion": "...", "datos_ancla": null }]  // ❌ Campos incorrectos
     
-    
     CORRECTO:
     \`\`\`json
-    [{
-        "id_caso": "string",
-        "escenario_prueba": "string",
-        "precondiciones": "string",
+    {
+        "id_caso": 1,
+        "escenario_prueba": "Nombre descriptivo del escenario",
+        "precondiciones": "Condiciones iniciales",
         "pasos": [
             {
                 "numero_paso": 1,
-                "descripcion": "string detallada (funcional o técnica)",
-                "dato_de_entrada_paso": "string (ej: 'Usuario: admin', 'Monto: 500', 'N/A')",
-                "resultado_esperado_paso": "string (ej: 'Se habilita el botón Continuar')",
-                "resultado_obtenido_paso_y_estado": "string (ej: 'Exitoso: Se habilitó correctamente')",
-                "imagen_referencia": "Evidencia 1" // OBLIGATORIO: "Evidencia 1", "Evidencia 2", etc. NUNCA "N/A" si hay imagen.
+                "descripcion": "Descripción detallada incluyendo todos los datos relevantes",
+                "imagen_referencia": "Evidencia 1"
             },
             {
                 "numero_paso": 2,
-                "descripcion": "string detallada",
-                "dato_de_entrada_paso": "string",
-                "resultado_esperado_paso": "string",
-                "resultado_obtenido_paso_y_estado": "string",
+                "descripcion": "Siguiente acción con detalles completos",
                 "imagen_referencia": "Evidencia 2"
             }
         ],
-        "resultado_esperado": "string",
-        "resultado_obtenido": "string",
-        "historia_usuario": "string | null",
-        "set_escenarios": "string | null",
-        "estado_general": "string",
-        "fecha_ejecucion": "string"
-    }]
+        "resultado_esperado": "Resultado esperado general",
+        "resultado_obtenido": "Resultado obtenido general - describe lo que observaste",
+        "estado_general": "Exitoso"
+    }
     \`\`\`
     
     **IMPORTANTE:**
     1. RESPONDER ÚNICAMENTE EN ESPAÑOL.
-    2. USAR EXACTAMENTE LAS CLAVES JSON DEFINIDAS ARRIBA (ej: "id_caso", "pasos", "numero_paso", "dato_de_entrada_paso", "resultado_esperado_paso", "resultado_obtenido_paso_y_estado"). 
-    3. ❌ NO USES NOMBRES ALTERNATIVOS como: "orden", "datos_ancla", "trazabilidad", "step_number", "input_data", etc.
-    4. ✅ USA EXACTAMENTE: "numero_paso", "descripcion", "dato_de_entrada_paso", "resultado_esperado_paso", "resultado_obtenido_paso_y_estado", "imagen_referencia"
+    2. USAR EXACTAMENTE LAS CLAVES JSON DEFINIDAS ARRIBA: "id_caso", "escenario_prueba", "pasos", "numero_paso", "descripcion", "imagen_referencia", "resultado_esperado", "resultado_obtenido", "estado_general"
+    3. ❌ NO USES NOMBRES ALTERNATIVOS como: "orden", "datos_ancla", "trazabilidad", "step_number"
+    4. ✅ USA EXACTAMENTE: "numero_paso", "descripcion", "imagen_referencia"
     5. Retorna SOLO el JSON válido, sin texto adicional antes o después.
     
     PROCEDE A GENERAR EL ANÁLISIS INTEGRAL:`;

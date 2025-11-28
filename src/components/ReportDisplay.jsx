@@ -68,10 +68,10 @@ function ReportDisplay() {
                     </div>
                     <div className="flex items-center gap-3">
                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${estadoGeneral === 'Exitoso' ? 'bg-green-50 text-green-700' :
-                                estadoGeneral === 'Fallido' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'
+                            estadoGeneral === 'Fallido' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'
                             }`}>
                             <div className={`w-2 h-2 rounded-full ${estadoGeneral === 'Exitoso' ? 'bg-green-600' :
-                                    estadoGeneral === 'Fallido' ? 'bg-red-600' : 'bg-yellow-600'
+                                estadoGeneral === 'Fallido' ? 'bg-red-600' : 'bg-yellow-600'
                                 }`} />
                             <span className="text-xs font-bold">{estadoGeneral}</span>
                         </div>
@@ -95,15 +95,6 @@ function ReportDisplay() {
                                 <th className="px-4 py-3 text-left text-xs font-bold text-secondary-700 uppercase tracking-wider">
                                     Descripción del Paso
                                 </th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-700 uppercase tracking-wider w-32">
-                                    Dato de Entrada
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-700 uppercase tracking-wider w-40">
-                                    Resultado Esperado
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-700 uppercase tracking-wider w-40">
-                                    Resultado Obtenido
-                                </th>
                                 <th className="px-4 py-3 text-center text-xs font-bold text-secondary-700 uppercase tracking-wider w-24">
                                     Evidencia
                                 </th>
@@ -113,9 +104,6 @@ function ReportDisplay() {
                             {pasos.map((paso, index) => {
                                 const numeroPaso = index + 1;
                                 const descripcion = paso.descripcion || paso.descripcion_accion_observada || 'Sin descripción';
-                                const datoEntrada = paso.dato_entrada || paso.dato_de_entrada_paso || 'N/A';
-                                const resultadoEsperado = paso.resultado_esperado || paso.resultado_esperado_paso || 'N/A';
-                                const resultadoObtenido = paso.resultado_obtenido || paso.resultado_obtenido_paso_y_estado || 'Pendiente';
                                 const imagenRef = paso.imagen_referencia || paso.imagen_referencia_entrada;
 
                                 // Lógica de asociación
@@ -137,21 +125,6 @@ function ReportDisplay() {
                                         <td className="px-4 py-4 align-top">
                                             <p className="text-sm text-secondary-900 font-medium leading-relaxed">
                                                 {descripcion}
-                                            </p>
-                                        </td>
-                                        <td className="px-4 py-4 align-top">
-                                            <p className="text-sm text-secondary-600">
-                                                {datoEntrada}
-                                            </p>
-                                        </td>
-                                        <td className="px-4 py-4 align-top">
-                                            <p className="text-sm text-secondary-600">
-                                                {resultadoEsperado}
-                                            </p>
-                                        </td>
-                                        <td className="px-4 py-4 align-top">
-                                            <p className="text-sm text-secondary-600">
-                                                {resultadoObtenido}
                                             </p>
                                         </td>
                                         <td className="px-4 py-4 align-top text-center">
@@ -176,6 +149,18 @@ function ReportDisplay() {
                     </table>
                 </div>
             </div>
+
+            {/* Resultado Obtenido General */}
+            {(activeReport.resultado_obtenido || activeReport.Conclusion_General_Flujo) && (
+                <div className="mt-6 bg-white rounded-xl border border-secondary-200 overflow-hidden shadow-sm p-6">
+                    <h3 className="text-sm font-bold text-secondary-700 uppercase tracking-wider mb-3">
+                        Resultado Obtenido
+                    </h3>
+                    <p className="text-sm text-secondary-900 leading-relaxed">
+                        {activeReport.resultado_obtenido || activeReport.Conclusion_General_Flujo}
+                    </p>
+                </div>
+            )}
 
             {/* Quick Look Modal */}
             {quickLookImage && (

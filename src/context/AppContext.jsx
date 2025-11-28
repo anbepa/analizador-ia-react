@@ -334,73 +334,9 @@ export const AppProvider = ({ children }) => {
                     }
                 }
 
-                const descripcionPaso = step.descripcion || step.description || step.trazabilidad || '';
-                const extractedFields = extractPasoFieldsFromText(descripcionPaso);
-
-                // Extraer dato_de_entrada_paso de forma inteligente
-                let datoEntrada = step.dato_de_entrada_paso || step.datos_ancla || step.input_data || step.datos_entrada || extractedFields.datoEntrada;
-
-                // Si Gemini no lo proporcionó, intentar extraerlo de la descripción
-                if (!datoEntrada || datoEntrada === 'null') {
-                    const descripcion = descripcionPaso;
-
-                    // Buscar patrones comunes de datos en la descripción
-                    const patterns = [
-                        /(?:completar|ingresar|seleccionar|llenar).*?:([^.]+)/gi,
-                        /(?:Fecha|Categoría|Número|Tipo|Causal)[^:]*:([^,;.]+)/gi,
-                        /'([^']+)'/g,
-                        /"([^"]+)"/g
-                    ];
-
-                    const extractedData = [];
-                    for (const pattern of patterns) {
-                        const matches = descripcion.matchAll(pattern);
-                        for (const match of matches) {
-                            if (match[1] && match[1].trim().length > 0) {
-                                extractedData.push(match[1].trim());
-                            }
-                        }
-                    }
-
-                    if (extractedData.length > 0) {
-                        // Tomar los primeros 3-4 datos más relevantes
-                        datoEntrada = extractedData.slice(0, 4).join(', ');
-                    } else {
-                        datoEntrada = 'N/A';
-                    }
-                }
-
-                // Extraer resultado_esperado_paso
-                let resultadoEsperado = step.resultado_esperado_paso || step.expected_result || step.resultados_esperados || step.validacion || extractedFields.resultadoEsperado;
-                if (!resultadoEsperado || resultadoEsperado === '') {
-                    // Inferir del contexto: si es un paso de acción, el resultado esperado es que la acción se complete
-                    const descripcion = descripcionPaso;
-                    if (descripcion.includes('clic') || descripcion.includes('hacer')) {
-                        resultadoEsperado = 'La acción debe completarse correctamente';
-                    } else if (descripcion.includes('visualiza') || descripcion.includes('muestra')) {
-                        resultadoEsperado = 'El elemento debe visualizarse correctamente';
-                    } else {
-                        resultadoEsperado = 'El paso debe ejecutarse sin errores';
-                    }
-                }
-
-                // Extraer resultado_obtenido_paso_y_estado
-                let resultadoObtenido = step.resultado_obtenido_paso_y_estado || step.resultado_obtenido || step.actual_result || step.estado || extractedFields.resultadoObtenido;
-                if (!resultadoObtenido || resultadoObtenido === '' || resultadoObtenido === 'Pendiente') {
-                    // Si hay evidencia visual, asumir éxito
-                    if (imgRef && imgRef !== 'N/A') {
-                        resultadoObtenido = 'Exitoso: Se completó la acción según lo esperado';
-                    } else {
-                        resultadoObtenido = 'Pendiente de validación';
-                    }
-                }
-
                 return {
                     numero_paso: step.numero_paso || step.step_number || step.number || step.id_paso || step.orden || (index + 1),
                     descripcion_accion_observada: step.descripcion_accion_observada || step.descripcion || step.description || step.action || step.accion || step.texto || step.text || 'Sin descripción',
-                    dato_de_entrada_paso: datoEntrada,
-                    resultado_esperado_paso: resultadoEsperado,
-                    resultado_obtenido_paso_y_estado: resultadoObtenido,
                     imagen_referencia_entrada: imgRef
                 };
             });
