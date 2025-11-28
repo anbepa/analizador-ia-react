@@ -95,6 +95,23 @@ export const AppProvider = ({ children }) => {
         }));
     };
 
+    const extractPasoFieldsFromText = (text = '') => {
+        if (!text) return {};
+
+        const normalized = text.replace(/\r/g, '');
+        const extract = (label) => {
+            const regex = new RegExp(`${label}\s*[:\-]\s*([^|\n]+)`, 'i');
+            const match = normalized.match(regex);
+            return match ? match[1].trim() : null;
+        };
+
+        return {
+            datoEntrada: extract('(?:dato(?:s)? de entrada|dato(?:s)? ancla|input data)') || undefined,
+            resultadoEsperado: extract('resultado esperado(?: del paso)?') || extract('validaci[oó]n esperada') || undefined,
+            resultadoObtenido: extract('resultado obtenido(?: del paso)?') || extract('observaci[oó]n') || undefined
+        };
+    };
+
     // Function to clean and normalize AI response fields
     const cleanReportData = (reportData, images = []) => {
         if (!reportData) return reportData;
@@ -303,7 +320,7 @@ export const AppProvider = ({ children }) => {
 
             cleaned.Pasos_Analizados = rawSteps.map((step, index) => {
                 // Determinar la referencia de imagen
-                let imgRef = step.imagen_referencia || step.image_ref || step.imagen_referencia_entrada || step.evidencia;
+                let imgRef = step.imagen_referencia || step.image_ref || step.evidencia;
 
                 // Si no tiene referencia explícita, asignar por índice secuencial
                 if (!imgRef || imgRef === 'N/A') {
@@ -317,71 +334,10 @@ export const AppProvider = ({ children }) => {
                     }
                 }
 
-                // Extraer dato_de_entrada_paso de forma inteligente
-                let datoEntrada = step.dato_de_entrada_paso || step.datos_ancla || step.input_data || step.datos_entrada;
-
-                // Si Gemini no lo proporcionó, intentar extraerlo de la descripción
-                if (!datoEntrada || datoEntrada === 'null') {
-                    const descripcion = step.descripcion || step.description || '';
-
-                    // Buscar patrones comunes de datos en la descripción
-                    const patterns = [
-                        /(?:completar|ingresar|seleccionar|llenar).*?:([^.]+)/gi,
-                        /(?:Fecha|Categoría|Número|Tipo|Causal)[^:]*:([^,;.]+)/gi,
-                        /'([^']+)'/g,
-                        /"([^"]+)"/g
-                    ];
-
-                    const extractedData = [];
-                    for (const pattern of patterns) {
-                        const matches = descripcion.matchAll(pattern);
-                        for (const match of matches) {
-                            if (match[1] && match[1].trim().length > 0) {
-                                extractedData.push(match[1].trim());
-                            }
-                        }
-                    }
-
-                    if (extractedData.length > 0) {
-                        // Tomar los primeros 3-4 datos más relevantes
-                        datoEntrada = extractedData.slice(0, 4).join(', ');
-                    } else {
-                        datoEntrada = 'N/A';
-                    }
-                }
-
-                // Extraer resultado_esperado_paso
-                let resultadoEsperado = step.resultado_esperado_paso || step.expected_result || step.resultados_esperados || step.validacion;
-                if (!resultadoEsperado || resultadoEsperado === '') {
-                    // Inferir del contexto: si es un paso de acción, el resultado esperado es que la acción se complete
-                    const descripcion = step.descripcion || step.description || '';
-                    if (descripcion.includes('clic') || descripcion.includes('hacer')) {
-                        resultadoEsperado = 'La acción debe completarse correctamente';
-                    } else if (descripcion.includes('visualiza') || descripcion.includes('muestra')) {
-                        resultadoEsperado = 'El elemento debe visualizarse correctamente';
-                    } else {
-                        resultadoEsperado = 'El paso debe ejecutarse sin errores';
-                    }
-                }
-
-                // Extraer resultado_obtenido_paso_y_estado
-                let resultadoObtenido = step.resultado_obtenido_paso_y_estado || step.resultado_obtenido || step.actual_result || step.estado;
-                if (!resultadoObtenido || resultadoObtenido === '' || resultadoObtenido === 'Pendiente') {
-                    // Si hay evidencia visual, asumir éxito
-                    if (imgRef && imgRef !== 'N/A') {
-                        resultadoObtenido = 'Exitoso: Se completó la acción según lo esperado';
-                    } else {
-                        resultadoObtenido = 'Pendiente de validación';
-                    }
-                }
-
                 return {
                     numero_paso: step.numero_paso || step.step_number || step.number || step.id_paso || step.orden || (index + 1),
                     descripcion_accion_observada: step.descripcion_accion_observada || step.descripcion || step.description || step.action || step.accion || step.texto || step.text || 'Sin descripción',
-                    dato_de_entrada_paso: datoEntrada,
-                    resultado_esperado_paso: resultadoEsperado,
-                    resultado_obtenido_paso_y_estado: resultadoObtenido,
-                    imagen_referencia_entrada: imgRef
+                    imagen_referencia: imgRef
                 };
             });
 
@@ -587,7 +543,7 @@ export const AppProvider = ({ children }) => {
             }
 
             // Clean the report data to remove redundant text
-            newReportData = cleanReportData(newReportData);
+            newReportData = cleanReportData(newReportData, compressedImages);
 
             // Fix missing numero_paso values to ensure database compatibility
             if (newReportData.Pasos_Analizados && Array.isArray(newReportData.Pasos_Analizados)) {
@@ -599,13 +555,8 @@ export const AppProvider = ({ children }) => {
                 // If Pasos_Analizados is missing or invalid, create a basic structure
                 newReportData.Pasos_Analizados = [{
                     numero_paso: 1,
-                    descripcion_accion_observada: "Análisis inicial de evidencias",
-                    imagen_referencia_entrada: "Evidencia 1",
-                    imagen_referencia_salida: compressedImages.length > 1 ? "Evidencia 2" : "Evidencia 1",
-                    elemento_clave_y_ubicacion_aproximada: "Elementos de la interfaz",
-                    dato_de_entrada_paso: "N/A",
-                    resultado_esperado_paso: "Visualización correcta",
-                    resultado_obtenido_paso_y_estado: "Pendiente de análisis"
+                    descripcion: "Análisis inicial de evidencias",
+                    imagen_referencia: "Evidencia 1"
                 }];
             }
 
@@ -697,6 +648,8 @@ export const AppProvider = ({ children }) => {
                             });
 
                         }
+                        // Limpiar las imágenes cargadas después de un análisis exitoso
+                        setCurrentImageFiles([]);
                     } catch (permanentError) {
                         console.warn("Report saved but couldn't make permanent:", permanentError);
                         // Report is still saved, just remains temporary
@@ -710,6 +663,7 @@ export const AppProvider = ({ children }) => {
                     setActiveReportIndex(newReports.length - 1);
                     return newReports;
                 });
+                setCurrentImageFiles([]); // También limpiar si solo se guardó localmente
 
                 setError("Reporte generado exitosamente, pero no se pudo guardar en la base de datos.");
             }
@@ -766,13 +720,8 @@ export const AppProvider = ({ children }) => {
                             .sort((a, b) => a.numero_paso - b.numero_paso)
                             .map(step => ({
                                 numero_paso: step.numero_paso,
-                                descripcion_accion_observada: step.descripcion_accion_observada,
-                                imagen_referencia_entrada: step.imagen_referencia_entrada,
-                                imagen_referencia_salida: step.imagen_referencia_salida,
-                                elemento_clave_y_ubicacion_aproximada: step.elemento_clave_y_ubicacion_aproximada,
-                                dato_de_entrada_paso: step.dato_de_entrada_paso,
-                                resultado_esperado_paso: step.resultado_esperado_paso,
-                                resultado_obtenido_paso_y_estado: step.resultado_obtenido_paso_y_estado
+                                descripcion: step.descripcion_accion_observada || step.descripcion,
+                                imagen_referencia: step.imagen_referencia
                             }))
                     };
 
@@ -842,13 +791,8 @@ export const AppProvider = ({ children }) => {
                             .sort((a, b) => a.numero_paso - b.numero_paso)
                             .map(step => ({
                                 numero_paso: step.numero_paso,
-                                descripcion_accion_observada: step.descripcion_accion_observada,
-                                imagen_referencia_entrada: step.imagen_referencia_entrada,
-                                imagen_referencia_salida: step.imagen_referencia_salida,
-                                elemento_clave_y_ubicacion_aproximada: step.elemento_clave_y_ubicacion_aproximada,
-                                dato_de_entrada_paso: step.dato_de_entrada_paso,
-                                resultado_esperado_paso: step.resultado_esperado_paso,
-                                resultado_obtenido_paso_y_estado: step.resultado_obtenido_paso_y_estado
+                                descripcion: step.descripcion_accion_observada || step.descripcion,
+                                imagen_referencia: step.imagen_referencia
                             }))
                     };
 
@@ -895,11 +839,7 @@ export const AppProvider = ({ children }) => {
         const newStepNumber = activeReport.Pasos_Analizados.length + 1;
         const newStepData = {
             descripcion_accion_observada: 'Nueva acción...',
-            dato_de_entrada_paso: '',
-            resultado_esperado_paso: '',
-            resultado_obtenido_paso_y_estado: 'Pendiente de análisis',
-            imagen_referencia_entrada: 'N/A',
-            imagen_referencia_salida: 'N/A'
+            imagen_referencia: 'N/A'
         };
 
         // Add to database if we have an ID
@@ -911,12 +851,8 @@ export const AppProvider = ({ children }) => {
                 const updatedReport = { ...activeReport };
                 const localStep = {
                     numero_paso: dbStep.numero_paso,
-                    descripcion_accion_observada: dbStep.descripcion_accion_observada,
-                    dato_de_entrada_paso: dbStep.dato_de_entrada_paso || '',
-                    resultado_esperado_paso: dbStep.resultado_esperado_paso || '',
-                    resultado_obtenido_paso_y_estado: dbStep.resultado_obtenido_paso_y_estado,
-                    imagen_referencia_entrada: dbStep.imagen_referencia_entrada || 'N/A',
-                    imagen_referencia_salida: dbStep.imagen_referencia_salida || 'N/A'
+                    descripcion: dbStep.descripcion_accion_observada || dbStep.descripcion,
+                    imagen_referencia: dbStep.imagen_referencia || 'N/A'
                 };
                 updatedReport.Pasos_Analizados = [...updatedReport.Pasos_Analizados, localStep];
 
@@ -947,33 +883,29 @@ export const AppProvider = ({ children }) => {
     };
 
     const handleSaveAndRefine = async () => {
-        scrollToReport(); // Scroll to top of the report section
-        const reportContentEl = document.getElementById('report-content');
-        if (!reportContentEl || !activeReport) return;
+        if (!activeReport) {
+            console.error('No active report to refine');
+            return;
+        }
 
+        // Use the current state directly instead of parsing DOM
         const editedReport = JSON.parse(JSON.stringify(activeReport));
-        const h1 = reportContentEl.querySelector('h1');
-        if (h1) editedReport.Nombre_del_Escenario = h1.textContent;
 
-        const tableRows = reportContentEl.querySelectorAll('tbody > tr:not(.evidence-row)');
-        const updatedSteps = [];
-        tableRows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            const stepNumber = parseInt(cells[0].textContent, 10);
-            const stepData = editedReport.Pasos_Analizados.find(p => p.numero_paso === stepNumber);
-            if (stepData) {
-                stepData.descripcion_accion_observada = cells[1].textContent.trim();
-                stepData.dato_de_entrada_paso = cells[2].textContent.trim();
-                stepData.resultado_esperado_paso = cells[3].textContent.trim();
-                stepData.resultado_obtenido_paso_y_estado = cells[4].textContent.trim();
-                updatedSteps.push(stepData);
-            }
-        });
-
-        editedReport.Pasos_Analizados = updatedSteps;
+        // Add user context
         editedReport.user_provided_additional_context = userContext.trim();
+
+        // Ensure steps are in the correct simplified format
+        if (editedReport.Pasos_Analizados && Array.isArray(editedReport.Pasos_Analizados)) {
+            editedReport.Pasos_Analizados = editedReport.Pasos_Analizados.map(paso => ({
+                numero_paso: paso.numero_paso,
+                descripcion: paso.descripcion || paso.descripcion_accion_observada,
+                imagen_referencia: paso.imagen_referencia
+            }));
+        }
+
+        // Remove imageFiles for the prompt
         const { imageFiles: _imageFiles, ...reportForPrompt } = editedReport;
-        const editedJsonString = JSON.stringify([reportForPrompt], null, 2);
+        const editedJsonString = JSON.stringify(reportForPrompt, null, 2);
 
         setLoading({ state: true, message: 'Refinando análisis...' });
         setError(null);
@@ -1027,7 +959,7 @@ export const AppProvider = ({ children }) => {
             }
 
             // Clean the report data to remove redundant text
-            refinedReportData = cleanReportData(refinedReportData);
+            refinedReportData = cleanReportData(refinedReportData, compressedImages);
 
             // Fix missing numero_paso values to ensure database compatibility
             if (refinedReportData.Pasos_Analizados && Array.isArray(refinedReportData.Pasos_Analizados)) {
@@ -1051,7 +983,10 @@ export const AppProvider = ({ children }) => {
                 ...refinedReportData,
                 Nombre_del_Escenario: cleanedScenarioName,
                 imageFiles: activeReport.imageFiles,
-                initial_context: activeReport.initial_context
+                initial_context: activeReport.initial_context,
+                // Preservar datos de la Historia de Usuario
+                user_story_id: activeReport.user_story_id,
+                historia_usuario: activeReport.historia_usuario
             };
 
             // Update the existing report instead of creating a new one
@@ -1099,6 +1034,19 @@ export const AppProvider = ({ children }) => {
 
                     setLoading({ state: true, message: 'Refinamiento guardado exitosamente' });
                     console.log('Refinement completed and saved successfully');
+
+                    // Recargar TODOS los reportes desde la BD para asegurar persistencia
+                    setLoading({ state: true, message: 'Recargando reportes desde base de datos...' });
+                    const allReports = await loadReportsFromDB();
+                    setReports(allReports);
+
+                    // Encontrar el índice del reporte actualizado en la nueva lista
+                    const updatedIndex = allReports.findIndex(r => r.id === activeReport.id);
+                    if (updatedIndex !== -1) {
+                        setActiveReportIndex(updatedIndex);
+                    }
+
+                    console.log('All reports reloaded from database, total:', allReports.length);
                 } catch (dbError) {
                     console.error("Failed to update refined report in database:", dbError);
                     // Fallback to local update
@@ -1223,6 +1171,10 @@ export const AppProvider = ({ children }) => {
             if (filterUserStory?.id === id) {
                 setFilterUserStory(null);
             }
+            // Si la HU eliminada es la que está seleccionada para análisis, limpiarla
+            if (analysisUserStory?.id === id) {
+                setAnalysisUserStory(null);
+            }
             // Limpiar sugerencias
             setUserStorySuggestions([]);
             return true;
@@ -1230,6 +1182,45 @@ export const AppProvider = ({ children }) => {
             console.error("Error deleting user story:", error);
             throw error;
         }
+    };
+
+    // Funciones para edición de pasos durante refinamiento
+    const updateStepInActiveReport = (stepNumber, updatedData) => {
+        if (!activeReport || activeReportIndex === -1) return;
+
+        const updatedReport = { ...activeReport };
+        const stepIndex = updatedReport.Pasos_Analizados.findIndex(p => p.numero_paso === stepNumber);
+
+        if (stepIndex !== -1) {
+            updatedReport.Pasos_Analizados[stepIndex] = {
+                ...updatedReport.Pasos_Analizados[stepIndex],
+                ...updatedData
+            };
+
+            setReports(prev => {
+                const newReports = [...prev];
+                newReports[activeReportIndex] = updatedReport;
+                return newReports;
+            });
+        }
+    };
+
+    const deleteStepFromActiveReport = (stepNumber) => {
+        if (!activeReport || activeReportIndex === -1) return;
+
+        const updatedReport = { ...activeReport };
+        updatedReport.Pasos_Analizados = updatedReport.Pasos_Analizados
+            .filter(p => p.numero_paso !== stepNumber)
+            .map((paso, index) => ({
+                ...paso,
+                numero_paso: index + 1 // Renumerar
+            }));
+
+        setReports(prev => {
+            const newReports = [...prev];
+            newReports[activeReportIndex] = updatedReport;
+            return newReports;
+        });
     };
 
     const value = {
@@ -1275,7 +1266,10 @@ export const AppProvider = ({ children }) => {
         userStorySuggestions,
         handleUserStorySearch,
         handleUserStoryCreate,
-        handleUserStoryDelete
+        handleUserStoryDelete,
+        // Edición de pasos en refinamiento
+        updateStepInActiveReport,
+        deleteStepFromActiveReport
     };
 
     return (

@@ -124,15 +124,18 @@ const fileToBase64 = (file) => {
 /**
  * Parse image references from step data and associate with actual images
  */
+/**
+ * Parse image references from step data and associate with actual images
+ */
 const parseImageReferences = (steps, imageFiles) => {
   const associations = [];
 
   if (!steps || !imageFiles) return associations;
 
   steps.forEach(step => {
-    // Parse entrada image reference
-    if (step.imagen_referencia_entrada && step.imagen_referencia_entrada !== 'N/A') {
-      const match = step.imagen_referencia_entrada.match(/\d+/);
+    // Check if step has image reference
+    if (step.imagen_referencia && step.imagen_referencia !== 'N/A') {
+      const match = step.imagen_referencia.match(/\d+/);
       if (match) {
         const imageIndex = parseInt(match[0], 10) - 1; // Convert to 0-based index
         if (imageIndex >= 0 && imageIndex < imageFiles.length) {
@@ -140,21 +143,6 @@ const parseImageReferences = (steps, imageFiles) => {
             stepId: step.id,
             imageIndex: imageIndex,
             type: 'entrada'
-          });
-        }
-      }
-    }
-
-    // Parse salida image reference
-    if (step.imagen_referencia_salida && step.imagen_referencia_salida !== 'N/A') {
-      const match = step.imagen_referencia_salida.match(/\d+/);
-      if (match) {
-        const imageIndex = parseInt(match[0], 10) - 1; // Convert to 0-based index
-        if (imageIndex >= 0 && imageIndex < imageFiles.length) {
-          associations.push({
-            stepId: step.id,
-            imageIndex: imageIndex,
-            type: 'salida'
           });
         }
       }

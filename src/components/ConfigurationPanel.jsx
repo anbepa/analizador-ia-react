@@ -232,7 +232,7 @@ function ConfigurationPanel({ mode = 'workspace', onOpenUploadModal }) {
                                         : 'bg-secondary-50 text-secondary-400 border-secondary-100 cursor-not-allowed'
                                         }`}
                                 >
-                                    {isRefining ? 'Guardar' : 'Refinar'}
+                                    {isRefining ? 'Ejecutar Refinamiento' : 'Refinar'}
                                 </button>
 
                                 <div className="relative">
