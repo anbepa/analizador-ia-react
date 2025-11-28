@@ -14,7 +14,10 @@ import {
     initializeDatabaseCleanup,
     makeReportPermanent,
     addStepToReport,
-    deleteStepFromReport as deleteStepFromDB
+    deleteStepFromReport as deleteStepFromDB,
+    searchUserStories,
+    createUserStory,
+    deleteUserStory
 } from '../lib/databaseService';
 import { supabase } from '../lib/supabaseClient';
 
@@ -44,17 +47,352 @@ export const AppProvider = ({ children }) => {
     const [navigationState, setNavigationState] = useState({
         activeMainMenu: 'panel-control',
         activeSubMenu: 'configuracion',
-        viewMode: 'sidebar' // 'sidebar', 'default'
+        viewMode: 'home' // 'home', 'analysis', 'reports'
     });
+
+    // Estados para Historias de Usuario
+    const [analysisUserStory, setAnalysisUserStory] = useState(null); // HU seleccionada para el análisis actual
+    const [filterUserStory, setFilterUserStory] = useState(null); // HU seleccionada para filtrar reportes
+    const [userStorySuggestions, setUserStorySuggestions] = useState([]); // Sugerencias de autocompletado
 
     const activeReport = useMemo(() => reports[activeReportIndex] || null, [reports, activeReportIndex]);
     const activeReportImages = useMemo(() => activeReport?.imageFiles || [], [activeReport]);
 
-    // Function to clean AI response fields from redundant text
-    const cleanReportData = (reportData) => {
+    const canGenerate = useMemo(() => {
+        const result = currentImageFiles.length > 0 && !loading.state && !!analysisUserStory;
+        console.log('🔍 canGenerate check:', {
+            hasImages: currentImageFiles.length > 0,
+            notLoading: !loading.state,
+            hasUserStory: !!analysisUserStory,
+            analysisUserStory,
+            result
+        });
+        return result;
+    }, [currentImageFiles, loading.state, analysisUserStory]);
+
+    const canRefine = useMemo(() => {
+        // Verificar si hay imágenes asociadas al reporte (ya sea en imageFiles o cargadas de BD)
+        const hasImages = (activeReport?.imageFiles && activeReport.imageFiles.length > 0) ||
+            (activeReportImages && activeReportImages.length > 0);
+        return activeReport && hasImages && !loading.state;
+    }, [activeReport, activeReportImages, loading.state]);
+
+    const canDownload = useMemo(() => activeReport && !loading.state, [activeReport, loading.state]);
+
+    const scrollToReport = () => {
+        setTimeout(() => {
+            reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    };
+
+    // Funciones para navegación unificada
+    const setNavigationMode = (mode, mainMenu = null, subMenu = null) => {
+        setNavigationState(prev => ({
+            ...prev,
+            viewMode: mode,
+            activeMainMenu: mainMenu || prev.activeMainMenu,
+            ...(subMenu && { activeSubMenu: subMenu })
+        }));
+    };
+
+    // Function to clean and normalize AI response fields
+    const cleanReportData = (reportData, images = []) => {
         if (!reportData) return reportData;
 
-        const cleaned = { ...reportData };
+        let cleaned = { ...reportData };
+
+        // --- NORMALIZACIÓN DE CLAVES (Inglés -> Español y Variantes) ---
+
+        // 1. ID y Título
+        if (!cleaned.id_caso) cleaned.id_caso = cleaned.test_case_id || cleaned.id || 'Generado';
+
+        // Detectar IDs técnicos inválidos y simplificarlos
+        // Detectar IDs técnicos inválidos y simplificarlos, pero mantener unicidad
+        if (typeof cleaned.id_caso === 'string') {
+            // Si es 'Generado' o vacío, asignar uno temporal único
+            if (cleaned.id_caso === 'Generado' || !cleaned.id_caso) {
+                cleaned.id_caso = `GEN-${Date.now().toString().slice(-4)}`;
+            }
+            // Si el ID es muy largo o complejo, intentar limpiarlo pero sin perder identidad
+            else if (cleaned.id_caso.length > 15) {
+                // Intentar extraer la parte más significativa (ej: TC-123 de HU-45-TC-123)
+                const parts = cleaned.id_caso.split(/[-_]/);
+                if (parts.length > 1) {
+                    // Tomar la última parte si parece un número o código corto
+                    const lastPart = parts[parts.length - 1];
+                    if (lastPart.length < 6) {
+                        cleaned.id_caso = lastPart;
+                    }
+                }
+            }
+        }
+
+        if (!cleaned.escenario_prueba) {
+            cleaned.escenario_prueba = cleaned.title || cleaned.titulo || cleaned.nombre_escenario || 'Definir nombre del escenario';
+        }
+
+        // Detectar nombres genéricos o técnicos y reemplazarlos
+        const genericNames = ['Caso de Prueba', 'Flujo de Usuario', 'Test Case', 'Escenario de Prueba'];
+        const technicalPrefixes = ['E2E-', 'TC-', 'Refinamiento_', 'UI-'];
+
+        if (typeof cleaned.escenario_prueba === 'string') {
+            const trimmed = cleaned.escenario_prueba.trim();
+
+            // Si es un nombre genérico exacto
+            if (genericNames.includes(trimmed)) {
+                cleaned.escenario_prueba = 'Definir nombre del escenario';
+            }
+            // Si empieza con prefijos técnicos, intentar extraer la parte descriptiva
+            else if (technicalPrefixes.some(prefix => trimmed.startsWith(prefix))) {
+                // Intentar limpiar el nombre técnico
+                let cleanedName = trimmed;
+                technicalPrefixes.forEach(prefix => {
+                    cleanedName = cleanedName.replace(prefix, '');
+                });
+                // Reemplazar guiones/underscores con espacios y capitalizar
+                cleanedName = cleanedName.replace(/[-_]/g, ' ').trim();
+                cleaned.escenario_prueba = cleanedName || 'Definir nombre del escenario';
+            }
+        }
+
+        // 2. Precondiciones (Manejo robusto de Arrays y Strings JSON)
+        let rawPreconditions = cleaned.precondiciones || cleaned.pre_conditions || cleaned.preconditions;
+        if (rawPreconditions) {
+            // Detectar valores inválidos
+            const invalidValues = ['-', 'N/A', 'n/a', 'NA', 'null', ''];
+            const trimmed = typeof rawPreconditions === 'string' ? rawPreconditions.trim() : rawPreconditions;
+
+            if (invalidValues.includes(trimmed)) {
+                cleaned.precondiciones = 'Ninguna precondición específica';
+            } else if (Array.isArray(rawPreconditions)) {
+                cleaned.precondiciones = rawPreconditions.map(p => `- ${p}`).join('\n');
+            } else if (typeof rawPreconditions === 'string') {
+                // Intentar detectar si es un string con formato JSON de array '["a", "b"]'
+                if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        if (Array.isArray(parsed)) {
+                            cleaned.precondiciones = parsed.map(p => `- ${p}`).join('\n');
+                        } else {
+                            cleaned.precondiciones = rawPreconditions;
+                        }
+                    } catch (e) {
+                        cleaned.precondiciones = rawPreconditions; // Si falla, dejar como está
+                    }
+                } else {
+                    cleaned.precondiciones = rawPreconditions;
+                }
+            }
+        } else {
+            cleaned.precondiciones = 'Ninguna precondición específica';
+        }
+
+        // 3. Resultados (Esperado y Obtenido)
+        const invalidValues = ['-', 'N/A', 'n/a', 'NA', 'null', ''];
+
+        if (!cleaned.resultado_esperado) {
+            // Intentar buscar en otros campos (incluyendo variantes globales)
+            cleaned.resultado_esperado = cleaned.expected_result ||
+                cleaned.resultado_esperado_general ||
+                cleaned.resultado_esperado_flujo ||
+                cleaned.resultado_esperado_global;
+
+            // Si sigue faltando, usar poscondiciones como fallback (ya que describen el éxito del flujo)
+            if (!cleaned.resultado_esperado) {
+                let posConds = cleaned.poscondiciones || cleaned.post_conditions || cleaned.postconditions || cleaned.pos_conditions;
+                if (posConds) {
+                    if (Array.isArray(posConds)) {
+                        cleaned.resultado_esperado = posConds.map(p => `- ${p}`).join('\n');
+                    } else {
+                        cleaned.resultado_esperado = posConds;
+                    }
+                }
+            }
+
+            // Default final
+            if (!cleaned.resultado_esperado) cleaned.resultado_esperado = 'Definir criterio de éxito esperado';
+        }
+
+        // Detectar valores inválidos en resultado_esperado
+        if (typeof cleaned.resultado_esperado === 'string' && invalidValues.includes(cleaned.resultado_esperado.trim())) {
+            cleaned.resultado_esperado = 'Definir criterio de éxito esperado';
+        }
+
+        if (!cleaned.resultado_obtenido) {
+            cleaned.resultado_obtenido = cleaned.actual_result ||
+                cleaned.resultado_actual ||
+                cleaned.conclusion ||
+                cleaned.estado_final ||
+                cleaned.resultado_obtenido_global ||
+                'Pendiente de ejecución';
+        }
+
+        // Detectar valores inválidos en resultado_obtenido
+        if (typeof cleaned.resultado_obtenido === 'string' && invalidValues.includes(cleaned.resultado_obtenido.trim())) {
+            cleaned.resultado_obtenido = 'Pendiente de ejecución';
+        }
+
+        // POST-PROCESAMIENTO INTELIGENTE: Si hay imágenes pero el resultado es "Pendiente", inferir del esperado
+        if (images.length > 0 && cleaned.resultado_obtenido === 'Pendiente de ejecución' && cleaned.resultado_esperado && cleaned.resultado_esperado !== 'Definir criterio de éxito esperado') {
+            // Convertir el resultado esperado en observado (cambiar "debería" por "se observa")
+            cleaned.resultado_obtenido = cleaned.resultado_esperado
+                .replace(/debería/gi, 'se observa que')
+                .replace(/debe/gi, 'se visualiza')
+                .replace(/Se visualiza/gi, 'Se visualiza correctamente');
+        }
+
+        // POST-PROCESAMIENTO DE ESTADO GENERAL: Comparación semántica inteligente
+        if (!cleaned.estado_general || cleaned.estado_general === 'Pendiente') {
+            // Si ambos resultados existen y no son placeholders
+            if (cleaned.resultado_esperado &&
+                cleaned.resultado_obtenido &&
+                cleaned.resultado_esperado !== 'Definir criterio de éxito esperado' &&
+                cleaned.resultado_obtenido !== 'Pendiente de ejecución') {
+
+                // Normalizar para comparación (quitar puntuación, minúsculas, espacios extra)
+                const normalizar = (texto) => texto.toLowerCase().replace(/[.,;:]/g, '').replace(/\s+/g, ' ').trim();
+                const esperadoNorm = normalizar(cleaned.resultado_esperado);
+                const obtenidoNorm = normalizar(cleaned.resultado_obtenido);
+
+                // Verificar si contienen palabras clave de error
+                const tieneError = /error|fallo|fallido|incorrecto|no se pudo|denegado/i.test(obtenidoNorm);
+
+                // Si no hay errores y tienen similitud semántica (más del 40% de palabras en común)
+                if (!tieneError) {
+                    const palabrasEsperado = esperadoNorm.split(' ').filter(p => p.length > 3);
+                    const palabrasObtenido = obtenidoNorm.split(' ').filter(p => p.length > 3);
+                    const palabrasComunes = palabrasEsperado.filter(p => palabrasObtenido.includes(p));
+                    const similitud = palabrasComunes.length / Math.max(palabrasEsperado.length, 1);
+
+                    if (similitud > 0.4) {
+                        cleaned.estado_general = 'Exitoso';
+                    } else {
+                        cleaned.estado_general = 'Pendiente';
+                    }
+                } else {
+                    cleaned.estado_general = 'Fallido';
+                }
+            } else if (cleaned.resultado_obtenido === 'Pendiente de ejecución') {
+                cleaned.estado_general = 'Pendiente';
+            }
+        }
+
+        // 4. Mapeo de pasos (steps -> pasos) y Asignación de Imágenes
+        let rawSteps = cleaned.pasos || cleaned.steps || cleaned.Pasos_Analizados;
+
+        // DEBUG: Ver qué estructura tienen los pasos
+        if (rawSteps && Array.isArray(rawSteps) && rawSteps.length > 0) {
+            console.log('DEBUG - Estructura del primer paso:', rawSteps[0]);
+            console.log('DEBUG - Tipo del primer paso:', typeof rawSteps[0]);
+            console.log('DEBUG - Claves disponibles:', Object.keys(rawSteps[0]));
+        }
+
+        if (rawSteps && Array.isArray(rawSteps)) {
+            // CONVERSIÓN: Si los pasos son strings en lugar de objetos, convertirlos
+            if (rawSteps.length > 0 && typeof rawSteps[0] === 'string') {
+                console.warn('⚠️ La IA generó pasos como strings. Convirtiendo a objetos...');
+                rawSteps = rawSteps.map((stepText, index) => ({
+                    numero_paso: index + 1,
+                    descripcion: stepText,
+                    imagen_referencia: index < images.length ? `Evidencia ${index + 1}` : (images.length > 0 ? `Evidencia ${images.length}` : 'N/A')
+                }));
+            }
+
+            console.log('🔍 Procesando pasos. Total:', rawSteps.length);
+            console.log('🔍 Primer paso raw:', rawSteps[0]);
+
+            cleaned.Pasos_Analizados = rawSteps.map((step, index) => {
+                // Determinar la referencia de imagen
+                let imgRef = step.imagen_referencia || step.image_ref || step.imagen_referencia_entrada || step.evidencia;
+
+                // Si no tiene referencia explícita, asignar por índice secuencial
+                if (!imgRef || imgRef === 'N/A') {
+                    if (index < images.length) {
+                        imgRef = `Evidencia ${index + 1}`;
+                    } else if (images.length > 0) {
+                        // Fallback: usar la última imagen disponible para pasos adicionales
+                        imgRef = `Evidencia ${images.length}`;
+                    } else {
+                        imgRef = 'N/A';
+                    }
+                }
+
+                // Extraer dato_de_entrada_paso de forma inteligente
+                let datoEntrada = step.dato_de_entrada_paso || step.datos_ancla || step.input_data || step.datos_entrada;
+
+                // Si Gemini no lo proporcionó, intentar extraerlo de la descripción
+                if (!datoEntrada || datoEntrada === 'null') {
+                    const descripcion = step.descripcion || step.description || '';
+
+                    // Buscar patrones comunes de datos en la descripción
+                    const patterns = [
+                        /(?:completar|ingresar|seleccionar|llenar).*?:([^.]+)/gi,
+                        /(?:Fecha|Categoría|Número|Tipo|Causal)[^:]*:([^,;.]+)/gi,
+                        /'([^']+)'/g,
+                        /"([^"]+)"/g
+                    ];
+
+                    const extractedData = [];
+                    for (const pattern of patterns) {
+                        const matches = descripcion.matchAll(pattern);
+                        for (const match of matches) {
+                            if (match[1] && match[1].trim().length > 0) {
+                                extractedData.push(match[1].trim());
+                            }
+                        }
+                    }
+
+                    if (extractedData.length > 0) {
+                        // Tomar los primeros 3-4 datos más relevantes
+                        datoEntrada = extractedData.slice(0, 4).join(', ');
+                    } else {
+                        datoEntrada = 'N/A';
+                    }
+                }
+
+                // Extraer resultado_esperado_paso
+                let resultadoEsperado = step.resultado_esperado_paso || step.expected_result || step.resultados_esperados || step.validacion;
+                if (!resultadoEsperado || resultadoEsperado === '') {
+                    // Inferir del contexto: si es un paso de acción, el resultado esperado es que la acción se complete
+                    const descripcion = step.descripcion || step.description || '';
+                    if (descripcion.includes('clic') || descripcion.includes('hacer')) {
+                        resultadoEsperado = 'La acción debe completarse correctamente';
+                    } else if (descripcion.includes('visualiza') || descripcion.includes('muestra')) {
+                        resultadoEsperado = 'El elemento debe visualizarse correctamente';
+                    } else {
+                        resultadoEsperado = 'El paso debe ejecutarse sin errores';
+                    }
+                }
+
+                // Extraer resultado_obtenido_paso_y_estado
+                let resultadoObtenido = step.resultado_obtenido_paso_y_estado || step.resultado_obtenido || step.actual_result || step.estado;
+                if (!resultadoObtenido || resultadoObtenido === '' || resultadoObtenido === 'Pendiente') {
+                    // Si hay evidencia visual, asumir éxito
+                    if (imgRef && imgRef !== 'N/A') {
+                        resultadoObtenido = 'Exitoso: Se completó la acción según lo esperado';
+                    } else {
+                        resultadoObtenido = 'Pendiente de validación';
+                    }
+                }
+
+                return {
+                    numero_paso: step.numero_paso || step.step_number || step.number || step.id_paso || step.orden || (index + 1),
+                    descripcion_accion_observada: step.descripcion_accion_observada || step.descripcion || step.description || step.action || step.accion || step.texto || step.text || 'Sin descripción',
+                    dato_de_entrada_paso: datoEntrada,
+                    resultado_esperado_paso: resultadoEsperado,
+                    resultado_obtenido_paso_y_estado: resultadoObtenido,
+                    imagen_referencia_entrada: imgRef
+                };
+            });
+
+            console.log('✅ Pasos procesados. Primer paso final:', cleaned.Pasos_Analizados[0]);
+        }
+
+        // Mapeo de claves legacy para compatibilidad UI
+        cleaned.Nombre_del_Escenario = cleaned.escenario_prueba;
+        cleaned.Resultado_Esperado_General_Flujo = cleaned.resultado_esperado;
+        cleaned.Conclusion_General_Flujo = cleaned.resultado_obtenido;
+        // ---------------------------------------------------
 
         // Clean Resultado_Esperado_General_Flujo field
         if (cleaned.Resultado_Esperado_General_Flujo) {
@@ -108,8 +446,6 @@ export const AppProvider = ({ children }) => {
                     cleanedPaso.resultado_obtenido_paso_y_estado = cleanedResult.trim();
                 }
 
-                // Ensure dato_de_entrada_paso is empty string instead of "N/A" when there's no data
-                // (keeping "N/A" only for reference fields like imagen_referencia_entrada)
                 if (cleanedPaso.dato_de_entrada_paso === 'N/A') {
                     cleanedPaso.dato_de_entrada_paso = '';
                 }
@@ -135,10 +471,16 @@ export const AppProvider = ({ children }) => {
                     return;
                 }
 
-                const dbReports = await loadReportsFromDB();
-                if (dbReports && dbReports.length > 0) {
-                    setReports(dbReports);
+                // Cargar reportes con filtro si existe
+                const filters = {};
+                if (filterUserStory) {
+                    filters.userStoryId = filterUserStory.id;
                 }
+
+                const dbReports = await loadReportsFromDB(filters);
+                // Siempre actualizar reportes, incluso si está vacío (para reflejar el filtro)
+                setReports(dbReports || []);
+
             } catch (err) {
                 console.error("Error al cargar reportes desde la base de datos:", err);
                 setError("No se pudieron cargar los reportes guardados desde la base de datos.");
@@ -153,37 +495,10 @@ export const AppProvider = ({ children }) => {
                 cleanupFunction();
             }
         };
-    }, []);
+    }, [filterUserStory]); // Recargar cuando cambia el filtro de HU
 
     // Auto-save is now handled within specific operations (handleAnalysis, etc.)
     // No need for a global useEffect that saves all reports
-
-    const canGenerate = useMemo(() => {
-        return currentImageFiles.length > 0 && !loading.state;
-    }, [currentImageFiles, loading.state]);
-
-    const canRefine = useMemo(() => {
-        return activeReport && activeReport.imageFiles && activeReport.imageFiles.length > 0 && !loading.state;
-    }, [activeReport, loading.state]);
-
-    const canDownload = useMemo(() => activeReport && !loading.state, [activeReport, loading.state]);
-
-    const scrollToReport = () => {
-        setTimeout(() => {
-            reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
-    };
-
-    // Funciones para navegación unificada
-    const setNavigationMode = (mode, mainMenu = null, subMenu = null) => {
-        setNavigationState(prev => ({
-            ...prev,
-            viewMode: mode,
-            ...(mainMenu && { activeMainMenu: mainMenu }),
-            ...(subMenu && { activeSubMenu: subMenu })
-        }));
-
-    };
 
     const updateNavigation = (mainMenu, subMenu = null) => {
         setNavigationState(prev => ({
@@ -233,16 +548,35 @@ export const AppProvider = ({ children }) => {
             const jsonText = await callAiApi(prompt, compressedImages, {
                 onStatus: (message) => setLoading({ state: true, message })
             });
-            const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
-            if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
 
-            const cleanedJsonText = jsonMatch[1] || jsonMatch[0];
+            // Robust JSON extraction
+            let cleanedJsonText = jsonText;
+            const jsonBlockMatch = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
+
+            if (jsonBlockMatch) {
+                cleanedJsonText = jsonBlockMatch[1];
+            } else {
+                // Fallback: Try to find the first '[' or '{' and the last ']' or '}'
+                const firstBracket = jsonText.indexOf('[');
+                const firstBrace = jsonText.indexOf('{');
+                const lastBracket = jsonText.lastIndexOf(']');
+                const lastBrace = jsonText.lastIndexOf('}');
+
+                const start = (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) ? firstBracket : firstBrace;
+                const end = (lastBracket !== -1 && (lastBrace === -1 || lastBracket > lastBrace)) ? lastBracket : lastBrace;
+
+                if (start !== -1 && end !== -1 && end > start) {
+                    cleanedJsonText = jsonText.substring(start, end + 1);
+                }
+            }
+
             let parsedResponse;
-
             try {
                 parsedResponse = JSON.parse(cleanedJsonText);
             } catch (parseError) {
-                throw new Error("La respuesta de la API no contiene JSON válido: " + parseError.message);
+                console.error("JSON Parse Error. Raw text:", jsonText);
+                console.error("Cleaned text:", cleanedJsonText);
+                throw new Error("La respuesta de la IA no contiene un JSON válido. Revisa la consola para más detalles.");
             }
 
             // Handle both array and single object responses
@@ -275,136 +609,61 @@ export const AppProvider = ({ children }) => {
                 }];
             }
 
-            // Check if we have a video and timestamps
-            const videoFile = compressedImages.find(f => f.isVideo);
-            const hasTimestamps = newReportData.Pasos_Analizados.some(paso => paso.video_timestamp);
-
-            console.log('[VIDEO-ANALYSIS] Video detected:', !!videoFile);
-            console.log('[VIDEO-ANALYSIS] Timestamps in response:', hasTimestamps);
-            console.log('[VIDEO-ANALYSIS] Steps:', newReportData.Pasos_Analizados.map(p => ({
-                step: p.numero_paso,
-                timestamp: p.video_timestamp || 'MISSING'
-            })));
-
-            // Extract frames if we have video
-            if (videoFile) {
-                if (hasTimestamps) {
-                    // Use Gemini-provided timestamps
-                    setLoading({ state: true, message: 'Extrayendo capturas de pantalla del video (timestamps de IA)...' });
-
-                    try {
-                        const { processVideoSteps } = await import('../lib/frameExtractionService');
-
-                        const stepsWithFrames = await processVideoSteps(
-                            videoFile.dataURL,
-                            newReportData.Pasos_Analizados
-                        );
-
-                        newReportData.Pasos_Analizados = stepsWithFrames;
-
-                        const frameImages = stepsWithFrames
-                            .filter(step => step.frame_url)
-                            .map((step, idx) => ({
-                                name: `frame_step_${step.numero_paso}.jpg`,
-                                dataURL: step.frame_url,
-                                type: 'image/jpeg',
-                                isVideo: false,
-                                fromVideoFrame: true,
-                                stepNumber: step.numero_paso
-                            }));
-
-                        compressedImages.push(...frameImages);
-
-                        console.log(`[FRAME-EXTRACT] Successfully extracted ${frameImages.length} frames from video using AI timestamps`);
-                    } catch (frameError) {
-                        console.error('Error extracting frames:', frameError);
-                    }
-                } else {
-                    // Fallback: Extract frames at regular intervals
-                    console.log('[VIDEO-ANALYSIS] Using fallback: extracting frames at regular intervals');
-                    setLoading({ state: true, message: 'Extrayendo capturas de pantalla del video (intervalos automáticos)...' });
-
-                    try {
-                        // Calculate intervals based on number of steps
-                        const numSteps = newReportData.Pasos_Analizados.length;
-
-                        // For fallback, we'll distribute frames evenly across a short video
-                        // Assuming most screen recordings are 5-30 seconds
-                        // We'll use a conservative approach: distribute across 6 seconds per step
-                        const timestamps = newReportData.Pasos_Analizados.map((paso, index) => {
-                            // Distribute frames: step 1 at 1s, step 2 at 3s, step 3 at 5s, etc.
-                            const seconds = (index * 2) + 1;
-                            const minutes = Math.floor(seconds / 60);
-                            const secs = seconds % 60;
-                            const timestamp = `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-
-                            return {
-                                stepNumber: paso.numero_paso,
-                                timestamp: timestamp,
-                                seconds: seconds
-                            };
-                        });
-
-                        console.log('[VIDEO-ANALYSIS] Generated automatic timestamps:', timestamps);
-
-                        // Request frame extraction
-                        const { requestFrameExtraction } = await import('../lib/frameExtractionService');
-                        const frames = await requestFrameExtraction(videoFile.dataURL, timestamps);
-
-                        console.log('[VIDEO-ANALYSIS] Received frames from backend:', frames);
-
-                        // Associate frames with steps
-                        newReportData.Pasos_Analizados = newReportData.Pasos_Analizados.map(paso => {
-                            const frameData = frames.find(f => f.stepNumber === paso.numero_paso);
-                            if (frameData) {
-                                return {
-                                    ...paso,
-                                    frame_url: frameData.url,
-                                    video_timestamp: frameData.timestamp,
-                                    auto_timestamp: true // Flag to indicate this was auto-generated
-                                };
-                            }
-                            return paso;
-                        });
-
-                        // Convert frames to image files
-                        const frameImages = frames.map(frame => ({
-                            name: `frame_step_${frame.stepNumber}.jpg`,
-                            dataURL: frame.url,
-                            type: 'image/jpeg',
-                            isVideo: false,
-                            fromVideoFrame: true,
-                            stepNumber: frame.stepNumber
-                        }));
-
-                        compressedImages.push(...frameImages);
-
-                        console.log(`[FRAME-EXTRACT] Successfully extracted ${frameImages.length} frames using automatic intervals`);
-                    } catch (frameError) {
-                        console.error('Error extracting frames with fallback:', frameError);
-                        setError('⚠️ Nota: No se pudieron extraer capturas automáticas del video. Puedes ver el video completo en el reporte.');
-                    }
-                }
-            }
             // Clean scenario name to avoid duplication of "Escenario:" prefix
             let cleanedScenarioName = newReportData.Nombre_del_Escenario || '';
             if (cleanedScenarioName.startsWith('Escenario: ')) {
                 cleanedScenarioName = cleanedScenarioName.substring(11); // Remove "Escenario: " prefix
             }
 
+            // Verificar si hay HU seleccionada y si es nueva
+            let finalUserStory = analysisUserStory;
+            if (analysisUserStory && analysisUserStory.isNew) {
+                try {
+                    console.log('Creating new User Story:', analysisUserStory);
+                    // Crear la HU en BD
+                    finalUserStory = await createUserStory(analysisUserStory.numero, analysisUserStory.title);
+                    console.log('User Story created:', finalUserStory);
+                    setAnalysisUserStory(finalUserStory); // Actualizar estado con la real
+                } catch (error) {
+                    console.error("Error creating user story:", error);
+                    setError("Error al crear la Historia de Usuario. Verifica que no exista.");
+                    setLoading({ state: false, message: '' });
+                    return;
+                }
+            } else {
+                console.log('Using existing User Story:', finalUserStory);
+            }
+
             const newReport = {
                 ...newReportData,
                 Nombre_del_Escenario: cleanedScenarioName,
                 imageFiles: [...compressedImages],
-                initial_context: initialContext
+                initial_context: initialContext,
+                user_story_id: finalUserStory ? finalUserStory.id : null, // Asociar HU si existe
+                historia_usuario: finalUserStory ? `HU-${finalUserStory.numero}` : null // Legacy field
             };
+
+            console.log('Saving report with user_story_id:', newReport.user_story_id);
 
 
 
             // Save to database as temporary initially
             try {
-                const savedReport = await saveReportToDB(newReport, true); // Save as temporary
-
+                let savedReport;
+                try {
+                    savedReport = await saveReportToDB(newReport, true); // Save as temporary
+                } catch (firstError) {
+                    // Check for FK violation on user_story_id
+                    if (firstError.code === '23503' && firstError.message.includes('user_story_id')) {
+                        console.warn("FK Violation on user_story_id. Retrying without HU association...", firstError);
+                        // Retry without user_story_id
+                        const fallbackReport = { ...newReport, user_story_id: null };
+                        savedReport = await saveReportToDB(fallbackReport, true);
+                        setError("Reporte guardado, pero hubo un problema al vincular la Historia de Usuario. Se guardó sin vinculación.");
+                    } else {
+                        throw firstError;
+                    }
+                }
 
                 setReports(prev => {
                     const newReports = [...prev, savedReport];
@@ -430,11 +689,13 @@ export const AppProvider = ({ children }) => {
 
                         } else {
                             // Fallback to combining saved data with permanent status
+                            const updatedReport = { ...savedReport, ...permanentReport, is_temp: false };
                             setReports(prev => {
                                 const newReports = [...prev];
-                                newReports[newReports.length - 1] = { ...savedReport, ...permanentReport, is_temp: false };
+                                newReports[newReports.length - 1] = updatedReport;
                                 return newReports;
                             });
+
                         }
                     } catch (permanentError) {
                         console.warn("Report saved but couldn't make permanent:", permanentError);
@@ -449,9 +710,11 @@ export const AppProvider = ({ children }) => {
                     setActiveReportIndex(newReports.length - 1);
                     return newReports;
                 });
+
                 setError("Reporte generado exitosamente, pero no se pudo guardar en la base de datos.");
             }
 
+            setNavigationState(prev => ({ ...prev, viewMode: 'reports' }));
             scrollToReport();
 
         } catch (e) {
@@ -932,6 +1195,43 @@ export const AppProvider = ({ children }) => {
         }
     };
 
+    // Funciones para gestión de Historias de Usuario
+    const handleUserStorySearch = async (query) => {
+        if (!query) {
+            setUserStorySuggestions([]);
+            return [];
+        }
+        const stories = await searchUserStories(query);
+        setUserStorySuggestions(stories);
+        return stories;
+    };
+
+    const handleUserStoryCreate = async (numero, title) => {
+        try {
+            const newStory = await createUserStory(numero, title);
+            return newStory;
+        } catch (error) {
+            console.error("Error creating user story:", error);
+            throw error;
+        }
+    };
+
+    const handleUserStoryDelete = async (id) => {
+        try {
+            await deleteUserStory(id);
+            // Si la HU eliminada es la que está seleccionada, limpiar el filtro
+            if (filterUserStory?.id === id) {
+                setFilterUserStory(null);
+            }
+            // Limpiar sugerencias
+            setUserStorySuggestions([]);
+            return true;
+        } catch (error) {
+            console.error("Error deleting user story:", error);
+            throw error;
+        }
+    };
+
     const value = {
         currentImageFiles,
         setCurrentImageFiles,
@@ -966,7 +1266,16 @@ export const AppProvider = ({ children }) => {
         // Navegación unificada
         navigationState,
         setNavigationMode,
-        updateNavigation
+        updateNavigation,
+        // Historias de Usuario
+        analysisUserStory,
+        setAnalysisUserStory,
+        filterUserStory,
+        setFilterUserStory,
+        userStorySuggestions,
+        handleUserStorySearch,
+        handleUserStoryCreate,
+        handleUserStoryDelete
     };
 
     return (

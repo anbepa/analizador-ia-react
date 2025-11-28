@@ -4,6 +4,11 @@ import { createRequire } from 'module'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import { fileURLToPath } from 'url'
+import { exec } from 'child_process'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const require = createRequire(import.meta.url)
 
@@ -64,6 +69,8 @@ app.use(cors())
 app.use(express.json({ limit: BODY_LIMIT }))
 app.use(express.urlencoded({ limit: BODY_LIMIT, extended: true }))
 
+
+
 // Helper to download file from URL to temp path
 async function downloadFile(url, destPath) {
   const response = await fetch(url);
@@ -73,152 +80,6 @@ async function downloadFile(url, destPath) {
   fs.writeFileSync(destPath, buffer);
 }
 
-// Helper to convert timestamp to seconds
-function timestampToSeconds(timestamp) {
-  if (!timestamp) return 0;
-  const parts = timestamp.split(':').map(p => parseInt(p, 10));
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  return 0;
-}
-
-// Endpoint to extract frames from video
-app.post('/api/extract-frames', async (req, res) => {
-  try {
-    const { videoUrl, timestamps } = req.body;
-
-    if (!videoUrl || !timestamps || timestamps.length === 0) {
-      return res.status(400).json({ error: 'Missing videoUrl or timestamps' });
-    }
-
-    console.log(`[FRAME-EXTRACT] Processing ${timestamps.length} frames from video`);
-
-    // Download video to temp location
-    const tempVideoPath = path.join(os.tmpdir(), `video_${Date.now()}.mp4`);
-    await downloadFile(videoUrl, tempVideoPath);
-    console.log('[FRAME-EXTRACT] Video downloaded to:', tempVideoPath);
-
-    // Get video duration first
-    const videoDuration = await new Promise((resolve, reject) => {
-      ffmpeg.ffprobe(tempVideoPath, (err, metadata) => {
-        if (err) {
-          console.error('[FRAME-EXTRACT] Error getting video duration:', err);
-          reject(err);
-          return;
-        }
-        const duration = metadata.format.duration;
-        console.log(`[FRAME-EXTRACT] Video duration: ${duration} seconds`);
-        resolve(duration);
-      });
-    });
-
-    const frames = [];
-
-    // Extract each frame
-    for (const ts of timestamps) {
-      // Skip if timestamp is beyond video duration
-      if (ts.seconds >= videoDuration) {
-        console.log(`[FRAME-EXTRACT] Skipping step ${ts.stepNumber} - timestamp ${ts.seconds}s exceeds video duration ${videoDuration}s`);
-        continue;
-      }
-
-      const frameFilename = `frame_step_${ts.stepNumber}_${Date.now()}.jpg`;
-      const outputFolder = os.tmpdir();
-      const expectedPath = path.join(outputFolder, frameFilename);
-
-      console.log(`[FRAME-EXTRACT] Attempting to extract frame for step ${ts.stepNumber}`);
-      console.log(`[FRAME-EXTRACT] Expected output: ${expectedPath}`);
-      console.log(`[FRAME-EXTRACT] Timestamp: ${ts.seconds} seconds (video duration: ${videoDuration}s)`);
-
-      await new Promise((resolve, reject) => {
-        ffmpeg(tempVideoPath)
-          .screenshots({
-            timestamps: [ts.seconds],
-            filename: frameFilename,
-            folder: outputFolder,
-            size: '1920x1080'
-          })
-          .on('end', () => {
-            console.log(`[FRAME-EXTRACT] FFmpeg 'end' event fired for step ${ts.stepNumber}`);
-
-            // List files in temp directory to see what was actually created
-            const filesInTemp = fs.readdirSync(outputFolder).filter(f => f.includes('frame'));
-            console.log(`[FRAME-EXTRACT] Frame files in temp dir:`, filesInTemp);
-
-            // Check if expected file exists
-            if (!fs.existsSync(expectedPath)) {
-              console.error(`[FRAME-EXTRACT] Expected file not found: ${expectedPath}`);
-
-              // Try to find the actual file
-              const possibleFile = filesInTemp.find(f => f.includes(`step_${ts.stepNumber}`));
-              if (possibleFile) {
-                const actualPath = path.join(outputFolder, possibleFile);
-                console.log(`[FRAME-EXTRACT] Found alternative file: ${actualPath}`);
-
-                try {
-                  const frameData = fs.readFileSync(actualPath);
-                  const base64Frame = `data:image/jpeg;base64,${frameData.toString('base64')}`;
-
-                  frames.push({
-                    stepNumber: ts.stepNumber,
-                    timestamp: ts.timestamp,
-                    url: base64Frame
-                  });
-
-                  fs.unlinkSync(actualPath);
-                  console.log(`[FRAME-EXTRACT] Successfully used alternative file for step ${ts.stepNumber}`);
-                  resolve();
-                  return;
-                } catch (err) {
-                  console.error(`[FRAME-EXTRACT] Error reading alternative file:`, err);
-                }
-              }
-
-              console.error(`[FRAME-EXTRACT] No suitable file found for step ${ts.stepNumber}`);
-              resolve(); // Continue with other frames
-              return;
-            }
-
-            try {
-              // Read frame as base64
-              const frameData = fs.readFileSync(expectedPath);
-              const base64Frame = `data:image/jpeg;base64,${frameData.toString('base64')}`;
-
-              frames.push({
-                stepNumber: ts.stepNumber,
-                timestamp: ts.timestamp,
-                url: base64Frame
-              });
-
-              // Cleanup frame file
-              fs.unlinkSync(expectedPath);
-              console.log(`[FRAME-EXTRACT] Successfully extracted frame for step ${ts.stepNumber}`);
-              resolve();
-            } catch (readError) {
-              console.error(`[FRAME-EXTRACT] Error reading frame file:`, readError);
-              resolve(); // Continue with other frames
-            }
-          })
-          .on('error', (err) => {
-            console.error(`[FRAME-EXTRACT] FFmpeg error for step ${ts.stepNumber}:`, err.message);
-            resolve(); // Continue with other frames
-          });
-      });
-    }
-
-    // Cleanup video file
-    if (fs.existsSync(tempVideoPath)) {
-      fs.unlinkSync(tempVideoPath);
-    }
-
-    console.log(`[FRAME-EXTRACT] Successfully extracted ${frames.length} frames out of ${timestamps.length} requested`);
-    res.status(200).json({ frames });
-
-  } catch (error) {
-    console.error('[ERROR] Frame extraction error:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 app.post('/api/gemini-proxy', async (req, res) => {
   try {
@@ -316,11 +177,41 @@ app.use((err, req, res, next) => {
   return next(err)
 })
 
-app.listen(PORT, () => {
-  console.log(`\n[SERVER] Local API server running on http://localhost:${PORT}`)
-  console.log(`[ENDPOINT] http://localhost:${PORT}/api/gemini-proxy`)
-  console.log(`[ENDPOINT] http://localhost:${PORT}/api/extract-frames`)
-  console.log(`[API_KEY] GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configured' : 'Missing'}`)
-  console.log(`[FFMPEG] Path: ${ffmpegPath}`)
-  console.log(`[FFPROBE] Path: ${ffprobePath}\n`)
-})
+// Servir archivos estáticos del frontend (React build)
+const distPath = path.join(__dirname, 'dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  console.log(`[SERVER] Serving static files from ${distPath}`);
+
+  // Manejar cualquier otra ruta devolviendo index.html (SPA fallback)
+  // Esto debe ir DESPUÉS de las rutas de API
+  app.get(/.*/, (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  console.warn(`[WARN] 'dist' directory not found. Frontend will not be served. Run 'npm run build' first.`);
+}
+
+const killPort = (port) => {
+  return new Promise((resolve) => {
+    exec(`lsof -ti :${port} | xargs kill -9`, (error) => {
+      if (!error) {
+        console.log(`[SERVER] Process on port ${port} killed.`);
+      }
+      setTimeout(resolve, 1000);
+    });
+  });
+};
+
+killPort(PORT).then(() => {
+  app.listen(PORT, () => {
+    console.log(`\n[SERVER] Local API server running on http://localhost:${PORT}`)
+    console.log(`[ENDPOINT] http://localhost:${PORT}/api/gemini-proxy`)
+    console.log(`[API_KEY] GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configured' : 'Missing'}`)
+    console.log(`[FFMPEG] Path: ${ffmpegPath}`)
+    console.log(`[FFPROBE] Path: ${ffprobePath}\n`)
+  })
+});

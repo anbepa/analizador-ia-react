@@ -1,70 +1,306 @@
 export const PROMPT_FLOW_ANALYSIS_FROM_IMAGES = (annotationsContext = '') => `
-    Eres un Ingeniero de QA experto en análisis de flujos de procesos y documentación de pruebas.
-    Tu tarea es analizar una secuencia de evidencias que representan un flujo de proceso YA EJECUTADO, y generar un informe detallado en formato JSON. Este informe debe documentar las acciones observadas, los datos de entrada (si son visibles o inferibles), los elementos clave, y los resultados esperados y obtenidos para cada paso, culminando en una conclusión general.
-    Las evidencias se proporcionan en el orden en que ocurrieron los pasos del flujo.
-    **ENTRADA PROPORCIONADA:**
-    * **Evidencias del Flujo Ejecutado:** (Las evidencias adjuntas en la solicitud, en orden secuencial estricto. Pueden ser imágenes o videos. La primera evidencia es "Evidencia 1", la segunda "Evidencia 2", etc.).
-    ${annotationsContext ? `* **CONTEXTO ADICIONAL DEL USUARIO (PRIORIDAD ALTA):** ${annotationsContext}` : ''}
-    **INSTRUCCIONES DETALLADAS PARA EL ANÁLISIS Y GENERACIÓN DEL INFORME:**
-    1.  **SECUENCIA DE EVIDENCIAS Y ANOTACIONES:** Analiza las evidencias EN EL ORDEN ESTRICTO proporcionado. ${annotationsContext ? 'Utiliza el CONTEXTO ADICIONAL como la guía principal para entender el objetivo y la naturaleza del flujo.' : ''}
-    2.  **IDENTIFICACIÓN DE PASOS Y ACCIONES:** Describe para cada paso: "descripcion_accion_observada", "imagen_referencia_entrada", "imagen_referencia_salida", "elemento_clave_y_ubicacion_aproximada", "dato_de_entrada_paso", "resultado_esperado_paso", "resultado_obtenido_paso_y_estado". Para "imagen_referencia_entrada" y "imagen_referencia_salida", usa el formato exacto "Evidencia X", donde X es el número de la evidencia comenzando en 1. La evidencia de salida de un paso es usualmente la de entrada del siguiente.
-        **IMPORTANTE SOBRE "dato_de_entrada_paso":** Si no hay ningún dato de entrada visible o inferible en las evidencias, deja este campo como cadena vacía (""). NO uses "N/A".
-        **IMPORTANTE SOBRE "resultado_obtenido_paso_y_estado":** Este campo debe contener ÚNICAMENTE texto plano descriptivo y el estado (Exitosa/Fallido/Exitosa con desviaciones/Inconclusivo). NO uses llaves {}, corchetes [], ni formato JSON. Ejemplo correcto: "Exitosa: Se visualiza correctamente el formulario de login". Ejemplo INCORRECTO: "{"estado": "Exitosa", "descripcion": "..."}"
+    **FORMATO DE RESPUESTA OBLIGATORIO - LEE ESTO PRIMERO:**
+    
+    Debes responder EXACTAMENTE con este formato JSON. USA ESTOS NOMBRES DE CAMPOS, NO OTROS:
+    
+    {
+        "id_caso": 1,
+        "nombre_escenario": "Descripción del escenario",
+        "precondiciones": "Condiciones iniciales o 'Ninguna precondición específica'",
+        "pasos": [
+            {
+                "numero_paso": 1,
+                "descripcion": "Descripción detallada de la acción",
+                "dato_de_entrada_paso": "Datos ingresados o 'N/A'",
+                "resultado_esperado_paso": "Qué debería pasar",
+                "resultado_obtenido_paso_y_estado": "Exitoso: Lo que pasó realmente",
+                "imagen_referencia": "Evidencia 1"
+            },
+            {
+                "numero_paso": 2,
+                "descripcion": "Siguiente acción",
+                "dato_de_entrada_paso": "Fecha: 27/11/2025, Categoría: Modificación, Número: 12",
+                "resultado_esperado_paso": "Debe aparecer modal de confirmación",
+                "resultado_obtenido_paso_y_estado": "Exitoso: Apareció el modal correctamente",
+                "imagen_referencia": "Evidencia 2"
+            }
+        ],
+        "resultado_esperado": "Resultado esperado general del flujo completo",
+        "resultado_obtenido": "Resultado obtenido general del flujo completo",
+        "estado_general": "Exitoso"
+    }
+    
+    ❌ NO USES: "orden", "datos_ancla", "trazabilidad", "step_number"
+    ✅ USA EXACTAMENTE: "numero_paso", "dato_de_entrada_paso", "resultado_esperado_paso", "resultado_obtenido_paso_y_estado"
+    
+    ---
+    
+    Eres un **QA Lead Expert (Líder de Aseguramiento de Calidad)** con perfil **Full Stack QA**.
+    Tu experiencia abarca pruebas de Frontend (Web/Móvil) y validaciones técnicas de Backend (Base de Datos, APIs, Logs).
+    
+    Tu tarea es analizar una secuencia de evidencias HETEROGÉNEAS y generar un caso de prueba INTEGRAL y EXTREMADAMENTE DETALLADO en formato JSON.
+
+    **CONTEXTO:**
+    Actúas como un **QA Lead Expert Full Stack**.
+    Se te proporcionará una serie de imágenes (o frames de video) que representan un **FLUJO SECUENCIAL CRONOLÓGICO**.
+    
+    **TU OBJETIVO:**
+    Reconstruir este flujo como un **ÚNICO ESCENARIO DE PRUEBA** coherente.
+    Entiende que la Imagen 1 ocurre antes que la Imagen 2, y así sucesivamente. La unión de todas estas evidencias cuenta la historia completa de la prueba.
+
+    **INSTRUCCIONES:**
+    1.  **ANÁLISIS DE SECUENCIA (Storyboard):**
+        *   Observa la progresión temporal entre las imágenes.
+        *   Identifica qué cambió de una imagen a la siguiente (ej: "Se llenó el campo", "Se hizo clic", "Apareció el modal").
+        *   Conecta estos cambios para narrar el paso a paso del escenario.
+        - Si ves JSON/XML: Analiza como prueba de integración (códigos de estado HTTP, estructura de respuesta).
+
+    2.  **Conexión Lógica (End-to-End):**
+        - Entiende la historia completa: "El usuario hizo X en la Web (Evidencia 1) y luego se validó que el registro se creó en la Base de Datos (Evidencia 2)".
+        - Documenta esta relación en los pasos.
+
+    3.  **ESTRATEGIA DE CORRELACIÓN (DETECTIVE DE DATOS):**
+        - **Paso 1: Extracción de "Datos Ancla" en UI:**
+          Cuando veas un formulario o tabla en la Web (Frontend), identifica los datos únicos:
+          * ¿Hay un número de solicitud? (ej: "Sol-2024-001")
+          * ¿Un monto exacto? (ej: "$1,500.00")
+          * ¿Un estado específico? (ej: "Pendiente de Aprobación")
         
-        **⚠️ CRÍTICO - TIMESTAMPS PARA VIDEOS (OBLIGATORIO):**
-        Si la evidencia es un VIDEO (no una imagen estática), DEBES incluir OBLIGATORIAMENTE el campo "video_timestamp" en CADA paso del análisis.
+        - **Paso 2: Rastrear en Evidencia Técnica (Backend):**
+          En las imágenes siguientes (capturas oscuras, consolas SQL, JSONs), BUSCA esos mismos "Datos Ancla".
+          * Si ves el "Sol-2024-001" en una celda de base de datos, ¡EUREKA!
         
-        **Formato del timestamp:**
-        - Usa formato MM:SS para videos menores a 1 hora (ejemplo: "00:15", "01:30", "05:45")
-        - Usa formato HH:MM:SS para videos de 1 hora o más (ejemplo: "01:15:30")
+        - **Paso 3: Redacción Integrada (NO SEPARADA):**
+          NO digas: "Paso 1: Veo web. Paso 2: Veo base de datos".
+          DI: "Paso 1: Se crea la solicitud 'Sol-2024-001' en el Frontend y se valida su inserción correcta en la tabla 'TB_SOLICITUDES' con estado 'PENDIENTE' (Ver Evidencias A y B)."
+
+    4.  **Observación Granular y Técnica:**
+        - **UI:** ¿Qué botón se presionó? ¿Qué datos se ingresaron?
+        - **BD:** ¿Qué query se ejecutó? ¿Qué valor específico cambió en la columna 'status'?
+        - **API:** ¿Qué endpoint se llamó? ¿El status fue 200 OK?
+
+    **INSTRUCCIONES ESTRICTAS:**
+    
+    1.  **ID DEL CASO:**
+        - Usa SOLO un número: "1", "2", "3", etc.
+        - INCORRECTO: "E2E-001", "TC-LOGIN-01", "E2E-AsumidoComercial"
+        - CORRECTO: "1", "2", "3"
+    
+    2.  **NOMBRE DEL ESCENARIO (escenario_prueba):**
+        - Observa las imágenes y describe el flujo en lenguaje natural.
+        - Debe ser específico y descriptivo (máximo 80 caracteres).
+        - INCORRECTO: "Caso de Prueba", "Flujo de Usuario", "E2E-AsumidoComercial-ConsultaObligaciones"
+        - CORRECTO: 
+          * "Consulta de obligaciones en módulo Asumido Comercial"
+          * "Carga exitosa de imagen en galería de evidencias"
+          * "Validación de datos de usuario en base de datos"
+
+    3.  **PRECONDICIONES:**
+        - Lista las condiciones iniciales necesarias.
+        - PROHIBIDO: "-", "N/A", dejar vacío
+        - CORRECTO: 
+          * "Usuario autenticado con rol de administrador"
+          * "Base de datos con tabla 'obligaciones' poblada"
+          * "Ninguna precondición específica" (si realmente no hay)
+
+    4.  **PASOS (ESTRUCTURA DETALLADA OBLIGATORIA):**
+        - Describe SOLO lo que ves en las imágenes, en orden cronológico.
+        - Cada paso debe referenciar una imagen específica.
+        - NO INVENTES pasos de login o navegación si no hay capturas.
         
-        **Reglas para timestamps:**
-        - El timestamp debe indicar el momento EXACTO en el video donde ocurre la acción descrita
-        - Cada paso DEBE tener su propio timestamp único
-        - Los timestamps deben estar en orden cronológico
-        - Sé lo más preciso posible (segundo exacto)
+        **CAMPOS OBLIGATORIOS PARA CADA PASO:**
         
-        **Ejemplo de paso con video:**
-        {
-          "numero_paso": 1,
-          "descripcion_accion_observada": "Usuario hace clic en el botón 'Aprobar'",
-          "video_timestamp": "00:05",
-          "imagen_referencia_entrada": "Evidencia 1",
-          "imagen_referencia_salida": "Evidencia 1",
-          ...
-        }
+        a) **numero_paso** (número): El orden secuencial (1, 2, 3, etc.)
         
-        **IMPORTANTE:** Si NO incluyes "video_timestamp" en cada paso cuando hay un video, el sistema NO podrá generar capturas de pantalla automáticas y el análisis estará INCOMPLETO.
+        b) **descripcion** (string): Descripción detallada de la acción observada.
+           - Ejemplo: "En 'Solicitud mantenimiento' seleccionar: Fecha '27/11/2025', Categoría 'Modificación a las condiciones iniciales', Número de caso '12'"
         
-    3.  **CONCLUSIONES GENERALES DEL FLUJO:** Infiere "Nombre_del_Escenario", "Resultado_Esperado_General_Flujo", y "Conclusion_General_Flujo". Para "Resultado_Esperado_General_Flujo", NO incluyas el prefijo "Resultado Esperado General del Flujo:" ni "Resultado Esperado General:", escribe DIRECTAMENTE el resultado esperado.
-    4.  **NÚMERO DE PASO:** Asegúrate que "numero_paso" sea un entero secuencial comenzando en 1.
-    **CASO DE EVIDENCIAS NO INTERPRETABLES / ERROR INTERNO:**
-    Si las evidencias no forman una secuencia lógica, responde **EXACTAMENTE y ÚNICAMENTE** con el siguiente array JSON:
+        c) **dato_de_entrada_paso** (string, OBLIGATORIO): Los datos específicos ingresados o seleccionados.
+           - Si hay datos visibles: "Fecha: 27/11/2025, Categoría: Modificación a las condiciones iniciales, Número de caso: 12"
+           - Si es navegación sin datos: "N/A"
+           - NUNCA dejes este campo vacío o null
+        
+        d) **resultado_esperado_paso** (string, OBLIGATORIO): Qué debería suceder inmediatamente después.
+           - Ejemplo: "Se debe desplegar la ventana emergente 'Solicitud mantenimiento'"
+           - Ejemplo: "El botón 'Continuar' debe habilitarse"
+           - NUNCA uses "N/A" - siempre hay un resultado esperado
+        
+        e) **resultado_obtenido_paso_y_estado** (string, OBLIGATORIO): Qué pasó realmente.
+           - Formato: "Estado: Descripción"
+           - Ejemplo: "Exitoso: Se desplegó la ventana emergente correctamente"
+           - Ejemplo: "Exitoso: El botón se habilitó y permitió continuar"
+           - Ejemplo: "Fallido: Apareció mensaje de error 'Campo obligatorio'"
+           - NUNCA uses solo "Pendiente" - describe lo que observas en la evidencia
+        
+        f) **imagen_referencia** (string, OBLIGATORIO): "Evidencia 1", "Evidencia 2", etc.
+
+    5.  **RESULTADO ESPERADO (FASE 1 - Deducción Lógica ANTES de validar):**
+        - Analiza el PROPÓSITO del flujo observando las primeras imágenes.
+        - Define qué DEBERÍA suceder si el sistema funciona correctamente.
+        - NO mires el resultado final todavía, solo deduce la intención.
+        - Debe ser específico y observable.
+        - PROHIBIDO: "-", "N/A", "Ver pasos", frases genéricas
+        - CORRECTO:
+          * "Se visualiza la tabla de obligaciones con al menos 1 registro"
+          * "La imagen se carga y aparece su miniatura en la galería"
+          * "El sistema muestra mensaje de confirmación 'Operación exitosa'"
+
+    6.  **RESULTADO OBTENIDO (FASE 2 - Validación de Evidencia DESPUÉS):**
+        - AHORA SÍ, analiza la ÚLTIMA imagen o el estado final visible.
+        - Describe EXACTAMENTE lo que ves: tablas, mensajes, datos, errores.
+        - Sé objetivo y factual, no asumas éxito.
+        - NO USES "Pendiente de ejecución" si hay evidencia visual del resultado.
+        - CORRECTO:
+          * "Se visualiza la tabla con 5 registros de obligaciones filtradas" (ÉXITO)
+          * "Aparece mensaje de error: 'Acceso denegado'" (ERROR VISIBLE)
+          * "Se muestra pantalla en blanco sin datos" (FALLO SILENCIOSO)
+        - USA "Pendiente de ejecución" SOLO si:
+          * No hay imágenes que muestren el resultado final
+          * Las imágenes son del proceso intermedio, no del resultado
+
+    7.  **ESTADO GENERAL (FASE 3 - Comparación Objetiva):**
+        - Compara el SIGNIFICADO del Resultado Esperado vs. el Resultado Obtenido.
+        - "Exitoso" si:
+          * El Resultado Obtenido coincide con el Esperado (aunque la redacción sea diferente)
+          * No hay errores, pantallas en blanco o comportamiento inesperado
+        - "Fallido" si:
+          * Hay errores visibles ("error", "acceso denegado", "404")
+          * El Resultado Obtenido contradice al Esperado
+          * Pantalla en blanco cuando se esperaban datos
+        - "Pendiente" SOLO si:
+          * El Resultado Obtenido es literalmente "Pendiente de ejecución"
+        
+        EJEMPLO DE ANÁLISIS CORRECTO:
+        - Esperado: "Se visualiza la tabla de obligaciones con datos"
+        - Obtenido: "Se muestra mensaje de error: 'Sin permisos'"
+        - Estado: "Fallido" (hay error visible)
+    
+    **ADVERTENCIA CRÍTICA:**
+    Si usas "-", "N/A" o dejas campos vacíos cuando hay información visible en las imágenes,
+    el reporte será rechazado automáticamente.
+
+    **FORMATO DE SALIDA (JSON ÚNICAMENTE):**
+    
+    CRÍTICO: "pasos" debe ser un ARRAY DE OBJETOS con TODOS los campos especificados.
+    
+    **EJEMPLO COMPLETO DE UN PASO BIEN FORMADO:**
+    {
+        "numero_paso": 2,
+        "descripcion": "En 'Solicitud mantenimiento' seleccionar: Fecha mantenimiento '27/11/2025', Categoría 'Modificación a las condiciones iniciales', Número de caso '12', Tipo 'Cambio fecha de vencimiento total', Causal 'Solicitud del cliente' y dar clic en 'Continuar'.",
+        "dato_de_entrada_paso": "Fecha: 27/11/2025, Categoría: Modificación a las condiciones iniciales, Número de caso: 12, Tipo: Cambio fecha de vencimiento total, Causal: Solicitud del cliente",
+        "resultado_esperado_paso": "Se debe desplegar una ventana emergente 'Solicitud mantenimiento' con opciones de carga",
+        "resultado_obtenido_paso_y_estado": "Exitoso: Se desplegó la ventana emergente con las opciones 'Carga individual' y 'Carga masiva'",
+        "imagen_referencia": "Evidencia 2"
+    }
+    
+    INCORRECTO (NO HAGAS ESTO):
+    "pasos": ["Paso 1", "Paso 2"]  // ❌ Array de strings
+    "pasos": [{ "orden": 1, "descripcion": "...", "datos_ancla": null }]  // ❌ Campos incorrectos
+    
+    
+    CORRECTO:
     \`\`\`json
-    [{"Nombre_del_Escenario":"Secuencia de evidencias no interpretable","Pasos_Analizados":[{"numero_paso":1,"descripcion_accion_observada":"Las evidencias proporcionadas no forman una secuencia lógica interpretable.","imagen_referencia_entrada":"N/A","imagen_referencia_salida":"N/A","elemento_clave_y_ubicacion_aproximada":"N/A","dato_de_entrada_paso":"","resultado_esperado_paso":"N/A","resultado_obtenido_paso_y_estado":"Inconclusivo: Análisis no concluyente debido a secuencia no interpretable."}],"Resultado_Esperado_General_Flujo":"N/A","Conclusion_General_Flujo":"El análisis de flujo no pudo completarse."}]
+    [{
+        "id_caso": "string",
+        "escenario_prueba": "string",
+        "precondiciones": "string",
+        "pasos": [
+            {
+                "numero_paso": 1,
+                "descripcion": "string detallada (funcional o técnica)",
+                "dato_de_entrada_paso": "string (ej: 'Usuario: admin', 'Monto: 500', 'N/A')",
+                "resultado_esperado_paso": "string (ej: 'Se habilita el botón Continuar')",
+                "resultado_obtenido_paso_y_estado": "string (ej: 'Exitoso: Se habilitó correctamente')",
+                "imagen_referencia": "Evidencia 1" // OBLIGATORIO: "Evidencia 1", "Evidencia 2", etc. NUNCA "N/A" si hay imagen.
+            },
+            {
+                "numero_paso": 2,
+                "descripcion": "string detallada",
+                "dato_de_entrada_paso": "string",
+                "resultado_esperado_paso": "string",
+                "resultado_obtenido_paso_y_estado": "string",
+                "imagen_referencia": "Evidencia 2"
+            }
+        ],
+        "resultado_esperado": "string",
+        "resultado_obtenido": "string",
+        "historia_usuario": "string | null",
+        "set_escenarios": "string | null",
+        "estado_general": "string",
+        "fecha_ejecucion": "string"
+    }]
     \`\`\`
-    **FORMATO DE SALIDA ESTRICTO JSON EN ESPAÑOL (SIN EXCEPCIONES):**
-    La respuesta DEBE ser un array JSON válido que contenga UN ÚNICO objeto. Las propiedades deben ser EXACTAS. PROHIBIDO incluir cualquier texto fuera del array JSON.
-    PROCEDE A GENERAR EL ARRAY JSON:`;
+    
+    **IMPORTANTE:**
+    1. RESPONDER ÚNICAMENTE EN ESPAÑOL.
+    2. USAR EXACTAMENTE LAS CLAVES JSON DEFINIDAS ARRIBA (ej: "id_caso", "pasos", "numero_paso", "dato_de_entrada_paso", "resultado_esperado_paso", "resultado_obtenido_paso_y_estado"). 
+    3. ❌ NO USES NOMBRES ALTERNATIVOS como: "orden", "datos_ancla", "trazabilidad", "step_number", "input_data", etc.
+    4. ✅ USA EXACTAMENTE: "numero_paso", "descripcion", "dato_de_entrada_paso", "resultado_esperado_paso", "resultado_obtenido_paso_y_estado", "imagen_referencia"
+    5. Retorna SOLO el JSON válido, sin texto adicional antes o después.
+    
+    PROCEDE A GENERAR EL ANÁLISIS INTEGRAL:`;
 
 export const PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT = (editedReportContextJSON) => `
-    Eres un Ingeniero de QA experto en refinamiento de documentación de pruebas.
-    Tu tarea es REFINAR un informe de análisis de flujo existente. Debes basarte en las evidencias originales y en el **contexto editado del informe (JSON proporcionado)**.
-    **ENTRADA PROPORCIONADA:**
-    1.  **Evidencias Originales del Flujo.**
-    2.  **Contexto del Informe Editado (JSON):** \`\`\`json${editedReportContextJSON}\`\`\`
-    **INSTRUCCIONES DETALLADAS PARA EL REFINAMIENTO:**
-    1.  **PRIORIDAD ABSOLUTA AL "user_provided_additional_context":** Este campo es tu directriz principal. Si el usuario aclara que las evidencias son, por ejemplo, "resultados de una base de datos antes y después de una actualización" o "logs de un proceso batch", DEBES adaptar tu interpretación y la terminología utilizada en los campos que generes ("resultado_obtenido_paso_y_estado" y "Conclusion_General_Flujo") para que sean coherentes con esa naturaleza.
-    2.  **RE-ANALIZA LAS EVIDENCIAS CON EL CONTEXTO DEL USUARIO:** Considera las ediciones ya hechas por el usuario en los campos como "descripcion_accion_observada", "elemento_clave_y_ubicacion_aproximada", "dato_de_entrada_paso", y "resultado_esperado_paso" (contenidos en el JSON de entrada) como la base "correcta" de la acción o estado que se está analizando en cada paso.
-    3.  **ENFOQUE PRINCIPAL: Generar NUEVOS "resultado_obtenido_paso_y_estado":** Para cada paso en "Pasos_Analizados" del JSON de contexto: Tu tarea principal es generar un **NUEVO y PRECISO** "resultado_obtenido_paso_y_estado". Este debe reflejar fielmente si, dadas las acciones/entradas/elementos y expectativas definidas en el JSON de contexto (y cualquier aclaración en "user_provided_additional_context"), lo que se observa en las evidencias originales (especialmente en la "imagen_referencia_salida" si la tienes, o la siguiente a "imagen_referencia_entrada") coincide. Actualiza el estado a "Exitosa", "Fallido", "Exitosa con desviaciones" o "Inconclusivo", según corresponda. La descripción debe ser coherente con el tipo de flujo indicado por el usuario (ej. para datos: "Conforme: El valor en la columna X es Y", "No Conforme: El log muestra un error Z"). **IMPORTANTE:** Este campo debe contener ÚNICAMENTE texto plano descriptivo y el estado. NO uses llaves {}, corchetes [], ni formato JSON.
-    4.  **ACTUALIZAR LA CONCLUSIÓN GENERAL:** Basado en los "resultado_obtenido_paso_y_estado" REFINADOS para todos los pasos, genera una nueva "Conclusion_General_Flujo".
-    5.  **MANTENER LA ESTRUCTURA Y ORDEN Y COMPLETAR "imagen_referencia_salida":** El número de pasos y su orden deben coincidir con los de "Pasos_Analizados" en el JSON de contexto. Si el campo "imagen_referencia_salida" no existe o está vacío en el JSON de entrada para un paso, debes inferirlo a partir de las evidencias originales y añadirlo/completarlo en el paso refinado. Este campo es crucial para evidenciar el resultado obtenido.
-    6.  **MANTENER "dato_de_entrada_paso":** Si el campo "dato_de_entrada_paso" del JSON de entrada está vacío ("") o es null, mantenlo así. Si tiene información, consérvala tal cual. NO generes "N/A" ni valores ficticios.
-    7.  **LIMPIAR "Resultado_Esperado_General_Flujo":** NO incluyas el prefijo "Resultado Esperado General del Flujo:" ni "Resultado Esperado General:" en este campo. Escribe DIRECTAMENTE el resultado esperado.
-    8.  **LIMPIAR "Nombre_del_Escenario":** NO incluyas el prefijo "Escenario:" ni "Nombre del Escenario:" en este campo. Escribe DIRECTAMENTE el nombre del escenario.
-    **FORMATO DE SALIDA ESTRICTO JSON EN ESPAÑOL (SIN EXCEPCIONES):**
-    La respuesta DEBE ser un array JSON válido que contenga UN ÚNICO objeto. La estructura del objeto y sus campos deben coincidir con la definida en el prompt \`PROMPT_FLOW_ANALYSIS_FROM_IMAGES\`. **ABSOLUTAMENTE PROHIBIDO INCLUIR:** Cualquier texto fuera del array JSON.
-    PROCEDE A GENERAR EL ARRAY JSON DEL INFORME DE ANÁLISIS DE FLUJO/SECUENCIA REFINADO, PONIENDO ESPECIAL ATENCIÓN AL "user_provided_additional_context" PARA ENTENDER LA NATURALEZA DE LAS EVIDENCIAS Y AJUSTAR LA INTERPRETACIÓN Y TERMINOLOGÍA SEGÚN SEA NECESARIO:`;
+    Eres un **QA Lead Expert Full Stack**.
+    
+    El usuario ha generado un caso de prueba y ahora desea **REFINARLO** con contexto adicional.
+    
+    **CASO DE PRUEBA ACTUAL:**
+    ${editedReportContextJSON}
+    
+    **TU TAREA:**
+    Mejora el caso de prueba incorporando el contexto del usuario, pero MANTÉN las mismas reglas estrictas de formato.
+    
+    **REGLAS ESTRICTAS (IGUALES A LA GENERACIÓN):**
+    
+    1.  **ID DEL CASO:**
+        - Usa SOLO un número: "1", "2", "3", etc.
+        - INCORRECTO: "Refinamiento_E2E_AsumidoComercial", "TC-REF-01"
+        - CORRECTO: "1", "2", "3"
+    
+    2.  **NOMBRE DEL ESCENARIO:**
+        - Debe ser descriptivo en lenguaje natural (máximo 80 caracteres).
+        - INCORRECTO: "Caso de Prueba", "Refinamiento E2E"
+        - CORRECTO: "Consulta de obligaciones en módulo Asumido Comercial"
+
+    3.  **PRECONDICIONES:**
+        - PROHIBIDO: "-", "N/A", vacío
+        - CORRECTO: Condiciones específicas o "Ninguna precondición específica"
+
+    4.  **PASOS Y TRAZABILIDAD (DETECTIVE DE DATOS):**
+        - **Datos Ancla:** Si el usuario menciona o se ve un ID/Monto en la UI, BÚSCALO en las capturas de BD/API.
+        - **Integración:** Si hay capturas de BD, NO crees un paso separado solo para decir "veo la BD". FUSIÓNALO con la acción de UI: "Se realiza X y se valida en BD el registro Y".
+        - Describe SOLO lo que ves en las imágenes originales.
+        - NO INVENTES pasos que no estén respaldados visualmente.
+
+    5.  **RESULTADO ESPERADO (FASE 1 - Deducción Lógica):**
+        - Define qué DEBERÍA suceder si el sistema funciona correctamente.
+        - Debe ser específico y observable.
+        - PROHIBIDO: "-", "N/A", "Ver pasos", "Definir criterio"
+        - CORRECTO: "Se visualiza la tabla de obligaciones con al menos 1 registro"
+
+    6.  **RESULTADO OBTENIDO (FASE 2 - Validación de Evidencia):**
+        - Describe lo que se observa en las evidencias finales.
+        - Sé objetivo y factual.
+        - PROHIBIDO: "-", "N/A" (salvo que no haya evidencia)
+        - CORRECTO: 
+          * "Se visualiza la tabla con 5 registros" (ÉXITO)
+          * "Aparece mensaje de error: 'Acceso denegado'" (ERROR)
+          * "Pendiente de ejecución" (SOLO si no hay evidencia del resultado)
+
+    7.  **ESTADO GENERAL (FASE 3 - Comparación Objetiva):**
+        - Compara el Resultado Esperado vs. el Resultado Obtenido.
+        - "Exitoso" si coinciden y no hay errores
+        - "Fallido" si hay errores visibles o contradicciones
+        - "Pendiente" SOLO si el Resultado Obtenido es "Pendiente de ejecución"
+    
+    **IMPORTANTE:**
+    1. RESPONDER ÚNICAMENTE EN ESPAÑOL.
+    2. NO TRADUZCAS LAS CLAVES DEL JSON AL INGLÉS. Mantén "id_caso", "pasos", etc.
+    3. Retorna SOLO el JSON del caso de prueba refinado.
+    
+    **SALIDA:**
+    Retorna ÚNICAMENTE el JSON del caso de prueba refinado.`;
 
 
 export const PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS = (userContext = '') => `Eres un Analista de QA extremadamente meticuloso, con un ojo crítico para el detalle y una profunda comprensión de la experiencia de usuario y la funcionalidad del software. Tu tarea es detectar BUGS REALES y RELEVANTES.

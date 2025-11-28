@@ -14,8 +14,72 @@ const getSessionId = () => {
 };
 
 /**
- * Simple database service for reports
+ * Search user stories by code or title
  */
+export const searchUserStories = async (query) => {
+  try {
+    if (!query) return [];
+
+    // Si es número, buscar coincidencia exacta o parcial en título
+    const isNumber = /^\d+$/.test(query);
+
+    let dbQuery = supabase
+      .from('user_stories')
+      .select('*')
+      .limit(10);
+
+    if (isNumber) {
+      dbQuery = dbQuery.or(`numero.eq.${query},title.ilike.%${query}%`);
+    } else {
+      dbQuery = dbQuery.ilike('title', `%${query}%`);
+    }
+
+    const { data, error } = await dbQuery;
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error searching user stories:', error);
+    return [];
+  }
+};
+
+/**
+ * Create a new user story
+ */
+export const createUserStory = async (numero, title) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_stories')
+      .insert([{ numero: parseInt(numero), title }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating user story:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a user story
+ */
+export const deleteUserStory = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('user_stories')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting user story:', error);
+    throw error;
+  }
+};
 
 /**
  * Save a report to the database
@@ -28,13 +92,26 @@ export const saveReport = async (reportData, isTemporary = false) => {
     const videoFile = imageFiles && imageFiles.find(f => f.isVideo || (f.type && f.type.startsWith('video/')));
     const videoUrl = videoFile ? videoFile.dataURL : null;
 
-    // Save basic report data according to the actual schema
+    // Save basic report data - incluye campos nuevos Y legacy para compatibilidad total
     const { data: report, error: reportError } = await supabase
-      .from('reports')
+      .from('test_scenarios')
       .insert([{
-        nombre_del_escenario: otherData.Nombre_del_Escenario || 'Reporte',
-        resultado_esperado_general_flujo: otherData.Resultado_Esperado_General_Flujo || null,
-        conclusion_general_flujo: otherData.Conclusion_General_Flujo || null,
+        // Campos nuevos de casos de prueba
+        id_caso: otherData.id_caso || null,
+        escenario_prueba: otherData.escenario_prueba || otherData.Nombre_del_Escenario || 'Caso de Prueba',
+        precondiciones: otherData.precondiciones || null,
+        resultado_esperado: otherData.resultado_esperado || otherData.Resultado_Esperado_General_Flujo || null,
+        resultado_obtenido: otherData.resultado_obtenido || otherData.Conclusion_General_Flujo || null,
+        historia_usuario: otherData.historia_usuario || null,
+        user_story_id: otherData.user_story_id || null, // Nuevo campo FK
+        set_escenarios: otherData.set_escenarios || null,
+        fecha_ejecucion: otherData.fecha_ejecucion || new Date().toISOString().split('T')[0],
+        estado_general: otherData.estado_general || 'Pendiente',
+        // Campos legacy (requeridos por la BD)
+        nombre_del_escenario: otherData.escenario_prueba || otherData.Nombre_del_Escenario || 'Caso de Prueba',
+        resultado_esperado_general_flujo: otherData.resultado_esperado || otherData.Resultado_Esperado_General_Flujo || null,
+        conclusion_general_flujo: otherData.resultado_obtenido || otherData.Conclusion_General_Flujo || null,
+        // Campos comunes
         user_provided_additional_context: otherData.user_provided_additional_context || null,
         initial_context: otherData.initial_context || null,
         video_url: videoUrl,
@@ -50,10 +127,10 @@ export const saveReport = async (reportData, isTemporary = false) => {
     let savedSteps = [];
     if (Pasos_Analizados && Pasos_Analizados.length > 0) {
       const stepsToInsert = Pasos_Analizados.map((paso, index) => ({
-        report_id: report.id,
-        numero_paso: paso.numero_paso || (index + 1), // Ensure numero_paso is never null
-        descripcion_accion_observada: paso.descripcion_accion_observada || null,
-        imagen_referencia_entrada: paso.imagen_referencia_entrada || null,
+        scenario_id: report.id,
+        numero_paso: paso.numero_paso || paso.numero || (index + 1),
+        descripcion_accion_observada: paso.descripcion || paso.descripcion_accion_observada || null,
+        imagen_referencia_entrada: paso.imagen_referencia || paso.imagen_referencia_entrada || null,
         imagen_referencia_salida: paso.imagen_referencia_salida || null,
         elemento_clave_y_ubicacion_aproximada: paso.elemento_clave_y_ubicacion_aproximada || null,
         dato_de_entrada_paso: paso.dato_de_entrada_paso || null,
@@ -62,7 +139,7 @@ export const saveReport = async (reportData, isTemporary = false) => {
       }));
 
       const { data: steps, error: stepsError } = await supabase
-        .from('report_steps')
+        .from('test_scenario_steps')
         .insert(stepsToInsert)
         .select();
 
@@ -100,8 +177,8 @@ export const saveReport = async (reportData, isTemporary = false) => {
 /**
  * Load all reports from the database (backwards compatibility)
  */
-export const loadReports = async () => {
-  return await loadPermanentReports();
+export const loadReports = async (filters = {}) => {
+  return await loadPermanentReports(filters);
 };
 
 /**
@@ -111,9 +188,9 @@ export const addStepToReport = async (reportId, stepData, newImages = []) => {
   try {
     // First, get the current steps to determine the next step number
     const { data: existingSteps } = await supabase
-      .from('report_steps')
+      .from('test_scenario_steps')
       .select('numero_paso')
-      .eq('report_id', reportId)
+      .eq('scenario_id', reportId)
       .order('numero_paso', { ascending: false })
       .limit(1);
 
@@ -123,9 +200,9 @@ export const addStepToReport = async (reportId, stepData, newImages = []) => {
 
     // Insert the new step
     const { data: newStep, error: stepError } = await supabase
-      .from('report_steps')
+      .from('test_scenario_steps')
       .insert([{
-        report_id: reportId,
+        scenario_id: reportId,
         numero_paso: nextStepNumber,
         descripcion_accion_observada: stepData.descripcion_accion_observada || null,
         imagen_referencia_entrada: stepData.imagen_referencia_entrada || null,
@@ -147,7 +224,7 @@ export const addStepToReport = async (reportId, stepData, newImages = []) => {
 
     // Update the report's updated_at timestamp
     await supabase
-      .from('reports')
+      .from('test_scenarios')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', reportId);
 
@@ -165,18 +242,18 @@ export const deleteStepFromReport = async (reportId, stepNumber) => {
   try {
     // Delete the specific step
     const { error: deleteError } = await supabase
-      .from('report_steps')
+      .from('test_scenario_steps')
       .delete()
-      .eq('report_id', reportId)
+      .eq('scenario_id', reportId)
       .eq('numero_paso', stepNumber);
 
     if (deleteError) throw deleteError;
 
     // Get all remaining steps that have higher step numbers
     const { data: stepsToReorder, error: selectError } = await supabase
-      .from('report_steps')
+      .from('test_scenario_steps')
       .select('id, numero_paso')
-      .eq('report_id', reportId)
+      .eq('scenario_id', reportId)
       .gt('numero_paso', stepNumber)
       .order('numero_paso', { ascending: true });
 
@@ -186,7 +263,7 @@ export const deleteStepFromReport = async (reportId, stepNumber) => {
     if (stepsToReorder && stepsToReorder.length > 0) {
       const updatePromises = stepsToReorder.map((step, index) =>
         supabase
-          .from('report_steps')
+          .from('test_scenario_steps')
           .update({ numero_paso: stepNumber + index })
           .eq('id', step.id)
       );
@@ -196,7 +273,7 @@ export const deleteStepFromReport = async (reportId, stepNumber) => {
 
     // Update the report's updated_at timestamp
     await supabase
-      .from('reports')
+      .from('test_scenarios')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', reportId);
 
@@ -213,7 +290,7 @@ export const deleteStepFromReport = async (reportId, stepNumber) => {
 export const updateStepInReport = async (reportId, stepId, stepData) => {
   try {
     const { data, error } = await supabase
-      .from('report_steps')
+      .from('test_scenario_steps')
       .update({
         descripcion_accion_observada: stepData.descripcion_accion_observada || null,
         imagen_referencia_entrada: stepData.imagen_referencia_entrada || null,
@@ -224,7 +301,7 @@ export const updateStepInReport = async (reportId, stepId, stepData) => {
         resultado_obtenido_paso_y_estado: stepData.resultado_obtenido_paso_y_estado || null
       })
       .eq('id', stepId)
-      .eq('report_id', reportId)
+      .eq('scenario_id', reportId)
       .select()
       .single();
 
@@ -249,7 +326,7 @@ export const updateStepInReport = async (reportId, stepId, stepData) => {
 export const deleteReport = async (reportId) => {
   try {
     const { error } = await supabase
-      .from('reports')
+      .from('test_scenarios')
       .delete()
       .eq('id', reportId);
 
@@ -268,7 +345,7 @@ export const deleteReport = async (reportId) => {
 export const testDatabaseConnection = async () => {
   try {
     const { error } = await supabase
-      .from('reports')
+      .from('test_scenarios')
       .select('id')
       .limit(1);
 
@@ -285,7 +362,7 @@ export const testDatabaseConnection = async () => {
 export const getDatabaseStats = async () => {
   try {
     const { count, error } = await supabase
-      .from('reports')
+      .from('test_scenarios')
       .select('id', { count: 'exact', head: true });
 
     if (error) throw error;
@@ -307,13 +384,26 @@ export const updateReport = async (reportId, reportData) => {
     console.log('Updating report in database:', reportId, reportData);
     const { imageFiles, Pasos_Analizados, ...otherData } = reportData;
 
-    // Update basic report data according to the actual schema
+    // Update basic report data - incluye campos nuevos Y legacy para compatibilidad total
     const { data: report, error: reportError } = await supabase
-      .from('reports')
+      .from('test_scenarios')
       .update({
-        nombre_del_escenario: otherData.Nombre_del_Escenario || 'Reporte',
-        resultado_esperado_general_flujo: otherData.Resultado_Esperado_General_Flujo || null,
-        conclusion_general_flujo: otherData.Conclusion_General_Flujo || null,
+        // Campos nuevos de casos de prueba
+        id_caso: otherData.id_caso || null,
+        escenario_prueba: otherData.escenario_prueba || otherData.Nombre_del_Escenario || 'Caso de Prueba',
+        precondiciones: otherData.precondiciones || null,
+        resultado_esperado: otherData.resultado_esperado || otherData.Resultado_Esperado_General_Flujo || null,
+        resultado_obtenido: otherData.resultado_obtenido || otherData.Conclusion_General_Flujo || null,
+        historia_usuario: otherData.historia_usuario || null,
+        user_story_id: otherData.user_story_id || null, // Nuevo campo FK
+        set_escenarios: otherData.set_escenarios || null,
+        fecha_ejecucion: otherData.fecha_ejecucion || new Date().toISOString().split('T')[0],
+        estado_general: otherData.estado_general || 'Pendiente',
+        // Campos legacy (requeridos por la BD)
+        nombre_del_escenario: otherData.escenario_prueba || otherData.Nombre_del_Escenario || 'Caso de Prueba',
+        resultado_esperado_general_flujo: otherData.resultado_esperado || otherData.Resultado_Esperado_General_Flujo || null,
+        conclusion_general_flujo: otherData.resultado_obtenido || otherData.Conclusion_General_Flujo || null,
+        // Campos comunes
         user_provided_additional_context: otherData.user_provided_additional_context || null,
         initial_context: otherData.initial_context || null,
         updated_at: new Date().toISOString()
@@ -334,9 +424,9 @@ export const updateReport = async (reportId, reportData) => {
       console.log('Deleting existing steps for report:', reportId);
       // Delete existing steps first
       const { error: deleteError } = await supabase
-        .from('report_steps')
+        .from('test_scenario_steps')
         .delete()
-        .eq('report_id', reportId);
+        .eq('scenario_id', reportId);
 
       if (deleteError) {
         console.warn('Error deleting existing steps:', deleteError);
@@ -345,7 +435,7 @@ export const updateReport = async (reportId, reportData) => {
       console.log('Inserting updated steps:', Pasos_Analizados.length, 'steps');
       // Insert updated steps
       const stepsToInsert = Pasos_Analizados.map((paso, index) => ({
-        report_id: reportId,
+        scenario_id: reportId,
         numero_paso: paso.numero_paso || (index + 1),
         descripcion_accion_observada: paso.descripcion_accion_observada || null,
         imagen_referencia_entrada: paso.imagen_referencia_entrada || null,
@@ -357,7 +447,7 @@ export const updateReport = async (reportId, reportData) => {
       }));
 
       const { data: steps, error: stepsError } = await supabase
-        .from('report_steps')
+        .from('test_scenario_steps')
         .insert(stepsToInsert)
         .select();
 
@@ -423,11 +513,6 @@ export const updateReport = async (reportId, reportData) => {
   }
 };
 
-// Create alias for backward compatibility
-export const updateReportInDB = updateReport;
-
-
-
 /**
  * Save refinement (simplified - just logs for now)
  */
@@ -449,8 +534,6 @@ export const saveRefinement = async (originalReportId, refinedReportId, refineme
     throw error;
   }
 };
-
-
 
 /**
  * Load bugs for a specific report
@@ -503,7 +586,7 @@ export const cleanupTemporaryReports = async () => {
     const sessionId = getSessionId();
 
     const { error } = await supabase
-      .from('reports')
+      .from('test_scenarios')
       .delete()
       .eq('session_id', sessionId)
       .eq('is_temp', true);
@@ -524,7 +607,7 @@ export const cleanupTemporaryReports = async () => {
 export const makeReportPermanent = async (reportId) => {
   try {
     const { data, error } = await supabase
-      .from('reports')
+      .from('test_scenarios')
       .update({
         is_temp: false,
         session_id: null
@@ -551,19 +634,27 @@ export const makeReportPermanent = async (reportId) => {
 /**
  * Load permanent reports only (exclude temporary ones from other sessions)
  */
-export const loadPermanentReports = async () => {
+export const loadPermanentReports = async (filters = {}) => {
   try {
     const sessionId = getSessionId();
 
-    // Get all permanent reports + current session temporary reports
-    const { data: reports, error } = await supabase
-      .from('reports')
+    // Start building the query
+    let query = supabase
+      .from('test_scenarios')
       .select(`
         *,
-        report_steps (*)
+        test_scenario_steps (*),
+        user_stories (numero, title)
       `)
       .or(`is_temp.eq.false,and(is_temp.eq.true,session_id.eq.${sessionId})`)
       .order('created_at', { ascending: false });
+
+    // Apply filters
+    if (filters.userStoryId) {
+      query = query.eq('user_story_id', filters.userStoryId);
+    }
+
+    const { data: reports, error } = await query;
 
     if (error) throw error;
     if (!reports) return [];
@@ -591,12 +682,35 @@ export const loadPermanentReports = async () => {
       }));
 
       return {
-        Nombre_del_Escenario: report.nombre_del_escenario,
-        Resultado_Esperado_General_Flujo: report.resultado_esperado_general_flujo,
-        Conclusion_General_Flujo: report.conclusion_general_flujo,
+        // Nuevos campos de casos de prueba
+        id_caso: report.id_caso,
+        escenario_prueba: report.escenario_prueba,
+        precondiciones: report.precondiciones,
+        resultado_esperado: report.resultado_esperado,
+        resultado_obtenido: report.resultado_obtenido,
+        historia_usuario: report.historia_usuario,
+        user_story_id: report.user_story_id,
+        user_story_data: report.user_stories, // Datos de la HU unida
+        set_escenarios: report.set_escenarios,
+        fecha_ejecucion: report.fecha_ejecucion,
+        estado_general: report.estado_general,
+        // Campos legacy para compatibilidad
+        Nombre_del_Escenario: report.escenario_prueba || report.nombre_del_escenario,
+        Resultado_Esperado_General_Flujo: report.resultado_esperado || report.resultado_esperado_general_flujo,
+        Conclusion_General_Flujo: report.resultado_obtenido || report.conclusion_general_flujo,
         user_provided_additional_context: report.user_provided_additional_context,
         initial_context: report.initial_context,
-        Pasos_Analizados: (report.report_steps || []).sort((a, b) => a.numero_paso - b.numero_paso),
+        Pasos_Analizados: (report.test_scenario_steps || []).sort((a, b) => a.numero_paso - b.numero_paso).map(step => ({
+          ...step,
+          numero: step.numero_paso,
+          descripcion: step.descripcion_accion_observada,
+          imagen_referencia: step.imagen_referencia_entrada
+        })),
+        pasos: (report.test_scenario_steps || []).sort((a, b) => a.numero_paso - b.numero_paso).map(step => ({
+          numero_paso: step.numero_paso,
+          descripcion: step.descripcion_accion_observada,
+          imagen_referencia: step.imagen_referencia_entrada
+        })),
         id: report.id,
         created_at: report.created_at,
         updated_at: report.updated_at,
