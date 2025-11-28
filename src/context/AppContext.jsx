@@ -983,7 +983,10 @@ export const AppProvider = ({ children }) => {
                 ...refinedReportData,
                 Nombre_del_Escenario: cleanedScenarioName,
                 imageFiles: activeReport.imageFiles,
-                initial_context: activeReport.initial_context
+                initial_context: activeReport.initial_context,
+                // Preservar datos de la Historia de Usuario
+                user_story_id: activeReport.user_story_id,
+                historia_usuario: activeReport.historia_usuario
             };
 
             // Update the existing report instead of creating a new one
