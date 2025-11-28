@@ -7,39 +7,44 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Apple-inspired color palette
+        // Apple-inspired color palette (Refined)
         primary: {
-          DEFAULT: '#007AFF', // iOS Blue
-          50: '#F0F9FF',
-          100: '#E0F2FE',
-          500: '#007AFF',
-          600: '#0056CC',
-          700: '#003D99'
+          DEFAULT: '#0071E3', // Apple Web Blue (Slightly more professional)
+          50: '#F5F9FF',
+          100: '#E1F0FF',
+          200: '#C2E0FF',
+          300: '#99C9FF',
+          400: '#66A9FF',
+          500: '#0071E3',
+          600: '#005BB7',
+          700: '#004488',
+          800: '#003060',
+          900: '#001E3C',
         },
         secondary: {
-          DEFAULT: '#8E8E93', // iOS Secondary Gray
-          50: '#F2F2F7',
-          100: '#E5E5EA',
-          200: '#D1D1D6',
-          300: '#C7C7CC',
+          DEFAULT: '#86868B', // Apple Gray
+          50: '#FBFBFD',      // Ultra light background
+          100: '#F5F5F7',     // Light background (Apple Store bg)
+          200: '#E8E8ED',     // Borders/Separators
+          300: '#D2D2D7',
           400: '#AEAEB2',
-          500: '#8E8E93',
-          600: '#6D6D70',
+          500: '#86868B',
+          600: '#6E6E73',
           700: '#48484A',
-          800: '#2C2C2E',
-          900: '#1C1C1E'
+          800: '#1D1D1F',     // Almost black text
+          900: '#121212',     // Black
         },
-        accent: '#FF9500', // iOS Orange
-        success: '#34C759', // iOS Green
-        warning: '#FF9500', // iOS Orange  
-        danger: '#FF3B30', // iOS Red
+        accent: '#FF9500',
+        success: '#34C759',
+        warning: '#FF9F0A',
+        danger: '#FF3B30',
         background: {
           DEFAULT: '#FFFFFF',
-          secondary: '#F2F2F7',
+          secondary: '#F5F5F7', // Apple light gray bg
           tertiary: '#FFFFFF'
         },
         surface: {
-          DEFAULT: '#FFFFFF',
+          DEFAULT: 'rgba(255, 255, 255, 0.8)',
           elevated: '#FFFFFF',
           overlay: 'rgba(0, 0, 0, 0.4)'
         }
@@ -54,7 +59,9 @@ export default {
           'Helvetica',
           'Arial',
           'sans-serif'
-        ]
+        ],
+        'display': ['Outfit', 'sans-serif'],
+        'body': ['Inter', 'sans-serif']
       },
       boxShadow: {
         'apple': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',

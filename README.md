@@ -34,22 +34,38 @@ Sigue estos pasos para instalar y ejecutar el proyecto en tu máquina local.
     npm install
     ```
 
-3.  **Configura las claves de API:**
+3.  **Configura variables de entorno para desarrollo:**
 
-    La aplicación requiere claves de API para los servicios de IA que desees utilizar.
-    -   Abre la aplicación en tu navegador.
-    -   Ve al panel de "Configuración y Acciones".
-    -   Selecciona tu proveedor de IA (Gemini, OpenAI o Claude).
-    -   Introduce tu clave de API y selecciona un modelo.
-    -   Haz clic en "Guardar Configuración". La configuración se guardará en el almacenamiento local de tu navegador.
+    Usa los ejemplos de la carpeta `environments`:
 
-4.  **Ejecuta la aplicación en modo de desarrollo:**
+    ```bash
+    cp environments/.env.local.example .env.local
+    # Luego edita .env.local con tus valores de GEMINI_API_KEY, VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY
+    # Si envías muchas imágenes (hasta ~30), puedes subir GEMINI_PROXY_BODY_LIMIT (por defecto 512mb en local)
+    ```
+
+4.  **Levanta el proxy local de Gemini y la app:**
+
+    En una terminal inicia el proxy, que protege la clave, aplica reintentos y admite payloads grandes configurables.
+
+    ```bash
+    node local-api-server.js
+    ```
+
+    En otra terminal arranca Vite (que ya proxifica `/api` hacia el puerto 3000 definido en `proxy.conf.json`).
 
     ```bash
     npm run dev
     ```
 
     Esto iniciará la aplicación en modo de desarrollo y la abrirá en tu navegador en [http://localhost:5173](http://localhost:5173).
+
+-   El proxy local intenta usar el SDK oficial `@google/generative-ai`; si no está instalado, utiliza una implementación mínima con `fetch`.
+
+## Proxy de Gemini en producción
+
+-   Las peticiones a `/api/gemini-proxy` en producción son atendidas por la función serverless `api/gemini-proxy.ts`.
+-   Configura en Vercel las variables `GEMINI_API_KEY`, `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (puedes guiarte por `environments/.env.vercel.example`).
 
 ## Scripts Disponibles
 

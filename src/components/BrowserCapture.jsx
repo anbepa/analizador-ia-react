@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 
-function BrowserCapture({ onCapture }) {
+const BrowserCapture = React.forwardRef(({ onCapture, showTrigger = true }, ref) => {
     const [isSessionActive, setIsSessionActive] = useState(false);
     const [isCapturing, setIsCapturing] = useState(false);
     const [isVideoReady, setIsVideoReady] = useState(false);
@@ -36,7 +36,7 @@ function BrowserCapture({ onCapture }) {
                 video: { frameRate: { ideal: 10, max: 15 } },
                 audio: false,
             });
-            
+
             streamRef.current = stream;
             setIsSessionActive(true);
             setIsPreviewVisible(true);
@@ -54,6 +54,10 @@ function BrowserCapture({ onCapture }) {
             }
         }
     };
+
+    React.useImperativeHandle(ref, () => ({
+        startSession: startCaptureSession
+    }));
 
     useEffect(() => {
         if (isSessionActive && isPreviewVisible && videoRef.current && streamRef.current) {
@@ -99,32 +103,34 @@ function BrowserCapture({ onCapture }) {
                 <p className="text-secondary-600 font-medium mb-2">Captura de Pantalla</p>
                 <p className="text-sm text-secondary-500">Inicia una sesión para capturar un flujo de imágenes</p>
             </div>
-            
+
             {!isSessionActive ? (
-                <div className="flex flex-col items-center">
-                    <button
-                        onClick={startCaptureSession}
-                        className="apple-button-secondary text-primary hover:bg-primary/10 border-primary"
-                    >
-                        <span className="flex items-center gap-2">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                            Iniciar Sesión de Captura
-                        </span>
-                    </button>
-                    <p className="text-xs text-secondary-500 mt-3 text-center max-w-xs">
-                        Podrás tomar múltiples capturas de una pestaña o ventana
-                    </p>
-                </div>
+                showTrigger ? (
+                    <div className="flex flex-col items-center">
+                        <button
+                            onClick={startCaptureSession}
+                            className="apple-button-secondary text-primary hover:bg-primary/10 border-primary transition-all duration-[180ms] ease-out"
+                        >
+                            <span className="flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                Iniciar Sesión de Captura
+                            </span>
+                        </button>
+                        <p className="text-xs text-secondary-500 mt-3 text-center max-w-xs">
+                            Podrás tomar múltiples capturas de una pestaña o ventana
+                        </p>
+                    </div>
+                ) : null
             ) : (
                 <div className="flex flex-col items-center gap-4">
                     {isPreviewVisible ? (
                         <div className="w-full bg-secondary-900 rounded-apple-lg overflow-hidden shadow-apple-md">
-                            <video 
-                                ref={videoRef} 
-                                autoPlay 
-                                muted 
+                            <video
+                                ref={videoRef}
+                                autoPlay
+                                muted
                                 playsInline
                                 onCanPlay={() => setIsVideoReady(true)}
                                 className="w-full h-auto"
@@ -186,6 +192,6 @@ function BrowserCapture({ onCapture }) {
             )}
         </div>
     );
-}
+});
 
 export default BrowserCapture;

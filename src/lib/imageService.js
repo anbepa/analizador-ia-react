@@ -5,28 +5,33 @@ import { supabase } from './supabaseClient.js';
  */
 
 /**
- * Validate and clean image data for API consumption
+ * Validate and clean image/video data for API consumption
  */
-export const validateAndCleanImages = (imageFiles) => {
-  if (!imageFiles || !Array.isArray(imageFiles)) {
+export const validateAndCleanImages = (files) => {
+  if (!files || !Array.isArray(files)) {
     return [];
   }
 
-  return imageFiles.filter(image => {
-    // Check if image has valid data
-    if (!image || !image.dataURL) {
-      console.warn('Image missing dataURL, skipping');
+  return files.filter(file => {
+    // Check if file has valid data
+    if (!file || !file.dataURL) {
+      console.warn('File missing dataURL, skipping');
       return false;
     }
 
+    // Allow video files (which have http/https URLs)
+    if (file.isVideo || (typeof file.dataURL === 'string' && file.dataURL.startsWith('http'))) {
+      return true;
+    }
+
     // Check if dataURL is valid base64 image
-    if (!image.dataURL.startsWith('data:image/')) {
+    if (!file.dataURL.startsWith('data:image/')) {
       console.warn('Invalid image format, skipping');
       return false;
     }
 
     // Check if base64 data exists after header
-    const base64Data = image.dataURL.split(',')[1];
+    const base64Data = file.dataURL.split(',')[1];
     if (!base64Data || base64Data.length < 100) {
       console.warn('Image data too small or corrupted, skipping');
       return false;
@@ -41,60 +46,66 @@ export const validateAndCleanImages = (imageFiles) => {
     }
 
     return true;
-  }).map(image => ({
-    ...image,
+  }).map(file => ({
+    ...file,
     // Ensure consistent properties
-    dataURL: image.dataURL,
-    name: image.name || 'image.png',
-    type: image.type || 'image/png'
+    dataURL: file.dataURL,
+    name: file.name || (file.isVideo ? 'video.mp4' : 'image.png'),
+    type: file.type || (file.isVideo ? 'video/mp4' : 'image/png'),
+    isVideo: file.isVideo || false
   }));
 };
 
 /**
  * Compress image if it's too large
  */
-export const compressImageIfNeeded = async (imageFile, maxWidth = 1920, maxHeight = 1080, quality = 0.8) => {
+export const compressImageIfNeeded = async (file, maxWidth = 1920, maxHeight = 1080, quality = 0.8) => {
+  // Skip compression for videos
+  if (file.isVideo || (file.type && file.type.startsWith('video/'))) {
+    return file;
+  }
+
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    
+
     img.onload = () => {
       // Calculate new dimensions
       let { width, height } = img;
-      
+
       if (width > maxWidth) {
         height = (height * maxWidth) / width;
         width = maxWidth;
       }
-      
+
       if (height > maxHeight) {
         width = (width * maxHeight) / height;
         height = maxHeight;
       }
-      
+
       // Set canvas size and draw image
       canvas.width = width;
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
-      
+
       // Convert to base64
       const compressedDataURL = canvas.toDataURL('image/jpeg', quality);
-      
+
       resolve({
-        ...imageFile,
+        ...file,
         dataURL: compressedDataURL,
-        originalSize: imageFile.dataURL.length,
+        originalSize: file.dataURL.length,
         compressedSize: compressedDataURL.length
       });
     };
-    
+
     img.onerror = () => {
       console.warn('Failed to compress image, using original');
-      resolve(imageFile);
+      resolve(file);
     };
-    
-    img.src = imageFile.dataURL;
+
+    img.src = file.dataURL;
   });
 };
 
@@ -115,7 +126,7 @@ const fileToBase64 = (file) => {
  */
 const parseImageReferences = (steps, imageFiles) => {
   const associations = [];
-  
+
   if (!steps || !imageFiles) return associations;
 
   steps.forEach(step => {
@@ -163,16 +174,23 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
   }
 
   console.log('Starting to store images for report:', reportId, 'Images count:', imageFiles.length);
-  const savedImages = [];
   const imageStepAssociations = steps ? parseImageReferences(steps, imageFiles) : [];
+
+  // Prepare all image rows up-front to send a single insert request
+  const imagesToInsert = [];
 
   for (let i = 0; i < imageFiles.length; i++) {
     const imageFile = imageFiles[i];
-    
+
     try {
-      // Convert to base64 if it's a File object
-      let base64Data;
-      if (imageFile instanceof File) {
+      let base64Data = null;
+      let videoUrl = null;
+      let isVideo = false;
+
+      if (imageFile.isVideo || (imageFile.type && imageFile.type.startsWith('video/'))) {
+        isVideo = true;
+        videoUrl = imageFile.dataURL; // This is the Supabase URL
+      } else if (imageFile instanceof File) {
         base64Data = await fileToBase64(imageFile);
       } else if (imageFile.dataURL) {
         base64Data = imageFile.dataURL;
@@ -185,86 +203,79 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
 
       // Find step associations for this image
       const associations = imageStepAssociations.filter(assoc => assoc.imageIndex === i);
-      
-      // If image is associated with steps, create one record per association
+
+      const commonData = {
+        report_id: reportId,
+        file_name: imageFile.name || (isVideo ? `video_${i + 1}.mp4` : `imagen_${i + 1}`),
+        image_data: base64Data, // Null for videos
+        video_url: videoUrl,    // Null for images
+        is_video: isVideo,
+        from_video_frame: imageFile.fromVideoFrame || false,
+        step_number: imageFile.stepNumber || null,
+        file_type: imageFile.type || (isVideo ? 'video/mp4' : 'image/png'),
+        file_size: imageFile.size || 0,
+        image_order: i,
+        is_stored_in_storage: !!videoUrl,
+        is_temp: isTemporary
+      };
+
+      // If the image is associated with steps, create one record per association; otherwise create a single general record
       if (associations.length > 0) {
-        for (const assoc of associations) {
-          const imageData = {
-            report_id: reportId,
+        associations.forEach((assoc) => {
+          imagesToInsert.push({
+            ...commonData,
             step_id: assoc.stepId,
-            file_name: imageFile.name || `imagen_${i + 1}`,
-            image_data: base64Data,
-            file_type: imageFile.type || 'image/png',
-            file_size: imageFile.size || 0,
-            image_order: i,
             step_image_type: assoc.type,
-            is_stored_in_storage: false,
-            is_temp: isTemporary
-          };
-
-          const { data, error } = await supabase
-            .from('report_images')
-            .insert(imageData)
-            .select()
-            .single();
-
-          if (error) {
-            console.error('Error saving step-associated image:', error);
-            continue;
-          }
-
-          savedImages.push({
-            id: data.id,
-            name: data.file_name,
-            dataURL: data.image_data,
-            size: data.file_size,
-            type: data.file_type,
-            stepId: data.step_id,
-            stepImageType: data.step_image_type
           });
-        }
+        });
       } else {
-        // Save as general image (not associated with specific step)
-        const imageData = {
-          report_id: reportId,
-          file_name: imageFile.name || `imagen_${i + 1}`,
-          image_data: base64Data,
-          file_type: imageFile.type || 'image/png',
-          file_size: imageFile.size || 0,
-          image_order: i,
+        imagesToInsert.push({
+          ...commonData,
           step_image_type: 'general',
-          is_stored_in_storage: false,
-          is_temp: isTemporary
-        };
-
-        const { data, error } = await supabase
-          .from('report_images')
-          .insert(imageData)
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Error saving general image:', error);
-          continue;
-        }
-
-        savedImages.push({
-          id: data.id,
-          name: data.file_name,
-          dataURL: data.image_data,
-          size: data.file_size,
-          type: data.file_type,
-          stepId: null,
-          stepImageType: 'general'
         });
       }
-
     } catch (error) {
       console.error('Error processing image:', error);
     }
   }
 
-  return savedImages;
+  if (imagesToInsert.length === 0) return [];
+
+  // Insert in manageable batches to avoid oversized payloads
+  const MAX_BATCH = 10;
+  const savedRows = [];
+
+  for (let i = 0; i < imagesToInsert.length; i += MAX_BATCH) {
+    const batch = imagesToInsert.slice(i, i + MAX_BATCH);
+    const { data, error } = await supabase
+      .from('report_images')
+      .insert(batch)
+      .select('id, file_name, file_size, file_type, step_id, step_image_type, image_order, is_video, video_url');
+
+    if (error) {
+      console.error('Error saving images batch:', error);
+      return [];
+    }
+
+    if (data) {
+      savedRows.push(...data);
+    }
+  }
+
+  // Supabase preserves insertion order within each batch; batches maintain overall ordering via concatenation
+  return savedRows.map((row, index) => {
+    const source = imagesToInsert[index];
+    return {
+      id: row.id,
+      name: row.file_name,
+      dataURL: row.is_video ? row.video_url : source.image_data,
+      size: row.file_size,
+      type: row.file_type,
+      stepId: row.step_id,
+      stepImageType: row.step_image_type,
+      isVideo: row.is_video
+    };
+  });
 };
 
 /**
@@ -288,13 +299,41 @@ export const loadImagesForReport = async (reportId) => {
     return (data || []).map(img => ({
       id: img.id,
       name: img.file_name,
-      dataURL: img.image_data,
+      dataURL: img.is_video ? img.video_url : img.image_data,
       size: img.file_size,
-      type: img.file_type
+      type: img.file_type,
+      isVideo: img.is_video,
+      fromVideoFrame: img.from_video_frame || false,
+      stepNumber: img.step_number || null
     }));
 
   } catch (error) {
     console.error('Error loading images:', error);
+    return [];
+  }
+};
+
+/**
+ * Load images for multiple reports in a single query to minimize latency
+ */
+export const loadImagesForReports = async (reportIds = []) => {
+  if (!Array.isArray(reportIds) || reportIds.length === 0) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('report_images')
+      .select('id, report_id, file_name, file_size, file_type, image_data, video_url, is_video, from_video_frame, step_number, image_order, step_image_type')
+      .in('report_id', reportIds)
+      .order('image_order');
+
+    if (error) {
+      console.error('Error loading images for reports:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error loading images for reports:', error);
     return [];
   }
 };
