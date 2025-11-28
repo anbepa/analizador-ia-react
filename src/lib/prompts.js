@@ -208,58 +208,66 @@ export const PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT = (editedReport
     ${editedReportContextJSON}
     
     **TU TAREA:**
-    Mejora el caso de prueba incorporando el contexto del usuario, pero MANTÉN las mismas reglas estrictas de formato.
+    Mejora el caso de prueba incorporando el contexto del usuario, pero MANTÉN las mismas reglas estrictas de formato simplificado.
     
-    **REGLAS ESTRICTAS (IGUALES A LA GENERACIÓN):**
+    **REGLAS ESTRICTAS:**
     
     1.  **ID DEL CASO:**
         - Usa SOLO un número: "1", "2", "3", etc.
-        - INCORRECTO: "Refinamiento_E2E_AsumidoComercial", "TC-REF-01"
-        - CORRECTO: "1", "2", "3"
     
     2.  **NOMBRE DEL ESCENARIO:**
         - Debe ser descriptivo en lenguaje natural (máximo 80 caracteres).
-        - INCORRECTO: "Caso de Prueba", "Refinamiento E2E"
         - CORRECTO: "Consulta de obligaciones en módulo Asumido Comercial"
 
     3.  **PRECONDICIONES:**
         - PROHIBIDO: "-", "N/A", vacío
         - CORRECTO: Condiciones específicas o "Ninguna precondición específica"
 
-    4.  **PASOS Y TRAZABILIDAD (DETECTIVE DE DATOS):**
-        - **Datos Ancla:** Si el usuario menciona o se ve un ID/Monto en la UI, BÚSCALO en las capturas de BD/API.
-        - **Integración:** Si hay capturas de BD, NO crees un paso separado solo para decir "veo la BD". FUSIÓNALO con la acción de UI: "Se realiza X y se valida en BD el registro Y".
-        - Describe SOLO lo que ves en las imágenes originales.
-        - NO INVENTES pasos que no estén respaldados visualmente.
+    4.  **PASOS (SIMPLIFICADO):**
+        - Cada paso debe tener SOLO:
+          * "numero_paso": Entero secuencial (1, 2, 3...)
+          * "descripcion": Texto detallado que combine la acción realizada, los datos ingresados y cualquier observación relevante.
+          * "imagen_referencia": Referencia a la evidencia (ej. "Evidencia 1", "Evidencia 2").
+        - NO incluyas campos antiguos como "dato_de_entrada", "resultado_esperado_paso", etc.
 
-    5.  **RESULTADO ESPERADO (FASE 1 - Deducción Lógica):**
-        - Define qué DEBERÍA suceder si el sistema funciona correctamente.
-        - Debe ser específico y observable.
-        - PROHIBIDO: "-", "N/A", "Ver pasos", "Definir criterio"
-        - CORRECTO: "Se visualiza la tabla de obligaciones con al menos 1 registro"
-
-    6.  **RESULTADO OBTENIDO (FASE 2 - Validación de Evidencia):**
-        - Describe lo que se observa en las evidencias finales.
+    5.  **RESULTADO OBTENIDO GENERAL:**
+        - Describe lo que se observa al final del flujo.
         - Sé objetivo y factual.
-        - PROHIBIDO: "-", "N/A" (salvo que no haya evidencia)
-        - CORRECTO: 
-          * "Se visualiza la tabla con 5 registros" (ÉXITO)
-          * "Aparece mensaje de error: 'Acceso denegado'" (ERROR)
-          * "Pendiente de ejecución" (SOLO si no hay evidencia del resultado)
+        - CORRECTO: "Se visualiza la tabla con 5 registros correctamente" o "Aparece mensaje de error: 'Acceso denegado'"
 
-    7.  **ESTADO GENERAL (FASE 3 - Comparación Objetiva):**
-        - Compara el Resultado Esperado vs. el Resultado Obtenido.
-        - "Exitoso" si coinciden y no hay errores
-        - "Fallido" si hay errores visibles o contradicciones
-        - "Pendiente" SOLO si el Resultado Obtenido es "Pendiente de ejecución"
+    6.  **ESTADO GENERAL:**
+        - "Exitoso", "Fallido" o "Pendiente".
+    
+    **FORMATO DE SALIDA (JSON ÚNICAMENTE):**
+    
+    \`\`\`json
+    {
+        "id_caso": 1,
+        "escenario_prueba": "Nombre descriptivo del escenario",
+        "precondiciones": "Condiciones iniciales",
+        "pasos": [
+            {
+                "numero_paso": 1,
+                "descripcion": "Descripción detallada de la acción y observación",
+                "imagen_referencia": "Evidencia 1"
+            },
+            {
+                "numero_paso": 2,
+                "descripcion": "Siguiente acción...",
+                "imagen_referencia": "Evidencia 2"
+            }
+        ],
+        "resultado_esperado": "Resultado esperado general",
+        "resultado_obtenido": "Resultado obtenido general",
+        "estado_general": "Exitoso"
+    }
+    \`\`\`
     
     **IMPORTANTE:**
     1. RESPONDER ÚNICAMENTE EN ESPAÑOL.
-    2. NO TRADUZCAS LAS CLAVES DEL JSON AL INGLÉS. Mantén "id_caso", "pasos", etc.
-    3. Retorna SOLO el JSON del caso de prueba refinado.
-    
-    **SALIDA:**
-    Retorna ÚNICAMENTE el JSON del caso de prueba refinado.`;
+    2. USAR EXACTAMENTE LAS CLAVES JSON DEFINIDAS ARRIBA.
+    3. Retorna SOLO el JSON válido.
+    `;
 
 
 export const PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS = (userContext = '') => `Eres un Analista de QA extremadamente meticuloso, con un ojo crítico para el detalle y una profunda comprensión de la experiencia de usuario y la funcionalidad del software. Tu tarea es detectar BUGS REALES y RELEVANTES.

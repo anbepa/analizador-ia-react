@@ -921,10 +921,14 @@ export const AppProvider = ({ children }) => {
             const stepNumber = parseInt(cells[0].textContent, 10);
             const stepData = editedReport.Pasos_Analizados.find(p => p.numero_paso === stepNumber);
             if (stepData) {
+                // Solo actualizamos la descripción, que es lo único visible y relevante ahora en la tabla simplificada
                 stepData.descripcion_accion_observada = cells[1].textContent.trim();
-                stepData.dato_de_entrada_paso = cells[2].textContent.trim();
-                stepData.resultado_esperado_paso = cells[3].textContent.trim();
-                stepData.resultado_obtenido_paso_y_estado = cells[4].textContent.trim();
+
+                // Aseguramos que los campos antiguos no se envíen o se limpien
+                delete stepData.dato_de_entrada_paso;
+                delete stepData.resultado_esperado_paso;
+                delete stepData.resultado_obtenido_paso_y_estado;
+
                 updatedSteps.push(stepData);
             }
         });
