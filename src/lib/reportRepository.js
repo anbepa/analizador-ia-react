@@ -8,10 +8,33 @@ export const saveReport = async (reportData, isTemporary = false) => {
     const videoFile = imageFiles && imageFiles.find(f => f.isVideo || (f.type && f.type.startsWith('video/')));
     const videoUrl = videoFile ? videoFile.dataURL : null;
 
+    // Generar id_caso único si no existe o es genérico (1)
+    let idCaso = otherData.id_caso;
+    if (!idCaso || idCaso === 1 || idCaso === '1') {
+      // Si hay user_story_id, generar ID basado en HU
+      if (otherData.user_story_id) {
+        // Contar escenarios existentes para esta HU
+        const { count, error: countError } = await supabase
+          .from('test_scenarios')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_story_id', otherData.user_story_id);
+
+        if (!countError) {
+          idCaso = (count || 0) + 1;
+        } else {
+          // Fallback: usar timestamp
+          idCaso = Date.now() % 100000;
+        }
+      } else {
+        // Sin HU: usar timestamp como ID único
+        idCaso = Date.now() % 100000;
+      }
+    }
+
     const { data: report, error: reportError } = await supabase
       .from('test_scenarios')
       .insert([{
-        id_caso: otherData.id_caso || null,
+        id_caso: idCaso,
         escenario_prueba: otherData.escenario_prueba || otherData.Nombre_del_Escenario || 'Caso de Prueba',
         precondiciones: otherData.precondiciones || null,
         resultado_esperado: otherData.resultado_esperado || otherData.Resultado_Esperado_General_Flujo || null,
