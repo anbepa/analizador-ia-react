@@ -95,6 +95,23 @@ export const AppProvider = ({ children }) => {
         }));
     };
 
+    const extractPasoFieldsFromText = (text = '') => {
+        if (!text) return {};
+
+        const normalized = text.replace(/\r/g, '');
+        const extract = (label) => {
+            const regex = new RegExp(`${label}\s*[:\-]\s*([^|\n]+)`, 'i');
+            const match = normalized.match(regex);
+            return match ? match[1].trim() : null;
+        };
+
+        return {
+            datoEntrada: extract('(?:dato(?:s)? de entrada|dato(?:s)? ancla|input data)') || undefined,
+            resultadoEsperado: extract('resultado esperado(?: del paso)?') || extract('validaci[oó]n esperada') || undefined,
+            resultadoObtenido: extract('resultado obtenido(?: del paso)?') || extract('observaci[oó]n') || undefined
+        };
+    };
+
     // Function to clean and normalize AI response fields
     const cleanReportData = (reportData, images = []) => {
         if (!reportData) return reportData;
@@ -317,12 +334,15 @@ export const AppProvider = ({ children }) => {
                     }
                 }
 
+                const descripcionPaso = step.descripcion || step.description || step.trazabilidad || '';
+                const extractedFields = extractPasoFieldsFromText(descripcionPaso);
+
                 // Extraer dato_de_entrada_paso de forma inteligente
-                let datoEntrada = step.dato_de_entrada_paso || step.datos_ancla || step.input_data || step.datos_entrada;
+                let datoEntrada = step.dato_de_entrada_paso || step.datos_ancla || step.input_data || step.datos_entrada || extractedFields.datoEntrada;
 
                 // Si Gemini no lo proporcionó, intentar extraerlo de la descripción
                 if (!datoEntrada || datoEntrada === 'null') {
-                    const descripcion = step.descripcion || step.description || '';
+                    const descripcion = descripcionPaso;
 
                     // Buscar patrones comunes de datos en la descripción
                     const patterns = [
@@ -351,10 +371,10 @@ export const AppProvider = ({ children }) => {
                 }
 
                 // Extraer resultado_esperado_paso
-                let resultadoEsperado = step.resultado_esperado_paso || step.expected_result || step.resultados_esperados || step.validacion;
+                let resultadoEsperado = step.resultado_esperado_paso || step.expected_result || step.resultados_esperados || step.validacion || extractedFields.resultadoEsperado;
                 if (!resultadoEsperado || resultadoEsperado === '') {
                     // Inferir del contexto: si es un paso de acción, el resultado esperado es que la acción se complete
-                    const descripcion = step.descripcion || step.description || '';
+                    const descripcion = descripcionPaso;
                     if (descripcion.includes('clic') || descripcion.includes('hacer')) {
                         resultadoEsperado = 'La acción debe completarse correctamente';
                     } else if (descripcion.includes('visualiza') || descripcion.includes('muestra')) {
@@ -365,7 +385,7 @@ export const AppProvider = ({ children }) => {
                 }
 
                 // Extraer resultado_obtenido_paso_y_estado
-                let resultadoObtenido = step.resultado_obtenido_paso_y_estado || step.resultado_obtenido || step.actual_result || step.estado;
+                let resultadoObtenido = step.resultado_obtenido_paso_y_estado || step.resultado_obtenido || step.actual_result || step.estado || extractedFields.resultadoObtenido;
                 if (!resultadoObtenido || resultadoObtenido === '' || resultadoObtenido === 'Pendiente') {
                     // Si hay evidencia visual, asumir éxito
                     if (imgRef && imgRef !== 'N/A') {
@@ -587,7 +607,7 @@ export const AppProvider = ({ children }) => {
             }
 
             // Clean the report data to remove redundant text
-            newReportData = cleanReportData(newReportData);
+            newReportData = cleanReportData(newReportData, compressedImages);
 
             // Fix missing numero_paso values to ensure database compatibility
             if (newReportData.Pasos_Analizados && Array.isArray(newReportData.Pasos_Analizados)) {
@@ -1027,7 +1047,7 @@ export const AppProvider = ({ children }) => {
             }
 
             // Clean the report data to remove redundant text
-            refinedReportData = cleanReportData(refinedReportData);
+            refinedReportData = cleanReportData(refinedReportData, compressedImages);
 
             // Fix missing numero_paso values to ensure database compatibility
             if (refinedReportData.Pasos_Analizados && Array.isArray(refinedReportData.Pasos_Analizados)) {
