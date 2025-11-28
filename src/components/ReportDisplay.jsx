@@ -104,7 +104,7 @@ function ReportDisplay() {
                             {pasos.map((paso, index) => {
                                 const numeroPaso = index + 1;
                                 const descripcion = paso.descripcion || paso.descripcion_accion_observada || 'Sin descripción';
-                                const imagenRef = paso.imagen_referencia || paso.imagen_referencia_entrada;
+                                const imagenRef = paso.imagen_referencia;
 
                                 // Lógica de asociación
                                 let imgIndex = getImageIndexFromString(imagenRef);

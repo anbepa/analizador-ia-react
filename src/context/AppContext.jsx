@@ -337,7 +337,7 @@ export const AppProvider = ({ children }) => {
                 return {
                     numero_paso: step.numero_paso || step.step_number || step.number || step.id_paso || step.orden || (index + 1),
                     descripcion_accion_observada: step.descripcion_accion_observada || step.descripcion || step.description || step.action || step.accion || step.texto || step.text || 'Sin descripción',
-                    imagen_referencia_entrada: imgRef
+                    imagen_referencia: imgRef
                 };
             });
 

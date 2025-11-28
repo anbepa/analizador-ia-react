@@ -130,12 +130,7 @@ export const saveReport = async (reportData, isTemporary = false) => {
         scenario_id: report.id,
         numero_paso: paso.numero_paso || paso.numero || (index + 1),
         descripcion_accion_observada: paso.descripcion || paso.descripcion_accion_observada || null,
-        imagen_referencia_entrada: paso.imagen_referencia || paso.imagen_referencia_entrada || null,
-        imagen_referencia_salida: paso.imagen_referencia_salida || null,
-        elemento_clave_y_ubicacion_aproximada: paso.elemento_clave_y_ubicacion_aproximada || null,
-        dato_de_entrada_paso: paso.dato_de_entrada_paso || null,
-        resultado_esperado_paso: paso.resultado_esperado_paso || null,
-        resultado_obtenido_paso_y_estado: paso.resultado_obtenido_paso_y_estado || null
+        imagen_referencia: paso.imagen_referencia || paso.imagen_referencia_entrada || null
       }));
 
       const { data: steps, error: stepsError } = await supabase
@@ -205,12 +200,7 @@ export const addStepToReport = async (reportId, stepData, newImages = []) => {
         scenario_id: reportId,
         numero_paso: nextStepNumber,
         descripcion_accion_observada: stepData.descripcion_accion_observada || null,
-        imagen_referencia_entrada: stepData.imagen_referencia_entrada || null,
-        imagen_referencia_salida: stepData.imagen_referencia_salida || null,
-        elemento_clave_y_ubicacion_aproximada: stepData.elemento_clave_y_ubicacion_aproximada || null,
-        dato_de_entrada_paso: stepData.dato_de_entrada_paso || null,
-        resultado_esperado_paso: stepData.resultado_esperado_paso || null,
-        resultado_obtenido_paso_y_estado: stepData.resultado_obtenido_paso_y_estado || 'Pendiente de análisis'
+        imagen_referencia: stepData.imagen_referencia || stepData.imagen_referencia_entrada || null
       }])
       .select()
       .single();
@@ -293,12 +283,7 @@ export const updateStepInReport = async (reportId, stepId, stepData) => {
       .from('test_scenario_steps')
       .update({
         descripcion_accion_observada: stepData.descripcion_accion_observada || null,
-        imagen_referencia_entrada: stepData.imagen_referencia_entrada || null,
-        imagen_referencia_salida: stepData.imagen_referencia_salida || null,
-        elemento_clave_y_ubicacion_aproximada: stepData.elemento_clave_y_ubicacion_aproximada || null,
-        dato_de_entrada_paso: stepData.dato_de_entrada_paso || null,
-        resultado_esperado_paso: stepData.resultado_esperado_paso || null,
-        resultado_obtenido_paso_y_estado: stepData.resultado_obtenido_paso_y_estado || null
+        imagen_referencia: stepData.imagen_referencia || stepData.imagen_referencia_entrada || null
       })
       .eq('id', stepId)
       .eq('scenario_id', reportId)
@@ -438,12 +423,7 @@ export const updateReport = async (reportId, reportData) => {
         scenario_id: reportId,
         numero_paso: paso.numero_paso || (index + 1),
         descripcion_accion_observada: paso.descripcion_accion_observada || null,
-        imagen_referencia_entrada: paso.imagen_referencia_entrada || null,
-        imagen_referencia_salida: paso.imagen_referencia_salida || null,
-        elemento_clave_y_ubicacion_aproximada: paso.elemento_clave_y_ubicacion_aproximada || null,
-        dato_de_entrada_paso: paso.dato_de_entrada_paso || null,
-        resultado_esperado_paso: paso.resultado_esperado_paso || null,
-        resultado_obtenido_paso_y_estado: paso.resultado_obtenido_paso_y_estado || null
+        imagen_referencia: paso.imagen_referencia || paso.imagen_referencia_entrada || null
       }));
 
       const { data: steps, error: stepsError } = await supabase

@@ -143,10 +143,10 @@ export const downloadExcelReport = async (testCase, images = []) => {
 
             // Determinar qué imagen va en este paso
             // Prioridad 1: Referencia explícita en el paso (imagen_referencia)
-            // Prioridad 2: Índice secuencial (Paso 1 -> Imagen 0, Paso 2 -> Imagen 1)
+            // Prioridad 2: Índice secuencial (Paso 1 -> Imagen            // Intentar obtener imagen
             let imgIndex = -1;
-            if (paso.imagen_referencia || paso.imagen_referencia_entrada) {
-                imgIndex = getImageIndex(paso.imagen_referencia || paso.imagen_referencia_entrada);
+            if (paso.imagen_referencia) {
+                imgIndex = getImageIndex(paso.imagen_referencia);
             }
 
             // Si no se encontró por referencia explícita o es inválida, usar secuencial
