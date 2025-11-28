@@ -1168,6 +1168,45 @@ export const AppProvider = ({ children }) => {
         }
     };
 
+    // Funciones para edición de pasos durante refinamiento
+    const updateStepInActiveReport = (stepNumber, updatedData) => {
+        if (!activeReport || activeReportIndex === -1) return;
+
+        const updatedReport = { ...activeReport };
+        const stepIndex = updatedReport.Pasos_Analizados.findIndex(p => p.numero_paso === stepNumber);
+
+        if (stepIndex !== -1) {
+            updatedReport.Pasos_Analizados[stepIndex] = {
+                ...updatedReport.Pasos_Analizados[stepIndex],
+                ...updatedData
+            };
+
+            setReports(prev => {
+                const newReports = [...prev];
+                newReports[activeReportIndex] = updatedReport;
+                return newReports;
+            });
+        }
+    };
+
+    const deleteStepFromActiveReport = (stepNumber) => {
+        if (!activeReport || activeReportIndex === -1) return;
+
+        const updatedReport = { ...activeReport };
+        updatedReport.Pasos_Analizados = updatedReport.Pasos_Analizados
+            .filter(p => p.numero_paso !== stepNumber)
+            .map((paso, index) => ({
+                ...paso,
+                numero_paso: index + 1 // Renumerar
+            }));
+
+        setReports(prev => {
+            const newReports = [...prev];
+            newReports[activeReportIndex] = updatedReport;
+            return newReports;
+        });
+    };
+
     const value = {
         currentImageFiles,
         setCurrentImageFiles,
@@ -1211,7 +1250,10 @@ export const AppProvider = ({ children }) => {
         userStorySuggestions,
         handleUserStorySearch,
         handleUserStoryCreate,
-        handleUserStoryDelete
+        handleUserStoryDelete,
+        // Edición de pasos en refinamiento
+        updateStepInActiveReport,
+        deleteStepFromActiveReport
     };
 
     return (
