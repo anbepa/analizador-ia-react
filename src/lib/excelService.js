@@ -265,8 +265,10 @@ export const downloadMultipleTestCasesExcel = async (testCases, imagesByReport =
             const testCase = testCases[caseIndex];
             const images = imagesByReport[testCase.id] || [];
 
-            // Nombre de la hoja (limitado a 31 caracteres por Excel)
-            const sheetName = `CP-${testCase.id_caso || (caseIndex + 1)}`.substring(0, 31);
+            // Nombre de la hoja único (limitado a 31 caracteres por Excel)
+            // Usar índice para garantizar unicidad
+            const baseName = testCase.id_caso || `Caso-${caseIndex + 1}`;
+            const sheetName = `${caseIndex + 1}. ${baseName}`.substring(0, 31);
             const worksheet = workbook.addWorksheet(sheetName);
 
             // Configurar anchos de columna
