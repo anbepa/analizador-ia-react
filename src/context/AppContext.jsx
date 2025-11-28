@@ -883,37 +883,29 @@ export const AppProvider = ({ children }) => {
     };
 
     const handleSaveAndRefine = async () => {
-        scrollToReport(); // Scroll to top of the report section
-        const reportContentEl = document.getElementById('report-content');
-        if (!reportContentEl || !activeReport) return;
+        if (!activeReport) {
+            console.error('No active report to refine');
+            return;
+        }
 
+        // Use the current state directly instead of parsing DOM
         const editedReport = JSON.parse(JSON.stringify(activeReport));
-        const h1 = reportContentEl.querySelector('h1');
-        if (h1) editedReport.Nombre_del_Escenario = h1.textContent;
 
-        const tableRows = reportContentEl.querySelectorAll('tbody > tr:not(.evidence-row)');
-        const updatedSteps = [];
-        tableRows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            const stepNumber = parseInt(cells[0].textContent, 10);
-            const stepData = editedReport.Pasos_Analizados.find(p => p.numero_paso === stepNumber);
-            if (stepData) {
-                // Solo actualizamos la descripción, que es lo único visible y relevante ahora en la tabla simplificada
-                stepData.descripcion_accion_observada = cells[1].textContent.trim();
-
-                // Aseguramos que los campos antiguos no se envíen o se limpien
-                delete stepData.dato_de_entrada_paso;
-                delete stepData.resultado_esperado_paso;
-                delete stepData.resultado_obtenido_paso_y_estado;
-
-                updatedSteps.push(stepData);
-            }
-        });
-
-        editedReport.Pasos_Analizados = updatedSteps;
+        // Add user context
         editedReport.user_provided_additional_context = userContext.trim();
+
+        // Ensure steps are in the correct simplified format
+        if (editedReport.Pasos_Analizados && Array.isArray(editedReport.Pasos_Analizados)) {
+            editedReport.Pasos_Analizados = editedReport.Pasos_Analizados.map(paso => ({
+                numero_paso: paso.numero_paso,
+                descripcion: paso.descripcion || paso.descripcion_accion_observada,
+                imagen_referencia: paso.imagen_referencia
+            }));
+        }
+
+        // Remove imageFiles for the prompt
         const { imageFiles: _imageFiles, ...reportForPrompt } = editedReport;
-        const editedJsonString = JSON.stringify([reportForPrompt], null, 2);
+        const editedJsonString = JSON.stringify(reportForPrompt, null, 2);
 
         setLoading({ state: true, message: 'Refinando análisis...' });
         setError(null);
