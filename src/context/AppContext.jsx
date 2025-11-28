@@ -1031,6 +1031,19 @@ export const AppProvider = ({ children }) => {
 
                     setLoading({ state: true, message: 'Refinamiento guardado exitosamente' });
                     console.log('Refinement completed and saved successfully');
+
+                    // Recargar TODOS los reportes desde la BD para asegurar persistencia
+                    setLoading({ state: true, message: 'Recargando reportes desde base de datos...' });
+                    const allReports = await loadReportsFromDB();
+                    setReports(allReports);
+
+                    // Encontrar el índice del reporte actualizado en la nueva lista
+                    const updatedIndex = allReports.findIndex(r => r.id === activeReport.id);
+                    if (updatedIndex !== -1) {
+                        setActiveReportIndex(updatedIndex);
+                    }
+
+                    console.log('All reports reloaded from database, total:', allReports.length);
                 } catch (dbError) {
                     console.error("Failed to update refined report in database:", dbError);
                     // Fallback to local update
