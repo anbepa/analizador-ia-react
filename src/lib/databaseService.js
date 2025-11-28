@@ -422,7 +422,7 @@ export const updateReport = async (reportId, reportData) => {
       const stepsToInsert = Pasos_Analizados.map((paso, index) => ({
         scenario_id: reportId,
         numero_paso: paso.numero_paso || (index + 1),
-        descripcion_accion_observada: paso.descripcion_accion_observada || null,
+        descripcion_accion_observada: paso.descripcion || paso.descripcion_accion_observada || null,
         imagen_referencia: paso.imagen_referencia || null
       }));
 
