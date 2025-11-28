@@ -1182,6 +1182,10 @@ export const AppProvider = ({ children }) => {
             if (filterUserStory?.id === id) {
                 setFilterUserStory(null);
             }
+            // Si la HU eliminada es la que está seleccionada para análisis, limpiarla
+            if (analysisUserStory?.id === id) {
+                setAnalysisUserStory(null);
+            }
             // Limpiar sugerencias
             setUserStorySuggestions([]);
             return true;
