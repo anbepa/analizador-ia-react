@@ -196,6 +196,9 @@ const ReportsView = () => {
                             activeReport={activeReport}
                             onSelectReport={handleSelectReport}
                             onRequestDelete={(uniqueId) => setDeleteConfirm(uniqueId)}
+                            filterUserStory={filterUserStory}
+                            onClearFilter={clearFilter}
+                            onRequestDeleteStory={() => setDeleteStoryConfirm(filterUserStory.id)}
                         />
 
                         {/* Detalle del Escenario Seleccionado */}
