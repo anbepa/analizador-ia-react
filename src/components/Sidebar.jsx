@@ -3,11 +3,7 @@ import { useAppContext } from '../context/AppContext';
 
 const Sidebar = () => {
     const { navigationState, setNavigationMode } = useAppContext();
-    const [isCollapsed, setIsCollapsed] = useState(false);
-
-    const toggleCollapse = () => {
-        setIsCollapsed(!isCollapsed);
-    };
+    const [isCollapsed, setIsCollapsed] = useState(true);
 
     const handleNavigation = (view) => {
         setNavigationMode(view);
@@ -21,36 +17,30 @@ const Sidebar = () => {
                 relative h-screen bg-[#F9F9FB] border-r border-secondary-200/60 transition-all duration-300 ease-in-out flex flex-col z-50
                 ${isCollapsed ? 'w-20' : 'w-64'}
             `}
+            onMouseEnter={() => setIsCollapsed(false)}
+            onMouseLeave={() => setIsCollapsed(true)}
         >
             {/* Header / Logo Area */}
             <div className="h-24 flex items-center justify-between px-6">
-                {!isCollapsed && (
-                    <div className="flex items-center gap-3 overflow-hidden whitespace-nowrap animate-fade-in">
+                <div className={`flex items-center gap-3 overflow-hidden whitespace-nowrap transition-opacity duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+                    <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-purple-600 text-white flex items-center justify-center shadow-lg shadow-primary/20 flex-shrink-0">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <span className="font-bold text-secondary-900 text-lg tracking-tight">Analizador IA</span>
+                </div>
+
+                {/* Logo icon visible when collapsed */}
+                {isCollapsed && (
+                    <div className="absolute left-1/2 -translate-x-1/2 top-8">
                         <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-purple-600 text-white flex items-center justify-center shadow-lg shadow-primary/20 flex-shrink-0">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
                         </div>
-                        <span className="font-bold text-secondary-900 text-lg tracking-tight">Analizador IA</span>
                     </div>
                 )}
-                <button
-                    onClick={toggleCollapse}
-                    className={`
-                        p-2 rounded-lg text-secondary-400 hover:bg-white hover:shadow-sm hover:text-secondary-600 transition-all
-                        ${isCollapsed ? 'mx-auto' : ''}
-                    `}
-                >
-                    {isCollapsed ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                        </svg>
-                    ) : (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                        </svg>
-                    )}
-                </button>
             </div>
 
             {/* Navigation Items */}
