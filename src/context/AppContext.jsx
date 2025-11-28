@@ -320,7 +320,7 @@ export const AppProvider = ({ children }) => {
 
             cleaned.Pasos_Analizados = rawSteps.map((step, index) => {
                 // Determinar la referencia de imagen
-                let imgRef = step.imagen_referencia || step.image_ref || step.imagen_referencia_entrada || step.evidencia;
+                let imgRef = step.imagen_referencia || step.image_ref || step.evidencia;
 
                 // Si no tiene referencia explícita, asignar por índice secuencial
                 if (!imgRef || imgRef === 'N/A') {
@@ -555,13 +555,8 @@ export const AppProvider = ({ children }) => {
                 // If Pasos_Analizados is missing or invalid, create a basic structure
                 newReportData.Pasos_Analizados = [{
                     numero_paso: 1,
-                    descripcion_accion_observada: "Análisis inicial de evidencias",
-                    imagen_referencia_entrada: "Evidencia 1",
-                    imagen_referencia_salida: compressedImages.length > 1 ? "Evidencia 2" : "Evidencia 1",
-                    elemento_clave_y_ubicacion_aproximada: "Elementos de la interfaz",
-                    dato_de_entrada_paso: "N/A",
-                    resultado_esperado_paso: "Visualización correcta",
-                    resultado_obtenido_paso_y_estado: "Pendiente de análisis"
+                    descripcion: "Análisis inicial de evidencias",
+                    imagen_referencia: "Evidencia 1"
                 }];
             }
 
@@ -725,13 +720,8 @@ export const AppProvider = ({ children }) => {
                             .sort((a, b) => a.numero_paso - b.numero_paso)
                             .map(step => ({
                                 numero_paso: step.numero_paso,
-                                descripcion_accion_observada: step.descripcion_accion_observada,
-                                imagen_referencia_entrada: step.imagen_referencia_entrada,
-                                imagen_referencia_salida: step.imagen_referencia_salida,
-                                elemento_clave_y_ubicacion_aproximada: step.elemento_clave_y_ubicacion_aproximada,
-                                dato_de_entrada_paso: step.dato_de_entrada_paso,
-                                resultado_esperado_paso: step.resultado_esperado_paso,
-                                resultado_obtenido_paso_y_estado: step.resultado_obtenido_paso_y_estado
+                                descripcion: step.descripcion_accion_observada || step.descripcion,
+                                imagen_referencia: step.imagen_referencia
                             }))
                     };
 
@@ -801,13 +791,8 @@ export const AppProvider = ({ children }) => {
                             .sort((a, b) => a.numero_paso - b.numero_paso)
                             .map(step => ({
                                 numero_paso: step.numero_paso,
-                                descripcion_accion_observada: step.descripcion_accion_observada,
-                                imagen_referencia_entrada: step.imagen_referencia_entrada,
-                                imagen_referencia_salida: step.imagen_referencia_salida,
-                                elemento_clave_y_ubicacion_aproximada: step.elemento_clave_y_ubicacion_aproximada,
-                                dato_de_entrada_paso: step.dato_de_entrada_paso,
-                                resultado_esperado_paso: step.resultado_esperado_paso,
-                                resultado_obtenido_paso_y_estado: step.resultado_obtenido_paso_y_estado
+                                descripcion: step.descripcion_accion_observada || step.descripcion,
+                                imagen_referencia: step.imagen_referencia
                             }))
                     };
 
@@ -854,11 +839,7 @@ export const AppProvider = ({ children }) => {
         const newStepNumber = activeReport.Pasos_Analizados.length + 1;
         const newStepData = {
             descripcion_accion_observada: 'Nueva acción...',
-            dato_de_entrada_paso: '',
-            resultado_esperado_paso: '',
-            resultado_obtenido_paso_y_estado: 'Pendiente de análisis',
-            imagen_referencia_entrada: 'N/A',
-            imagen_referencia_salida: 'N/A'
+            imagen_referencia: 'N/A'
         };
 
         // Add to database if we have an ID
@@ -870,12 +851,8 @@ export const AppProvider = ({ children }) => {
                 const updatedReport = { ...activeReport };
                 const localStep = {
                     numero_paso: dbStep.numero_paso,
-                    descripcion_accion_observada: dbStep.descripcion_accion_observada,
-                    dato_de_entrada_paso: dbStep.dato_de_entrada_paso || '',
-                    resultado_esperado_paso: dbStep.resultado_esperado_paso || '',
-                    resultado_obtenido_paso_y_estado: dbStep.resultado_obtenido_paso_y_estado,
-                    imagen_referencia_entrada: dbStep.imagen_referencia_entrada || 'N/A',
-                    imagen_referencia_salida: dbStep.imagen_referencia_salida || 'N/A'
+                    descripcion: dbStep.descripcion_accion_observada || dbStep.descripcion,
+                    imagen_referencia: dbStep.imagen_referencia || 'N/A'
                 };
                 updatedReport.Pasos_Analizados = [...updatedReport.Pasos_Analizados, localStep];
 

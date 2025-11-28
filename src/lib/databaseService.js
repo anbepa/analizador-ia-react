@@ -130,7 +130,7 @@ export const saveReport = async (reportData, isTemporary = false) => {
         scenario_id: report.id,
         numero_paso: paso.numero_paso || paso.numero || (index + 1),
         descripcion_accion_observada: paso.descripcion || paso.descripcion_accion_observada || null,
-        imagen_referencia: paso.imagen_referencia || paso.imagen_referencia_entrada || null
+        imagen_referencia: paso.imagen_referencia || null
       }));
 
       const { data: steps, error: stepsError } = await supabase
@@ -200,7 +200,7 @@ export const addStepToReport = async (reportId, stepData, newImages = []) => {
         scenario_id: reportId,
         numero_paso: nextStepNumber,
         descripcion_accion_observada: stepData.descripcion_accion_observada || null,
-        imagen_referencia: stepData.imagen_referencia || stepData.imagen_referencia_entrada || null
+        imagen_referencia: stepData.imagen_referencia || null
       }])
       .select()
       .single();
@@ -283,7 +283,7 @@ export const updateStepInReport = async (reportId, stepId, stepData) => {
       .from('test_scenario_steps')
       .update({
         descripcion_accion_observada: stepData.descripcion_accion_observada || null,
-        imagen_referencia: stepData.imagen_referencia || stepData.imagen_referencia_entrada || null
+        imagen_referencia: stepData.imagen_referencia || null
       })
       .eq('id', stepId)
       .eq('scenario_id', reportId)
@@ -423,7 +423,7 @@ export const updateReport = async (reportId, reportData) => {
         scenario_id: reportId,
         numero_paso: paso.numero_paso || (index + 1),
         descripcion_accion_observada: paso.descripcion_accion_observada || null,
-        imagen_referencia: paso.imagen_referencia || paso.imagen_referencia_entrada || null
+        imagen_referencia: paso.imagen_referencia || null
       }));
 
       const { data: steps, error: stepsError } = await supabase
@@ -684,12 +684,12 @@ export const loadPermanentReports = async (filters = {}) => {
           ...step,
           numero: step.numero_paso,
           descripcion: step.descripcion_accion_observada,
-          imagen_referencia: step.imagen_referencia_entrada
+          imagen_referencia: step.imagen_referencia
         })),
         pasos: (report.test_scenario_steps || []).sort((a, b) => a.numero_paso - b.numero_paso).map(step => ({
           numero_paso: step.numero_paso,
           descripcion: step.descripcion_accion_observada,
-          imagen_referencia: step.imagen_referencia_entrada
+          imagen_referencia: step.imagen_referencia
         })),
         id: report.id,
         created_at: report.created_at,
