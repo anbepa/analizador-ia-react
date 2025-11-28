@@ -653,6 +653,8 @@ export const AppProvider = ({ children }) => {
                             });
 
                         }
+                        // Limpiar las imágenes cargadas después de un análisis exitoso
+                        setCurrentImageFiles([]);
                     } catch (permanentError) {
                         console.warn("Report saved but couldn't make permanent:", permanentError);
                         // Report is still saved, just remains temporary
@@ -666,6 +668,7 @@ export const AppProvider = ({ children }) => {
                     setActiveReportIndex(newReports.length - 1);
                     return newReports;
                 });
+                setCurrentImageFiles([]); // También limpiar si solo se guardó localmente
 
                 setError("Reporte generado exitosamente, pero no se pudo guardar en la base de datos.");
             }
