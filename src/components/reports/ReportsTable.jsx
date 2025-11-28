@@ -30,29 +30,6 @@ const ReportsTable = ({ filteredReports, activeReport, onSelectReport, onRequest
 
   return (
     <div className="bg-white rounded-2xl border border-secondary-200 shadow-sm overflow-hidden mb-6">
-      {/* Header con toggle */}
-      <div
-        className="px-6 py-4 border-b border-secondary-200 flex items-center justify-between cursor-pointer hover:bg-secondary-50 transition-colors"
-        onClick={() => setIsTableVisible(!isTableVisible)}
-      >
-        <div className="flex items-center gap-2">
-          <svg
-            className={`w-5 h-5 text-secondary-600 transition-transform ${isTableVisible ? 'rotate-90' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-          </svg>
-          <h2 className="text-sm font-bold text-secondary-700 uppercase tracking-wider">
-            Resultados de la búsqueda
-          </h2>
-        </div>
-        <span className="text-sm text-secondary-500">
-          {filteredReports.length} escenario{filteredReports.length !== 1 ? 's' : ''}
-        </span>
-      </div>
-
       {/* User Story Info - Fijo */}
       {filterUserStory && (
         <div className="px-6 py-4 bg-primary/5 border-b border-primary/10">
@@ -112,6 +89,29 @@ const ReportsTable = ({ filteredReports, activeReport, onSelectReport, onRequest
           </div>
         </div>
       )}
+
+      {/* Header con toggle */}
+      <div
+        className="px-6 py-4 border-b border-secondary-200 flex items-center justify-between cursor-pointer hover:bg-secondary-50 transition-colors"
+        onClick={() => setIsTableVisible(!isTableVisible)}
+      >
+        <div className="flex items-center gap-2">
+          <svg
+            className={`w-5 h-5 text-secondary-600 transition-transform ${isTableVisible ? 'rotate-90' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+          </svg>
+          <h2 className="text-sm font-bold text-secondary-700 uppercase tracking-wider">
+            Resultados de la búsqueda
+          </h2>
+        </div>
+        <span className="text-sm text-secondary-500">
+          {filteredReports.length} escenario{filteredReports.length !== 1 ? 's' : ''}
+        </span>
+      </div>
 
       {/* Tabla - Colapsable */}
       {isTableVisible && (
