@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ReportsTable = ({ filteredReports, activeReport, onSelectReport, onRequestDelete, filterUserStory, onClearFilter, onRequestDeleteStory }) => {
+const ReportsTable = ({ filteredReports, activeReport, onSelectReport, onRequestDelete, filterUserStory, onClearFilter, onRequestDeleteStory, onExportAll }) => {
   if (filteredReports.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-secondary-200 p-12 text-center shadow-sm">
@@ -40,6 +40,16 @@ const ReportsTable = ({ filteredReports, activeReport, onSelectReport, onRequest
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={onExportAll}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#007AFF] hover:bg-[#0062cc] rounded-lg transition-colors"
+                title="Exportar todos los escenarios de esta HU a Excel"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar Todos
+              </button>
               <button
                 onClick={onRequestDeleteStory}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200"

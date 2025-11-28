@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import ReportDisplay from '../ReportDisplay';
-import { downloadExcelReport } from '../../lib/excelService';
+import { downloadExcelReport, downloadMultipleTestCasesExcel } from '../../lib/excelService';
 import ReportFilters from '../reports/ReportFilters';
 import ReportsTable from '../reports/ReportsTable';
 import ConfirmationModal from '../reports/ConfirmationModal';
@@ -88,6 +88,27 @@ const ReportsView = () => {
             alert('Error al generar el archivo Excel: ' + error.message);
         }
     };
+
+    const handleDownloadAllExcel = async () => {
+        if (!filterUserStory || filteredReports.length === 0) {
+            alert('No hay escenarios para exportar');
+            return;
+        }
+
+        try {
+            // Agrupar imágenes por ID de reporte
+            const imagesByReport = {};
+            filteredReports.forEach(report => {
+                imagesByReport[report.id] = report.imageFiles || [];
+            });
+
+            await downloadMultipleTestCasesExcel(filteredReports, imagesByReport, filterUserStory);
+        } catch (error) {
+            console.error('Error generando Excel múltiple:', error);
+            alert('Error al generar el archivo Excel: ' + error.message);
+        }
+    };
+
 
     // Filtrar escenarios
     const filteredReports = useMemo(() => {
@@ -199,6 +220,7 @@ const ReportsView = () => {
                             filterUserStory={filterUserStory}
                             onClearFilter={clearFilter}
                             onRequestDeleteStory={() => setDeleteStoryConfirm(filterUserStory.id)}
+                            onExportAll={handleDownloadAllExcel}
                         />
 
                         {/* Detalle del Escenario Seleccionado */}
