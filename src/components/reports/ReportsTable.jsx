@@ -11,7 +11,16 @@ const ReportsTable = ({ filteredReports, activeReport, onSelectReport, onRequest
 
   return (
     <div className="bg-white rounded-2xl border border-secondary-200 shadow-sm overflow-hidden mb-6">
-      {/* User Story Header */}
+      <div className="px-6 py-4 border-b border-secondary-200 flex items-center justify-between">
+        <h2 className="text-sm font-bold text-secondary-700 uppercase tracking-wider">
+          Resultados de la búsqueda
+        </h2>
+        <span className="text-sm text-secondary-500">
+          Mostrando 1-{filteredReports.length} de {filteredReports.length} elementos
+        </span>
+      </div>
+
+      {/* User Story Info */}
       {filterUserStory && (
         <div className="px-6 py-4 bg-primary/5 border-b border-primary/10">
           <div className="flex items-center justify-between">
@@ -52,14 +61,6 @@ const ReportsTable = ({ filteredReports, activeReport, onSelectReport, onRequest
         </div>
       )}
 
-      <div className="px-6 py-4 border-b border-secondary-200 flex items-center justify-between">
-        <h2 className="text-sm font-bold text-secondary-700 uppercase tracking-wider">
-          Resultados de la búsqueda
-        </h2>
-        <span className="text-sm text-secondary-500">
-          Mostrando 1-{filteredReports.length} de {filteredReports.length} elementos
-        </span>
-      </div>
 
       <div className="overflow-x-auto">
         <table className="w-full">
