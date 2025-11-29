@@ -1,273 +1,211 @@
-export const PROMPT_FLOW_ANALYSIS_FROM_IMAGES = (annotationsContext = '') => `
-    **FORMATO DE RESPUESTA OBLIGATORIO - LEE ESTO PRIMERO:**
+export const PROMPT_CHAIN_STEP_1_ANALYST = (initialContext = '') => `
+    **ROL: ANALISTA DE EVIDENCIA TÉCNICA (QA ANALYST)**
     
-    Debes responder EXACTAMENTE con este formato JSON. USA ESTOS NOMBRES DE CAMPOS, NO OTROS:
+    Tu objetivo es OBSERVAR y EXTRAER información factual de las imágenes proporcionadas. NO generes un caso de prueba todavía. Solo reporta lo que ves.
     
-    {
-        "id_caso": 1,
-        "nombre_escenario": "Descripción del escenario",
-        "precondiciones": "Condiciones iniciales o 'Ninguna precondición específica'",
-        "pasos": [
-            {
-                "numero_paso": 1,
-                "descripcion": "Descripción detallada de la acción observada",
-                "imagen_referencia": "Evidencia 1"
-            },
-            {
-                "numero_paso": 2,
-                "descripcion": "Siguiente acción observada",
-                "imagen_referencia": "Evidencia 2"
-            }
-        ],
-        "resultado_esperado": "Resultado esperado general del flujo completo",
-        "resultado_obtenido": "Resultado obtenido general del flujo completo - describe lo que observaste en las evidencias",
-        "estado_general": "Exitoso"
-    }
-    
-    ❌ NO USES: "orden", "datos_ancla", "trazabilidad", "step_number"
-    ✅ USA EXACTAMENTE: "numero_paso", "descripcion", "imagen_referencia"
-    
-    ---
-    
-    Eres un **QA Lead Expert (Líder de Aseguramiento de Calidad)** con perfil **Full Stack QA**.
-    Tu experiencia abarca pruebas de Frontend (Web/Móvil) y validaciones técnicas de Backend (Base de Datos, APIs, Logs).
-    
-    Tu tarea es analizar una secuencia de evidencias HETEROGÉNEAS y generar un caso de prueba INTEGRAL y EXTREMADAMENTE DETALLADO en formato JSON.
-
-    **CONTEXTO:**
-    Actúas como un **QA Lead Expert Full Stack**.
-    Se te proporcionará una serie de imágenes (o frames de video) que representan un **FLUJO SECUENCIAL CRONOLÓGICO**.
-    
-    **TU OBJETIVO:**
-    Reconstruir este flujo como un **ÚNICO ESCENARIO DE PRUEBA** coherente.
-    Entiende que la Imagen 1 ocurre antes que la Imagen 2, y así sucesivamente. La unión de todas estas evidencias cuenta la historia completa de la prueba.
-
-    **INSTRUCCIONES:**
-    1.  **ANÁLISIS DE SECUENCIA (Storyboard):**
-        *   Observa la progresión temporal entre las imágenes.
-        *   Identifica qué cambió de una imagen a la siguiente (ej: "Se llenó el campo", "Se hizo clic", "Apareció el modal").
-        *   Conecta estos cambios para narrar el paso a paso del escenario.
-        - Si ves JSON/XML: Analiza como prueba de integración (códigos de estado HTTP, estructura de respuesta).
-
-    2.  **Conexión Lógica (End-to-End):**
-        - Entiende la historia completa: "El usuario hizo X en la Web (Evidencia 1) y luego se validó que el registro se creó en la Base de Datos (Evidencia 2)".
-        - Documenta esta relación en los pasos.
-
-    3.  **ESTRATEGIA DE CORRELACIÓN (DETECTIVE DE DATOS):**
-        - **Paso 1: Extracción de "Datos Ancla" en UI:**
-          Cuando veas un formulario o tabla en la Web (Frontend), identifica los datos únicos:
-          * ¿Hay un número de solicitud? (ej: "Sol-2024-001")
-          * ¿Un monto exacto? (ej: "$1,500.00")
-          * ¿Un estado específico? (ej: "Pendiente de Aprobación")
-        
-        - **Paso 2: Rastrear en Evidencia Técnica (Backend):**
-          En las imágenes siguientes (capturas oscuras, consolas SQL, JSONs), BUSCA esos mismos "Datos Ancla".
-          * Si ves el "Sol-2024-001" en una celda de base de datos, ¡EUREKA!
-        
-        - **Paso 3: Redacción Integrada (NO SEPARADA):**
-          NO digas: "Paso 1: Veo web. Paso 2: Veo base de datos".
-          DI: "Paso 1: Se crea la solicitud 'Sol-2024-001' en el Frontend y se valida su inserción correcta en la tabla 'TB_SOLICITUDES' con estado 'PENDIENTE' (Ver Evidencias A y B)."
-
-    4.  **Observación Granular y Técnica:**
-        - **UI:** ¿Qué botón se presionó? ¿Qué datos se ingresaron?
-        - **BD:** ¿Qué query se ejecutó? ¿Qué valor específico cambió en la columna 'status'?
-        - **API:** ¿Qué endpoint se llamó? ¿El status fue 200 OK?
-
-    **INSTRUCCIONES ESTRICTAS:**
-    
-    1.  **ID DEL CASO:**
-        - Usa SOLO un número: "1", "2", "3", etc.
-        - INCORRECTO: "E2E-001", "TC-LOGIN-01", "E2E-AsumidoComercial"
-        - CORRECTO: "1", "2", "3"
-    
-    2.  **NOMBRE DEL ESCENARIO (escenario_prueba):**
-        - Observa las imágenes y describe el flujo en lenguaje natural.
-        - Debe ser específico y descriptivo (máximo 80 caracteres).
-        - INCORRECTO: "Caso de Prueba", "Flujo de Usuario", "E2E-AsumidoComercial-ConsultaObligaciones"
-        - CORRECTO: 
-          * "Consulta de obligaciones en módulo Asumido Comercial"
-          * "Carga exitosa de imagen en galería de evidencias"
-          * "Validación de datos de usuario en base de datos"
-
-    3.  **PRECONDICIONES:**
-        - Lista las condiciones iniciales necesarias.
-        - PROHIBIDO: "-", "N/A", dejar vacío
-        - CORRECTO: 
-          * "Usuario autenticado con rol de administrador"
-          * "Base de datos con tabla 'obligaciones' poblada"
-          * "Ninguna precondición específica" (si realmente no hay)
-
-    4.  **PASOS:**
-        - Describe SOLO lo que ves en las imágenes, en orden cronológico.
-        - Cada paso debe referenciar una imagen específica.
-        - NO INVENTES pasos de login o navegación si no hay capturas.
-        - Sé descriptivo y detallado en cada paso.
-        
-        **CAMPOS OBLIGATORIOS PARA CADA PASO:**
-        
-        a) **numero_paso** (número): El orden secuencial (1, 2, 3, etc.)
-        
-        b) **descripcion** (string): Descripción DETALLADA de la acción observada.
-           - Incluye todos los datos relevantes que veas en la evidencia
-           - Ejemplo: "En 'Solicitud mantenimiento' seleccionar: Fecha mantenimiento '27/11/2025', Categoría 'Modificación a las condiciones iniciales', Número de caso '12', Tipo 'Cambio fecha de vencimiento total', Causal 'Solicitud del cliente' y hacer clic en 'Continuar'"
-        
-        c) **imagen_referencia** (string, OBLIGATORIO): "Evidencia 1", "Evidencia 2", etc.
-
-    5.  **RESULTADO ESPERADO (FASE 1 - Deducción Lógica ANTES de validar):**
-        - Analiza el PROPÓSITO del flujo observando las primeras imágenes.
-        - Define qué DEBERÍA suceder si el sistema funciona correctamente.
-        - NO mires el resultado final todavía, solo deduce la intención.
-        - Debe ser específico y observable.
-        - PROHIBIDO: "-", "N/A", "Ver pasos", frases genéricas
-        - CORRECTO:
-          * "Se visualiza la tabla de obligaciones con al menos 1 registro"
-          * "La imagen se carga y aparece su miniatura en la galería"
-          * "El sistema muestra mensaje de confirmación 'Operación exitosa'"
-
-    6.  **RESULTADO OBTENIDO (FASE 2 - Validación de Evidencia DESPUÉS):**
-        - AHORA SÍ, analiza la ÚLTIMA imagen o el estado final visible.
-        - Describe EXACTAMENTE lo que ves: tablas, mensajes, datos, errores.
-        - Sé objetivo y factual, no asumas éxito.
-        - NO USES "Pendiente de ejecución" si hay evidencia visual del resultado.
-        - CORRECTO:
-          * "Se visualiza la tabla con 5 registros de obligaciones filtradas" (ÉXITO)
-          * "Aparece mensaje de error: 'Acceso denegado'" (ERROR VISIBLE)
-          * "Se muestra pantalla en blanco sin datos" (FALLO SILENCIOSO)
-        - USA "Pendiente de ejecución" SOLO si:
-          * No hay imágenes que muestren el resultado final
-          * Las imágenes son del proceso intermedio, no del resultado
-
-    7.  **ESTADO GENERAL (FASE 3 - Comparación Objetiva):**
-        - Compara el SIGNIFICADO del Resultado Esperado vs. el Resultado Obtenido.
-        - "Exitoso" si:
-          * El Resultado Obtenido coincide con el Esperado (aunque la redacción sea diferente)
-          * No hay errores, pantallas en blanco o comportamiento inesperado
-        - "Fallido" si:
-          * Hay errores visibles ("error", "acceso denegado", "404")
-          * El Resultado Obtenido contradice al Esperado
-          * Pantalla en blanco cuando se esperaban datos
-        - "Pendiente" SOLO si:
-          * El Resultado Obtenido es literalmente "Pendiente de ejecución"
-        
-        EJEMPLO DE ANÁLISIS CORRECTO:
-        - Esperado: "Se visualiza la tabla de obligaciones con datos"
-        - Obtenido: "Se muestra mensaje de error: 'Sin permisos'"
-        - Estado: "Fallido" (hay error visible)
-    
-    **ADVERTENCIA CRÍTICA:**
-    Si usas "-", "N/A" o dejas campos vacíos cuando hay información visible en las imágenes,
-    el reporte será rechazado automáticamente.
-
-    **FORMATO DE SALIDA (JSON ÚNICAMENTE):**
-    
-    CRÍTICO: "pasos" debe ser un ARRAY DE OBJETOS con los campos: numero_paso, descripcion, imagen_referencia.
-    
-    INCORRECTO (NO HAGAS ESTO):
-    "pasos": ["Paso 1", "Paso 2"]  // ❌ Array de strings
-    "pasos": [{ "orden": 1, "descripcion": "...", "datos_ancla": null }]  // ❌ Campos incorrectos
-    
-    CORRECTO:
-    \`\`\`json
-    {
-        "id_caso": 1,
-        "escenario_prueba": "Nombre descriptivo del escenario",
-        "precondiciones": "Condiciones iniciales",
-        "pasos": [
-            {
-                "numero_paso": 1,
-                "descripcion": "Descripción detallada incluyendo todos los datos relevantes",
-                "imagen_referencia": "Evidencia 1"
-            },
-            {
-                "numero_paso": 2,
-                "descripcion": "Siguiente acción con detalles completos",
-                "imagen_referencia": "Evidencia 2"
-            }
-        ],
-        "resultado_esperado": "Resultado esperado general",
-        "resultado_obtenido": "Resultado obtenido general - describe lo que observaste",
-        "estado_general": "Exitoso"
-    }
-    \`\`\`
-    
-    **IMPORTANTE:**
-    1. RESPONDER ÚNICAMENTE EN ESPAÑOL.
-    2. USAR EXACTAMENTE LAS CLAVES JSON DEFINIDAS ARRIBA: "id_caso", "escenario_prueba", "pasos", "numero_paso", "descripcion", "imagen_referencia", "resultado_esperado", "resultado_obtenido", "estado_general"
-    3. ❌ NO USES NOMBRES ALTERNATIVOS como: "orden", "datos_ancla", "trazabilidad", "step_number"
-    4. ✅ USA EXACTAMENTE: "numero_paso", "descripcion", "imagen_referencia"
-    5. Retorna SOLO el JSON válido, sin texto adicional antes o después.
-    
-    PROCEDE A GENERAR EL ANÁLISIS INTEGRAL:`;
-
-export const PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT = (editedReportContextJSON) => `
-    Eres un **QA Lead Expert Full Stack**.
-    
-    El usuario ha generado un caso de prueba y ahora desea **REFINARLO** con contexto adicional.
-    
-    **CASO DE PRUEBA ACTUAL:**
-    ${editedReportContextJSON}
+    **CONTEXTO INICIAL DEL USUARIO:**
+    "${initialContext}"
     
     **TU TAREA:**
-    Mejora el caso de prueba incorporando el contexto del usuario, pero MANTÉN las mismas reglas estrictas de formato simplificado.
+    1.  Analiza cada imagen en orden secuencial.
+    2.  Para cada imagen, describe:
+        -   **Acción del Usuario:** ¿Qué está haciendo? (Click, Escribir, Navegar).
+        -   **Datos Visibles:** Extrae TEXTUALMENTE cualquier dato clave (IDs, montos, nombres, fechas).
+        -   **Elementos de UI:** Botones, campos, modales, mensajes de error/éxito.
+        -   **Evidencia Técnica:** Si hay logs, JSON o consultas SQL, extrae los valores clave.
     
-    **REGLAS ESTRICTAS:**
+    **FORMATO DE SALIDA (TEXTO PLANO ESTRUCTURADO):**
     
-    1.  **ID DEL CASO:**
-        - Usa SOLO un número: "1", "2", "3", etc.
+    IMAGEN 1:
+    - Acción: [Descripción]
+    - Datos Clave: [Lista de datos]
+    - Observaciones Técnicas: [Detalles]
     
-    2.  **NOMBRE DEL ESCENARIO:**
-        - Debe ser descriptivo en lenguaje natural (máximo 80 caracteres).
-        - CORRECTO: "Consulta de obligaciones en módulo Asumido Comercial"
-
-    3.  **PRECONDICIONES:**
-        - PROHIBIDO: "-", "N/A", vacío
-        - CORRECTO: Condiciones específicas o "Ninguna precondición específica"
-
-    4.  **PASOS (SIMPLIFICADO):**
-        - Cada paso debe tener SOLO:
-          * "numero_paso": Entero secuencial (1, 2, 3...)
-          * "descripcion": Texto detallado que combine la acción realizada, los datos ingresados y cualquier observación relevante.
-          * "imagen_referencia": Referencia a la evidencia (ej. "Evidencia 1", "Evidencia 2").
-        - NO incluyas campos antiguos como "dato_de_entrada", "resultado_esperado_paso", etc.
-
-    5.  **RESULTADO OBTENIDO GENERAL:**
-        - Describe lo que se observa al final del flujo.
-        - Sé objetivo y factual.
-        - CORRECTO: "Se visualiza la tabla con 5 registros correctamente" o "Aparece mensaje de error: 'Acceso denegado'"
-
-    6.  **ESTADO GENERAL:**
-        - "Exitoso", "Fallido" o "Pendiente".
+    IMAGEN 2:
+    ...
     
-    **FORMATO DE SALIDA (JSON ÚNICAMENTE):**
+    CONCLUSIÓN PRELIMINAR:
+    - ¿Cuál parece ser el objetivo de este flujo?
+    - ¿El flujo parece exitoso o fallido según la última imagen?
+`;
+
+export const PROMPT_CHAIN_STEP_2_TEST_ENGINEER = (analystOutput) => `
+    **ROL: INGENIERO DE PRUEBAS (QA TEST ENGINEER)**
+    
+    Tu objetivo es tomar el reporte del Analista y estructurarlo como un ESCENARIO DE PRUEBA EJECUTADO.
+    
+    **IMPORTANTE:** Esto NO es un plan de pruebas a futuro. Es el reporte de una prueba que YA SE EJECUTÓ.
+    
+    **REPORTE DEL ANALISTA:**
+    ${analystOutput}
+    
+    **TU TAREA:**
+    1.  Identifica el **Nombre del Escenario** más apropiado.
+    2.  Define las **Precondiciones** implícitas.
+    3.  Redacta los **Pasos** de prueba basados en las acciones observadas.
+    4.  Determina el **Resultado Esperado** (lo que debería haber pasado).
+    5.  **CRÍTICO - Resultado Obtenido:** Describe EXACTAMENTE lo que se observa en la última evidencia.
+        -   PROHIBIDO poner "A definir", "Pendiente" o "Por ejecutar".
+        -   DEBES poner lo que ves: "El sistema mostró el mensaje de éxito...", "Se generó el error...", etc.
+    
+    **FORMATO DE SALIDA (JSON INTERMEDIO):**
+    
+    \`\`\`json
+    {
+        "nombre_escenario": "...",
+        "precondiciones": "...",
+        "pasos_borrador": [
+            { "numero": 1, "accion": "...", "evidencia": "Evidencia 1" },
+            { "numero": 2, "accion": "...", "evidencia": "Evidencia 2" }
+        ],
+        "resultado_esperado": "...",
+        "resultado_obtenido": "...",
+        "estado_sugerido": "Exitoso/Fallido"
+    }
+    \`\`\`
+`;
+
+export const PROMPT_CHAIN_STEP_3_REVIEWER = (engineerOutput) => `
+    **ROL: REVISOR DE CALIDAD (QA LEAD REVIEWER)**
+    
+    Tu objetivo es REFINAR y VALIDAR el trabajo del Ingeniero de Pruebas para generar el JSON FINAL PERFECTO.
+    
+    **BORRADOR DEL INGENIERO:**
+    ${engineerOutput}
+    
+    **TU TAREA:**
+    1.  Revisa la redacción: Debe ser profesional, impersonal y precisa.
+    2.  Verifica la coherencia: ¿El resultado obtenido justifica el estado general?
+    3.  **VALIDACIÓN DE RESULTADO:** Asegura que "resultado_obtenido" NO sea un placeholder ("A definir", "Pendiente"). Debe describir el estado final observado.
+    4.  Asegura el formato JSON estricto requerido por el sistema.
+    
+    **REGLAS DE FORMATO JSON (ESTRICTAS):**
+    -   Usa "id_caso": 1 (siempre).
+    -   "pasos": Array de objetos con "numero_paso", "descripcion", "imagen_referencia".
+    -   "imagen_referencia": Debe ser "Evidencia X" (donde X es el número de la imagen original).
+    
+    **FORMATO DE SALIDA FINAL (JSON):**
     
     \`\`\`json
     {
         "id_caso": 1,
-        "escenario_prueba": "Nombre descriptivo del escenario",
-        "precondiciones": "Condiciones iniciales",
+        "escenario_prueba": "Nombre refinado y descriptivo",
+        "precondiciones": "Condiciones iniciales claras",
         "pasos": [
             {
                 "numero_paso": 1,
-                "descripcion": "Descripción detallada de la acción y observación",
+                "descripcion": "Descripción profesional y detallada",
                 "imagen_referencia": "Evidencia 1"
-            },
-            {
-                "numero_paso": 2,
-                "descripcion": "Siguiente acción...",
-                "imagen_referencia": "Evidencia 2"
             }
         ],
-        "resultado_esperado": "Resultado esperado general",
-        "resultado_obtenido": "Resultado obtenido general",
+        "resultado_esperado": "Resultado esperado lógico",
+        "resultado_obtenido": "Resultado obtenido factual (LO QUE SE VIO, NO 'A DEFINIR')",
         "estado_general": "Exitoso"
     }
     \`\`\`
     
-    **IMPORTANTE:**
-    1. RESPONDER ÚNICAMENTE EN ESPAÑOL.
-    2. USAR EXACTAMENTE LAS CLAVES JSON DEFINIDAS ARRIBA.
-    3. Retorna SOLO el JSON válido.
-    `;
+    IMPORTANTE: Retorna SOLO el JSON válido.
+`;
+
+export const PROMPT_CHAIN_REFINE_STEP_1_ANALYST = (currentJson, userContext) => `
+    **ROL: ANALISTA DE REQUERIMIENTOS DE QA (REFINAMIENTO)**
+    
+    Tienes un reporte existente y una solicitud de cambio del usuario.
+    Tu objetivo es INTERPRETAR qué cambios exactos se requieren y verificar si las evidencias respaldan esos cambios.
+    
+    **REPORTE ACTUAL:**
+    ${currentJson}
+    
+    **SOLICITUD DEL USUARIO:**
+    "${userContext}"
+    
+    **TU TAREA:**
+    1.  Analiza la solicitud: ¿Qué quiere cambiar el usuario? (Pasos, Resultados, Nombre, Datos).
+    2.  Verifica evidencias: Si el usuario dice "El paso 2 es incorrecto", mira la evidencia del paso 2.
+    3.  Lista de Cambios: Enumera explícitamente qué campos deben modificarse.
+    
+    **FORMATO DE SALIDA (TEXTO PLANO):**
+    
+    ANÁLISIS DE SOLICITUD:
+    - El usuario quiere: [Resumen]
+    
+    CAMBIOS REQUERIDOS:
+    1. [Campo a modificar] -> [Nuevo valor]
+    2. [Campo a modificar] -> [Nuevo valor]
+    
+    OBSERVACIONES:
+    - [Cualquier nota sobre conflictos o dudas]
+`;
+
+export const PROMPT_CHAIN_REFINE_STEP_2_ENGINEER = (analystOutput, currentJson) => `
+    **ROL: INGENIERO DE PRUEBAS (EJECUCIÓN DE CAMBIOS)**
+    
+    Tu objetivo es APLICAR los cambios identificados por el Analista al JSON del reporte.
+    
+    **REPORTE ORIGINAL:**
+    ${currentJson}
+    
+    **ANÁLISIS DE CAMBIOS:**
+    ${analystOutput}
+    
+    **TU TAREA:**
+    1.  Modifica el JSON original aplicando CADA cambio listado.
+    2.  **CRÍTICO: RE-EVALÚA EL "RESULTADO OBTENIDO" Y "ESTADO GENERAL".**
+        -   Si los pasos cambiaron, ¿el resultado final sigue siendo válido?
+        -   **PROHIBIDO** usar "A definir" o "Pendiente". Debes describir el estado final actual.
+        -   Si el usuario indicó un error, asegúrate de que el Estado General lo refleje (ej: "Fallido").
+    
+    **FORMATO DE SALIDA (JSON INTERMEDIO):**
+    
+    \`\`\`json
+    {
+        "id_caso": 1,
+        "escenario_prueba": "...",
+        "precondiciones": "...",
+        "pasos": [...],
+        "resultado_esperado": "...",
+        "resultado_obtenido": "...",
+        "estado_general": "..."
+    }
+    \`\`\`
+`;
+
+export const PROMPT_CHAIN_REFINE_STEP_3_REVIEWER = (engineerOutput) => `
+    **ROL: REVISOR DE CALIDAD (VALIDACIÓN FINAL)**
+    
+    Tu objetivo es asegurar que el JSON modificado sea perfecto y cumpla con todas las reglas de formato.
+    
+    **BORRADOR DEL INGENIERO:**
+    ${engineerOutput}
+    
+    **TU TAREA:**
+    1.  Valida el JSON: Estructura correcta, sin campos extraños.
+    2.  Valida la coherencia: ¿El "resultado_obtenido" tiene sentido con los nuevos pasos?
+    3.  **VALIDACIÓN:** Asegura que "resultado_obtenido" NO sea "A definir". Debe ser un texto descriptivo.
+    4.  Formato Estricto: Asegura que "pasos" sea un array de objetos con "numero_paso", "descripcion", "imagen_referencia".
+    
+    **FORMATO DE SALIDA FINAL (JSON):**
+    
+    \`\`\`json
+    {
+        "id_caso": 1,
+        "escenario_prueba": "...",
+        "precondiciones": "...",
+        "pasos": [
+            {
+                "numero_paso": 1,
+                "descripcion": "...",
+                "imagen_referencia": "..."
+            }
+        ],
+        "resultado_esperado": "...",
+        "resultado_obtenido": "...",
+        "estado_general": "..."
+    }
+    \`\`\`
+    
+    IMPORTANTE: Retorna SOLO el JSON válido.
+`;
 
 
 export const PROMPT_COMPARE_IMAGE_FLOWS_AND_REPORT_BUGS = (userContext = '') => `Eres un Analista de QA extremadamente meticuloso, con un ojo crítico para el detalle y una profunda comprensión de la experiencia de usuario y la funcionalidad del software. Tu tarea es detectar BUGS REALES y RELEVANTES.

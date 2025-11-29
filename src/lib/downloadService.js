@@ -185,3 +185,103 @@ export const downloadHtmlReport = (reports) => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+
+export const downloadDocReport = (reports) => {
+    if (!reports || (Array.isArray(reports) && reports.length === 0)) {
+        alert("No hay reportes para descargar.");
+        return;
+    }
+
+    const reportsArray = Array.isArray(reports) ? reports : [reports];
+    const today = new Date().toISOString().split('T')[0];
+    let contentHtml = '';
+
+    reportsArray.forEach(reportJson => {
+        if (!reportJson || !reportJson.Pasos_Analizados) return;
+
+        // Clean scenario name
+        let scenarioName = reportJson.Nombre_del_Escenario || 'Informe de Análisis';
+        if (scenarioName.startsWith('Escenario: ')) {
+            scenarioName = scenarioName.substring(11);
+        }
+
+        // HU Number (Try to extract from title or use placeholder if not available in JSON root)
+        // Assuming the HU might be part of the title or we can pass it if available. 
+        // For now, we'll use a generic approach or try to find it in the title.
+        const huMatch = scenarioName.match(/HU-?\s*(\d+)/i) || scenarioName.match(/^(\d+)/);
+        const huNumber = huMatch ? huMatch[1] : (reportJson.id_caso || 'N/A');
+
+        contentHtml += `
+            <div class="Section1">
+                <p class="MsoHeader" style="text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 20px;">
+                    Evidencias ${huNumber} ${scenarioName}
+                </p>
+        `;
+
+        reportJson.Pasos_Analizados.forEach(paso => {
+            // Step Description
+            contentHtml += `
+                <p style="font-family: Arial, sans-serif; font-size: 12pt; margin-top: 20px; margin-bottom: 10px;">
+                    <strong>${paso.numero_paso}. ${paso.descripcion_accion_observada || ''}</strong>
+                </p>
+            `;
+
+            // Image
+            const imageFiles = reportJson.imageFiles || [];
+            const imgIndex = getImageIndexFromString(paso.imagen_referencia);
+
+            if (imgIndex >= 0 && imageFiles[imgIndex]) {
+                const imgSrc = imageFiles[imgIndex].dataURL || imageFiles[imgIndex].dataUrl;
+                if (imgSrc) {
+                    contentHtml += `
+                        <p style="text-align: center; margin-bottom: 20px;">
+                            <img src="${imgSrc}" style="width: 70%; height: auto;" />
+                        </p>
+                    `;
+                }
+            } else {
+                contentHtml += `<p style="font-family: Arial, sans-serif; font-size: 12pt; color: red;">[Sin Evidencia Visual]</p><br />`;
+            }
+        });
+
+        contentHtml += `</div>`;
+    });
+
+    const docTemplate = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head>
+            <meta charset="utf-8">
+            <title>Reporte Word</title>
+            <style>
+                @page Section1 {
+                    size: 841.9pt 595.3pt; /* Landscape A4 */
+                    mso-page-orientation: landscape;
+                    margin: 1.0cm 1.0cm 1.0cm 1.0cm;
+                }
+                div.Section1 {
+                    page: Section1;
+                }
+                body {
+                    font-family: Calibri, Arial, sans-serif;
+                }
+            </style>
+        </head>
+        <body>
+            ${contentHtml}
+        </body>
+        </html>
+    `;
+
+    const blob = new Blob(['\ufeff', docTemplate], {
+        type: 'application/msword'
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Evidencias_${today}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};

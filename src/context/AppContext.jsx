@@ -1,7 +1,15 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect, useMemo, useContext, useRef } from 'react';
 import { callAiApi } from '../lib/apiService';
-import { PROMPT_FLOW_ANALYSIS_FROM_IMAGES, PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT } from '../lib/prompts';
+import {
+    PROMPT_CHAIN_STEP_1_ANALYST,
+    PROMPT_CHAIN_STEP_2_TEST_ENGINEER,
+    PROMPT_CHAIN_STEP_3_REVIEWER,
+
+    PROMPT_CHAIN_REFINE_STEP_1_ANALYST,
+    PROMPT_CHAIN_REFINE_STEP_2_ENGINEER,
+    PROMPT_CHAIN_REFINE_STEP_3_REVIEWER
+} from '../lib/prompts';
 import { validateAndCleanImages, compressImageIfNeeded } from '../lib/imageService';
 import {
     loadReports as loadReportsFromDB,
@@ -177,15 +185,38 @@ export const AppProvider = ({ children }) => {
                 }
             }
 
-            setLoading({ state: true, message: refinement ? 'Enviando a IA para refinamiento...' : 'Enviando a IA para análisis inicial...' });
+            // --- CHAIN OF THOUGHT FLOW (3 STEPS) ---
 
-            const prompt = refinement
-                ? PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(payload)
-                : PROMPT_FLOW_ANALYSIS_FROM_IMAGES(initialContext);
-
-            const jsonText = await callAiApi(prompt, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message })
+            // STEP 1: ANALYST (Observation)
+            setLoading({ state: true, message: 'Paso 1/3: Analista QA examinando evidencias...' });
+            const promptStep1 = PROMPT_CHAIN_STEP_1_ANALYST(initialContext);
+            const analystOutput = await callAiApi(promptStep1, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 1/3: ${message}` })
             });
+            console.log('--- STEP 1 (ANALYST) OUTPUT ---', analystOutput);
+
+            // STEP 2: TEST ENGINEER (Structuring)
+            setLoading({ state: true, message: 'Paso 2/3: Ingeniero de Pruebas estructurando el escenario...' });
+            const promptStep2 = PROMPT_CHAIN_STEP_2_TEST_ENGINEER(analystOutput);
+            // Note: We don't strictly need to send images again if the model context is fresh, 
+            // but sending them ensures the model "sees" them if it's a stateless call. 
+            // However, to save tokens/bandwidth, we might rely on the text description from Step 1.
+            // Let's send images again to be safe, as the prompts rely on "Evidencia X".
+            const engineerOutput = await callAiApi(promptStep2, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 2/3: ${message}` })
+            });
+            console.log('--- STEP 2 (ENGINEER) OUTPUT ---', engineerOutput);
+
+            // STEP 3: REVIEWER (Refinement & JSON Formatting)
+            setLoading({ state: true, message: 'Paso 3/3: Revisor QA validando y formateando...' });
+            const promptStep3 = PROMPT_CHAIN_STEP_3_REVIEWER(engineerOutput);
+            const reviewerOutput = await callAiApi(promptStep3, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 3/3: ${message}` })
+            });
+            console.log('--- STEP 3 (REVIEWER) OUTPUT ---', reviewerOutput);
+
+            // Use the final output from Step 3
+            const jsonText = reviewerOutput;
 
             // Robust JSON extraction
             let cleanedJsonText = jsonText;
@@ -617,11 +648,35 @@ export const AppProvider = ({ children }) => {
 
             setLoading({ state: true, message: 'Enviando a IA para refinamiento...' });
 
-            const prompt = PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(editedJsonString);
-            const jsonText = await callAiApi(prompt, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message })
+            // --- CHAIN OF THOUGHT FLOW FOR REFINEMENT (3 STEPS) ---
+
+            // STEP 1: ANALYST (Interpret Request)
+            setLoading({ state: true, message: 'Paso 1/3: Analista QA interpretando solicitud...' });
+            const promptStep1 = PROMPT_CHAIN_REFINE_STEP_1_ANALYST(editedJsonString, userContext);
+            const analystOutput = await callAiApi(promptStep1, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 1/3: ${message}` })
             });
-            const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
+            console.log('--- REFINEMENT STEP 1 (ANALYST) OUTPUT ---', analystOutput);
+
+            // STEP 2: TEST ENGINEER (Apply Changes)
+            setLoading({ state: true, message: 'Paso 2/3: Ingeniero de Pruebas aplicando cambios...' });
+            const promptStep2 = PROMPT_CHAIN_REFINE_STEP_2_ENGINEER(analystOutput, editedJsonString);
+            const engineerOutput = await callAiApi(promptStep2, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 2/3: ${message}` })
+            });
+            console.log('--- REFINEMENT STEP 2 (ENGINEER) OUTPUT ---', engineerOutput);
+
+            // STEP 3: REVIEWER (Final Validation)
+            setLoading({ state: true, message: 'Paso 3/3: Revisor QA validando reporte final...' });
+            const promptStep3 = PROMPT_CHAIN_REFINE_STEP_3_REVIEWER(engineerOutput);
+            const reviewerOutput = await callAiApi(promptStep3, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 3/3: ${message}` })
+            });
+            console.log('--- REFINEMENT STEP 3 (REVIEWER) OUTPUT ---', reviewerOutput);
+
+            // Use the final output from Step 3
+            const jsonText = reviewerOutput;
+            const jsonMatch = jsonText.match(/```json\s*([\s\S]*?)\s*```/) || jsonText.match(/([\s\S]*)/);
             if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
 
             const cleanedJsonText = jsonMatch[1] || jsonMatch[0];

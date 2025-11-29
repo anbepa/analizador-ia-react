@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import ReportDisplay from '../ReportDisplay';
 import { downloadExcelReport, downloadMultipleTestCasesExcel } from '../../lib/excelService';
+import { downloadDocReport } from '../../lib/downloadService';
 import ReportFilters from '../reports/ReportFilters';
 import ReportsTable from '../reports/ReportsTable';
 import ConfirmationModal from '../reports/ConfirmationModal';
@@ -108,6 +109,14 @@ const ReportsView = () => {
             console.error('Error generando Excel múltiple:', error);
             alert('Error al generar el archivo Excel: ' + error.message);
         }
+    };
+
+    const handleDownloadAllDoc = () => {
+        if (!filterUserStory || filteredReports.length === 0) {
+            alert('No hay escenarios para exportar');
+            return;
+        }
+        downloadDocReport(filteredReports);
     };
 
 
@@ -224,6 +233,7 @@ const ReportsView = () => {
                                         onClearFilter={clearFilter}
                                         onRequestDeleteStory={() => setDeleteStoryConfirm(filterUserStory.id)}
                                         onExportAll={handleDownloadAllExcel}
+                                        onExportAllDoc={handleDownloadAllDoc}
                                     />
                                 </div>
                                 <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
@@ -258,7 +268,13 @@ const ReportsView = () => {
                                         loading={loading}
                                         canRefine={canRefine}
                                         canDownload={canDownload}
-                                        onDelete={() => setDeleteConfirm(activeReport.uniqueId)}
+                                        onDelete={() => {
+                                            // Find the report in filteredReports to get the uniqueId
+                                            const reportToDelete = filteredReports.find(r => r.id === activeReport.id);
+                                            if (reportToDelete) {
+                                                setDeleteConfirm(reportToDelete.uniqueId);
+                                            }
+                                        }}
                                     />
                                 </div>
                             </div>
