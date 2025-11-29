@@ -1,9 +1,18 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect, useMemo, useContext, useRef } from 'react';
 import { callAiApi } from '../lib/apiService';
-import { PROMPT_FLOW_ANALYSIS_FROM_IMAGES, PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT } from '../lib/prompts';
-import { validateAndCleanImages, compressImageIfNeeded } from '../lib/imageService';
+import {
+    PROMPT_CHAIN_STEP_1_ANALYST,
+    PROMPT_CHAIN_STEP_2_TEST_ENGINEER,
+    PROMPT_CHAIN_STEP_3_REVIEWER,
+    PROMPT_CHAIN_STEP_4_IMAGE_VALIDATOR,
 
+    PROMPT_CHAIN_REFINE_STEP_1_ANALYST,
+    PROMPT_CHAIN_REFINE_STEP_2_ENGINEER,
+    PROMPT_CHAIN_REFINE_STEP_3_REVIEWER,
+    PROMPT_CHAIN_REFINE_STEP_4_IMAGE_VALIDATOR
+} from '../lib/prompts';
+import { validateAndCleanImages, compressImageIfNeeded } from '../lib/imageService';
 import {
     loadReports as loadReportsFromDB,
     saveReport as saveReportToDB,
@@ -19,6 +28,7 @@ import {
     createUserStory,
     deleteUserStory
 } from '../lib/databaseService';
+import { cleanReportData, extractPasoFieldsFromText } from './utils/reportCleaning';
 import { supabase } from '../lib/supabaseClient';
 
 const AppContext = createContext();
@@ -39,6 +49,7 @@ export const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState({ state: false, message: '' });
     const [error, setError] = useState(null);
     const [isRefining, setIsRefining] = useState(false);
+    const [reportBeforeRefining, setReportBeforeRefining] = useState(null); // Backup del reporte antes de refinar
     const [userContext, setUserContext] = useState('');
     const [modal, setModal] = useState({ show: false, title: '', content: '' });
     const reportRef = useRef(null);
@@ -95,322 +106,14 @@ export const AppProvider = ({ children }) => {
         }));
     };
 
-    const extractPasoFieldsFromText = (text = '') => {
-        if (!text) return {};
-
-        const normalized = text.replace(/\r/g, '');
-        const extract = (label) => {
-            const regex = new RegExp(`${label}\s*[:\-]\s*([^|\n]+)`, 'i');
-            const match = normalized.match(regex);
-            return match ? match[1].trim() : null;
-        };
-
-        return {
-            datoEntrada: extract('(?:dato(?:s)? de entrada|dato(?:s)? ancla|input data)') || undefined,
-            resultadoEsperado: extract('resultado esperado(?: del paso)?') || extract('validaci[oó]n esperada') || undefined,
-            resultadoObtenido: extract('resultado obtenido(?: del paso)?') || extract('observaci[oó]n') || undefined
-        };
-    };
-
-    // Function to clean and normalize AI response fields
-    const cleanReportData = (reportData, images = []) => {
-        if (!reportData) return reportData;
-
-        let cleaned = { ...reportData };
-
-        // --- NORMALIZACIÓN DE CLAVES (Inglés -> Español y Variantes) ---
-
-        // 1. ID y Título
-        if (!cleaned.id_caso) cleaned.id_caso = cleaned.test_case_id || cleaned.id || 'Generado';
-
-        // Detectar IDs técnicos inválidos y simplificarlos
-        // Detectar IDs técnicos inválidos y simplificarlos, pero mantener unicidad
-        if (typeof cleaned.id_caso === 'string') {
-            // Si es 'Generado' o vacío, asignar uno temporal único
-            if (cleaned.id_caso === 'Generado' || !cleaned.id_caso) {
-                cleaned.id_caso = `GEN-${Date.now().toString().slice(-4)}`;
-            }
-            // Si el ID es muy largo o complejo, intentar limpiarlo pero sin perder identidad
-            else if (cleaned.id_caso.length > 15) {
-                // Intentar extraer la parte más significativa (ej: TC-123 de HU-45-TC-123)
-                const parts = cleaned.id_caso.split(/[-_]/);
-                if (parts.length > 1) {
-                    // Tomar la última parte si parece un número o código corto
-                    const lastPart = parts[parts.length - 1];
-                    if (lastPart.length < 6) {
-                        cleaned.id_caso = lastPart;
-                    }
-                }
-            }
-        }
-
-        if (!cleaned.escenario_prueba) {
-            cleaned.escenario_prueba = cleaned.title || cleaned.titulo || cleaned.nombre_escenario || 'Definir nombre del escenario';
-        }
-
-        // Detectar nombres genéricos o técnicos y reemplazarlos
-        const genericNames = ['Caso de Prueba', 'Flujo de Usuario', 'Test Case', 'Escenario de Prueba'];
-        const technicalPrefixes = ['E2E-', 'TC-', 'Refinamiento_', 'UI-'];
-
-        if (typeof cleaned.escenario_prueba === 'string') {
-            const trimmed = cleaned.escenario_prueba.trim();
-
-            // Si es un nombre genérico exacto
-            if (genericNames.includes(trimmed)) {
-                cleaned.escenario_prueba = 'Definir nombre del escenario';
-            }
-            // Si empieza con prefijos técnicos, intentar extraer la parte descriptiva
-            else if (technicalPrefixes.some(prefix => trimmed.startsWith(prefix))) {
-                // Intentar limpiar el nombre técnico
-                let cleanedName = trimmed;
-                technicalPrefixes.forEach(prefix => {
-                    cleanedName = cleanedName.replace(prefix, '');
-                });
-                // Reemplazar guiones/underscores con espacios y capitalizar
-                cleanedName = cleanedName.replace(/[-_]/g, ' ').trim();
-                cleaned.escenario_prueba = cleanedName || 'Definir nombre del escenario';
-            }
-        }
-
-        // 2. Precondiciones (Manejo robusto de Arrays y Strings JSON)
-        let rawPreconditions = cleaned.precondiciones || cleaned.pre_conditions || cleaned.preconditions;
-        if (rawPreconditions) {
-            // Detectar valores inválidos
-            const invalidValues = ['-', 'N/A', 'n/a', 'NA', 'null', ''];
-            const trimmed = typeof rawPreconditions === 'string' ? rawPreconditions.trim() : rawPreconditions;
-
-            if (invalidValues.includes(trimmed)) {
-                cleaned.precondiciones = 'Ninguna precondición específica';
-            } else if (Array.isArray(rawPreconditions)) {
-                cleaned.precondiciones = rawPreconditions.map(p => `- ${p}`).join('\n');
-            } else if (typeof rawPreconditions === 'string') {
-                // Intentar detectar si es un string con formato JSON de array '["a", "b"]'
-                if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-                    try {
-                        const parsed = JSON.parse(trimmed);
-                        if (Array.isArray(parsed)) {
-                            cleaned.precondiciones = parsed.map(p => `- ${p}`).join('\n');
-                        } else {
-                            cleaned.precondiciones = rawPreconditions;
-                        }
-                    } catch (e) {
-                        cleaned.precondiciones = rawPreconditions; // Si falla, dejar como está
-                    }
-                } else {
-                    cleaned.precondiciones = rawPreconditions;
-                }
-            }
-        } else {
-            cleaned.precondiciones = 'Ninguna precondición específica';
-        }
-
-        // 3. Resultados (Esperado y Obtenido)
-        const invalidValues = ['-', 'N/A', 'n/a', 'NA', 'null', ''];
-
-        if (!cleaned.resultado_esperado) {
-            // Intentar buscar en otros campos (incluyendo variantes globales)
-            cleaned.resultado_esperado = cleaned.expected_result ||
-                cleaned.resultado_esperado_general ||
-                cleaned.resultado_esperado_flujo ||
-                cleaned.resultado_esperado_global;
-
-            // Si sigue faltando, usar poscondiciones como fallback (ya que describen el éxito del flujo)
-            if (!cleaned.resultado_esperado) {
-                let posConds = cleaned.poscondiciones || cleaned.post_conditions || cleaned.postconditions || cleaned.pos_conditions;
-                if (posConds) {
-                    if (Array.isArray(posConds)) {
-                        cleaned.resultado_esperado = posConds.map(p => `- ${p}`).join('\n');
-                    } else {
-                        cleaned.resultado_esperado = posConds;
-                    }
-                }
-            }
-
-            // Default final
-            if (!cleaned.resultado_esperado) cleaned.resultado_esperado = 'Definir criterio de éxito esperado';
-        }
-
-        // Detectar valores inválidos en resultado_esperado
-        if (typeof cleaned.resultado_esperado === 'string' && invalidValues.includes(cleaned.resultado_esperado.trim())) {
-            cleaned.resultado_esperado = 'Definir criterio de éxito esperado';
-        }
-
-        if (!cleaned.resultado_obtenido) {
-            cleaned.resultado_obtenido = cleaned.actual_result ||
-                cleaned.resultado_actual ||
-                cleaned.conclusion ||
-                cleaned.estado_final ||
-                cleaned.resultado_obtenido_global ||
-                'Pendiente de ejecución';
-        }
-
-        // Detectar valores inválidos en resultado_obtenido
-        if (typeof cleaned.resultado_obtenido === 'string' && invalidValues.includes(cleaned.resultado_obtenido.trim())) {
-            cleaned.resultado_obtenido = 'Pendiente de ejecución';
-        }
-
-        // POST-PROCESAMIENTO INTELIGENTE: Si hay imágenes pero el resultado es "Pendiente", inferir del esperado
-        if (images.length > 0 && cleaned.resultado_obtenido === 'Pendiente de ejecución' && cleaned.resultado_esperado && cleaned.resultado_esperado !== 'Definir criterio de éxito esperado') {
-            // Convertir el resultado esperado en observado (cambiar "debería" por "se observa")
-            cleaned.resultado_obtenido = cleaned.resultado_esperado
-                .replace(/debería/gi, 'se observa que')
-                .replace(/debe/gi, 'se visualiza')
-                .replace(/Se visualiza/gi, 'Se visualiza correctamente');
-        }
-
-        // POST-PROCESAMIENTO DE ESTADO GENERAL: Comparación semántica inteligente
-        if (!cleaned.estado_general || cleaned.estado_general === 'Pendiente') {
-            // Si ambos resultados existen y no son placeholders
-            if (cleaned.resultado_esperado &&
-                cleaned.resultado_obtenido &&
-                cleaned.resultado_esperado !== 'Definir criterio de éxito esperado' &&
-                cleaned.resultado_obtenido !== 'Pendiente de ejecución') {
-
-                // Normalizar para comparación (quitar puntuación, minúsculas, espacios extra)
-                const normalizar = (texto) => texto.toLowerCase().replace(/[.,;:]/g, '').replace(/\s+/g, ' ').trim();
-                const esperadoNorm = normalizar(cleaned.resultado_esperado);
-                const obtenidoNorm = normalizar(cleaned.resultado_obtenido);
-
-                // Verificar si contienen palabras clave de error
-                const tieneError = /error|fallo|fallido|incorrecto|no se pudo|denegado/i.test(obtenidoNorm);
-
-                // Si no hay errores y tienen similitud semántica (más del 40% de palabras en común)
-                if (!tieneError) {
-                    const palabrasEsperado = esperadoNorm.split(' ').filter(p => p.length > 3);
-                    const palabrasObtenido = obtenidoNorm.split(' ').filter(p => p.length > 3);
-                    const palabrasComunes = palabrasEsperado.filter(p => palabrasObtenido.includes(p));
-                    const similitud = palabrasComunes.length / Math.max(palabrasEsperado.length, 1);
-
-                    if (similitud > 0.4) {
-                        cleaned.estado_general = 'Exitoso';
-                    } else {
-                        cleaned.estado_general = 'Pendiente';
-                    }
-                } else {
-                    cleaned.estado_general = 'Fallido';
-                }
-            } else if (cleaned.resultado_obtenido === 'Pendiente de ejecución') {
-                cleaned.estado_general = 'Pendiente';
-            }
-        }
-
-        // 4. Mapeo de pasos (steps -> pasos) y Asignación de Imágenes
-        let rawSteps = cleaned.pasos || cleaned.steps || cleaned.Pasos_Analizados;
-
-        // DEBUG: Ver qué estructura tienen los pasos
-        if (rawSteps && Array.isArray(rawSteps) && rawSteps.length > 0) {
-            console.log('DEBUG - Estructura del primer paso:', rawSteps[0]);
-            console.log('DEBUG - Tipo del primer paso:', typeof rawSteps[0]);
-            console.log('DEBUG - Claves disponibles:', Object.keys(rawSteps[0]));
-        }
-
-        if (rawSteps && Array.isArray(rawSteps)) {
-            // CONVERSIÓN: Si los pasos son strings en lugar de objetos, convertirlos
-            if (rawSteps.length > 0 && typeof rawSteps[0] === 'string') {
-                console.warn('⚠️ La IA generó pasos como strings. Convirtiendo a objetos...');
-                rawSteps = rawSteps.map((stepText, index) => ({
-                    numero_paso: index + 1,
-                    descripcion: stepText,
-                    imagen_referencia: index < images.length ? `Evidencia ${index + 1}` : (images.length > 0 ? `Evidencia ${images.length}` : 'N/A')
-                }));
-            }
-
-            console.log('🔍 Procesando pasos. Total:', rawSteps.length);
-            console.log('🔍 Primer paso raw:', rawSteps[0]);
-
-            cleaned.Pasos_Analizados = rawSteps.map((step, index) => {
-                // Determinar la referencia de imagen
-                let imgRef = step.imagen_referencia || step.image_ref || step.evidencia;
-
-                // Si no tiene referencia explícita, asignar por índice secuencial
-                if (!imgRef || imgRef === 'N/A') {
-                    if (index < images.length) {
-                        imgRef = `Evidencia ${index + 1}`;
-                    } else if (images.length > 0) {
-                        // Fallback: usar la última imagen disponible para pasos adicionales
-                        imgRef = `Evidencia ${images.length}`;
-                    } else {
-                        imgRef = 'N/A';
-                    }
-                }
-
-                return {
-                    numero_paso: step.numero_paso || step.step_number || step.number || step.id_paso || step.orden || (index + 1),
-                    descripcion_accion_observada: step.descripcion_accion_observada || step.descripcion || step.description || step.action || step.accion || step.texto || step.text || 'Sin descripción',
-                    imagen_referencia: imgRef
-                };
-            });
-
-            console.log('✅ Pasos procesados. Primer paso final:', cleaned.Pasos_Analizados[0]);
-        }
-
-        // Mapeo de claves legacy para compatibilidad UI
-        cleaned.Nombre_del_Escenario = cleaned.escenario_prueba;
-        cleaned.Resultado_Esperado_General_Flujo = cleaned.resultado_esperado;
-        cleaned.Conclusion_General_Flujo = cleaned.resultado_obtenido;
-        // ---------------------------------------------------
-
-        // Clean Resultado_Esperado_General_Flujo field
-        if (cleaned.Resultado_Esperado_General_Flujo) {
-            let cleanedField = cleaned.Resultado_Esperado_General_Flujo;
-            // Remove various patterns of redundant text
-            const patterns = [
-                /^Resultado Esperado General del Flujo:\s*/i,
-                /^Resultado Esperado General:\s*/i,
-                /^Resultado Esperado:\s*/i
-            ];
-
-            for (const pattern of patterns) {
-                cleanedField = cleanedField.replace(pattern, '');
-            }
-
-            cleaned.Resultado_Esperado_General_Flujo = cleanedField.trim();
-        }
-
-        // Clean resultado_obtenido_paso_y_estado fields in Pasos_Analizados
-        if (cleaned.Pasos_Analizados && Array.isArray(cleaned.Pasos_Analizados)) {
-            cleaned.Pasos_Analizados = cleaned.Pasos_Analizados.map(paso => {
-                const cleanedPaso = { ...paso };
-
-                // Remove JSON-like formatting from resultado_obtenido_paso_y_estado
-                if (cleanedPaso.resultado_obtenido_paso_y_estado) {
-                    let cleanedResult = cleanedPaso.resultado_obtenido_paso_y_estado;
-
-                    // Remove opening and closing braces if they wrap the entire content
-                    if (cleanedResult.trim().startsWith('{') && cleanedResult.trim().endsWith('}')) {
-                        cleanedResult = cleanedResult.trim().slice(1, -1).trim();
-                    }
-
-                    // Remove JSON property patterns like "estado": "Exitosa", "descripcion": "..."
-                    // and extract just the meaningful text
-                    const jsonPatterns = [
-                        /"estado"\s*:\s*"([^"]+)"\s*,\s*"descripcion"\s*:\s*"([^"]+)"/i,
-                        /"descripcion"\s*:\s*"([^"]+)"\s*,\s*"estado"\s*:\s*"([^"]+)"/i
-                    ];
-
-                    for (const pattern of jsonPatterns) {
-                        const match = cleanedResult.match(pattern);
-                        if (match) {
-                            // Extract estado and descripcion from JSON pattern
-                            const estado = match[1] || match[2];
-                            const descripcion = match[2] || match[1];
-                            cleanedResult = `${estado}: ${descripcion}`;
-                            break;
-                        }
-                    }
-
-                    cleanedPaso.resultado_obtenido_paso_y_estado = cleanedResult.trim();
-                }
-
-                if (cleanedPaso.dato_de_entrada_paso === 'N/A') {
-                    cleanedPaso.dato_de_entrada_paso = '';
-                }
-
-                return cleanedPaso;
-            });
-        }
-
-        return cleaned;
+    const resetAnalysisState = () => {
+        setCurrentImageFiles([]);
+        setAnalysisUserStory(null);
+        setInitialContext('');
+        setUserContext('');
+        setActiveReportIndex(0);
+        // Optionally clear reports if "New Analysis" implies clearing the session's temporary reports
+        // setReports([]); 
     };
 
     useEffect(() => {
@@ -487,7 +190,7 @@ export const AppProvider = ({ children }) => {
                         const compressed = await compressImageIfNeeded(imagesToSend[i]);
                         compressedImages.push(compressed);
                     } catch (compressError) {
-                        console.warn(`Failed to compress image ${i + 1}, using original:`, compressError);
+                        console.warn(`Failed to compress image ${i + 1}, using original: `, compressError);
                         compressedImages.push(imagesToSend[i]);
                     }
                 } else {
@@ -495,15 +198,46 @@ export const AppProvider = ({ children }) => {
                 }
             }
 
-            setLoading({ state: true, message: refinement ? 'Enviando a IA para refinamiento...' : 'Enviando a IA para análisis inicial...' });
+            // --- CHAIN OF THOUGHT FLOW (3 STEPS) ---
 
-            const prompt = refinement
-                ? PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(payload)
-                : PROMPT_FLOW_ANALYSIS_FROM_IMAGES(initialContext);
-
-            const jsonText = await callAiApi(prompt, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message })
+            // STEP 1: ANALYST (Observation)
+            setLoading({ state: true, message: 'Paso 1/3: Analista QA examinando evidencias...' });
+            const promptStep1 = PROMPT_CHAIN_STEP_1_ANALYST(initialContext);
+            const analystOutput = await callAiApi(promptStep1, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 1 / 3: ${message} ` })
             });
+            console.log('--- STEP 1 (ANALYST) OUTPUT ---', analystOutput);
+
+            // STEP 2: TEST ENGINEER (Structuring)
+            setLoading({ state: true, message: 'Paso 2/3: Ingeniero de Pruebas estructurando el escenario...' });
+            const promptStep2 = PROMPT_CHAIN_STEP_2_TEST_ENGINEER(analystOutput);
+            // Note: We don't strictly need to send images again if the model context is fresh, 
+            // but sending them ensures the model "sees" them if it's a stateless call. 
+            // However, to save tokens/bandwidth, we might rely on the text description from Step 1.
+            // Let's send images again to be safe, as the prompts rely on "Evidencia X".
+            const engineerOutput = await callAiApi(promptStep2, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 2 / 3: ${message} ` })
+            });
+            console.log('--- STEP 2 (ENGINEER) OUTPUT ---', engineerOutput);
+
+            // STEP 3: REVIEWER (Refinement & JSON Formatting)
+            setLoading({ state: true, message: 'Paso 3/3: Revisor QA validando y formateando...' });
+            const promptStep3 = PROMPT_CHAIN_STEP_3_REVIEWER(engineerOutput);
+            const reviewerOutput = await callAiApi(promptStep3, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 3 / 3: ${message} ` })
+            });
+            console.log('--- STEP 3 (REVIEWER) OUTPUT ---', reviewerOutput);
+
+            // STEP 4: IMAGE VALIDATOR (Validate Image-Step Associations)
+            setLoading({ state: true, message: 'Paso 4/4: Validando asociaciones imagen-paso...' });
+            const promptStep4 = PROMPT_CHAIN_STEP_4_IMAGE_VALIDATOR(reviewerOutput, compressedImages.length, analystOutput);
+            const validatorOutput = await callAiApi(promptStep4, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 4/4: ${message}` })
+            });
+            console.log('--- STEP 4 (IMAGE VALIDATOR) OUTPUT ---', validatorOutput);
+
+            // Use the final output from Step 4 (validated associations)
+            const jsonText = validatorOutput;
 
             // Robust JSON extraction
             let cleanedJsonText = jsonText;
@@ -591,7 +325,7 @@ export const AppProvider = ({ children }) => {
                 imageFiles: [...compressedImages],
                 initial_context: initialContext,
                 user_story_id: finalUserStory ? finalUserStory.id : null, // Asociar HU si existe
-                historia_usuario: finalUserStory ? `HU-${finalUserStory.numero}` : null // Legacy field
+                historia_usuario: finalUserStory ? `HU - ${finalUserStory.numero} ` : null // Legacy field
             };
 
             console.log('Saving report with user_story_id:', newReport.user_story_id);
@@ -672,7 +406,7 @@ export const AppProvider = ({ children }) => {
             scrollToReport();
 
         } catch (e) {
-            setError(`Error durante el análisis: ${e.message}`);
+            setError(`Error durante el análisis: ${e.message} `);
             console.error(e);
         } finally {
             setLoading({ state: false, message: '' });
@@ -697,9 +431,9 @@ export const AppProvider = ({ children }) => {
                 const { data: updatedReportData } = await supabase
                     .from('reports')
                     .select(`
-                        *,
-                        report_steps(*),
-                        report_images(*)
+            *,
+                report_steps(*),
+                report_images(*)
                     `)
                     .eq('id', activeReport.id)
                     .single();
@@ -768,9 +502,9 @@ export const AppProvider = ({ children }) => {
                 const { data: updatedReportData } = await supabase
                     .from('reports')
                     .select(`
-                        *,
-                        report_steps(*),
-                        report_images(*)
+                *,
+                report_steps(*),
+                report_images(*)
                     `)
                     .eq('id', activeReport.id)
                     .single();
@@ -928,18 +662,50 @@ export const AppProvider = ({ children }) => {
                     const compressed = await compressImageIfNeeded(imagesToSend[i]);
                     compressedImages.push(compressed);
                 } catch (compressError) {
-                    console.warn(`Failed to compress image ${i + 1}, using original:`, compressError);
+                    console.warn(`Failed to compress image ${i + 1}, using original: `, compressError);
                     compressedImages.push(imagesToSend[i]);
                 }
             }
 
             setLoading({ state: true, message: 'Enviando a IA para refinamiento...' });
 
-            const prompt = PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(editedJsonString);
-            const jsonText = await callAiApi(prompt, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message })
+            // --- CHAIN OF THOUGHT FLOW FOR REFINEMENT (3 STEPS) ---
+
+            // STEP 1: ANALYST (Interpret Request)
+            setLoading({ state: true, message: 'Paso 1/3: Analista QA interpretando solicitud...' });
+            const promptStep1 = PROMPT_CHAIN_REFINE_STEP_1_ANALYST(editedJsonString, userContext);
+            const analystOutput = await callAiApi(promptStep1, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 1 / 3: ${message} ` })
             });
-            const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
+            console.log('--- REFINEMENT STEP 1 (ANALYST) OUTPUT ---', analystOutput);
+
+            // STEP 2: TEST ENGINEER (Apply Changes)
+            setLoading({ state: true, message: 'Paso 2/3: Ingeniero de Pruebas aplicando cambios...' });
+            const promptStep2 = PROMPT_CHAIN_REFINE_STEP_2_ENGINEER(analystOutput, editedJsonString);
+            const engineerOutput = await callAiApi(promptStep2, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 2 / 3: ${message} ` })
+            });
+            console.log('--- REFINEMENT STEP 2 (ENGINEER) OUTPUT ---', engineerOutput);
+
+            // STEP 3: REVIEWER (Final Validation)
+            setLoading({ state: true, message: 'Paso 3/3: Revisor QA validando reporte final...' });
+            const promptStep3 = PROMPT_CHAIN_REFINE_STEP_3_REVIEWER(engineerOutput);
+            const reviewerOutput = await callAiApi(promptStep3, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 3 / 3: ${message} ` })
+            });
+            console.log('--- REFINEMENT STEP 3 (REVIEWER) OUTPUT ---', reviewerOutput);
+
+            // STEP 4: IMAGE VALIDATOR (Validate Image-Step Associations)
+            setLoading({ state: true, message: 'Paso 4/4: Validando asociaciones imagen-paso...' });
+            const promptStep4 = PROMPT_CHAIN_REFINE_STEP_4_IMAGE_VALIDATOR(reviewerOutput, compressedImages.length, analystOutput);
+            const validatorOutput = await callAiApi(promptStep4, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 4 / 4: ${message} ` })
+            });
+            console.log('--- REFINEMENT STEP 4 (IMAGE VALIDATOR) OUTPUT ---', validatorOutput);
+
+            // Use the final output from Step 4
+            const jsonText = validatorOutput;
+            const jsonMatch = jsonText.match(/```json\s*([\s\S]*?)\s*```/) || jsonText.match(/([\s\S]*)/);
             if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
 
             const cleanedJsonText = jsonMatch[1] || jsonMatch[0];
@@ -1055,7 +821,7 @@ export const AppProvider = ({ children }) => {
                         newReports[activeReportIndex] = refinedReport;
                         return newReports;
                     });
-                    setError(`Refinamiento completado, pero no se pudo guardar en la base de datos: ${dbError.message}`);
+                    setError(`Refinamiento completado, pero no se pudo guardar en la base de datos: ${dbError.message} `);
                 }
             } else {
                 // No database ID, just update locally
@@ -1067,7 +833,7 @@ export const AppProvider = ({ children }) => {
             }
 
         } catch (e) {
-            setError(`Error durante el refinamiento: ${e.message}`);
+            setError(`Error durante el refinamiento: ${e.message} `);
             console.error(e);
         } finally {
             setIsRefining(false);
@@ -1223,6 +989,23 @@ export const AppProvider = ({ children }) => {
         });
     };
 
+    // Función para cancelar el refinamiento y restaurar el reporte original
+    const handleCancelRefine = () => {
+        if (reportBeforeRefining && activeReportIndex !== -1) {
+            // Restaurar el reporte original desde el backup
+            setReports(prev => {
+                const newReports = [...prev];
+                newReports[activeReportIndex] = reportBeforeRefining;
+                return newReports;
+            });
+        }
+
+        // Limpiar estados de refinamiento
+        setIsRefining(false);
+        setUserContext('');
+        setReportBeforeRefining(null);
+    };
+
     const value = {
         currentImageFiles,
         setCurrentImageFiles,
@@ -1253,10 +1036,10 @@ export const AppProvider = ({ children }) => {
         handleSaveAndRefine,
         closeModal,
         reportRef,
-        scrollToReport,
         // Navegación unificada
         navigationState,
         setNavigationMode,
+        resetAnalysisState,
         updateNavigation,
         // Historias de Usuario
         analysisUserStory,
@@ -1269,7 +1052,9 @@ export const AppProvider = ({ children }) => {
         handleUserStoryDelete,
         // Edición de pasos en refinamiento
         updateStepInActiveReport,
-        deleteStepFromActiveReport
+        deleteStepFromActiveReport,
+        handleCancelRefine,
+        setReportBeforeRefining
     };
 
     return (

@@ -7,11 +7,14 @@ import TicketModal from './components/TicketModal';
 import UploadModal from './components/UploadModal';
 import { useAppContext } from './context/AppContext';
 
+import LoadingModal from './components/LoadingModal';
+
 function App() {
     const {
         modal,
         closeModal,
         navigationState,
+        loading
     } = useAppContext();
 
     const [showUploadModal, setShowUploadModal] = useState(false);
@@ -49,6 +52,11 @@ function App() {
                 title={modal.title}
                 content={modal.content}
                 onClose={closeModal}
+            />
+
+            <LoadingModal
+                show={loading.state}
+                message={loading.message}
             />
         </div>
     );

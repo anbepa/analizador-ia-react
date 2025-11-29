@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { downloadHtmlReport } from '../lib/downloadService';
+import { downloadHtmlReport, downloadDocReport } from '../lib/downloadService';
 import ReportList from './ReportList';
 
 function ConfigurationPanel({ mode = 'workspace', onOpenUploadModal }) {
@@ -37,6 +37,11 @@ function ConfigurationPanel({ mode = 'workspace', onOpenUploadModal }) {
 
     const handleDownloadHtml = () => {
         downloadHtmlReport(activeReport);
+        setShowDownloadOptions(false);
+    };
+
+    const handleDownloadDoc = () => {
+        downloadDocReport(activeReport);
         setShowDownloadOptions(false);
     };
 
@@ -118,6 +123,15 @@ function ConfigurationPanel({ mode = 'workspace', onOpenUploadModal }) {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                                 HTML
+                            </button>
+                            <button
+                                onClick={handleDownloadDoc}
+                                className="w-full px-4 py-3 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Word (.doc)
                             </button>
                         </div>
                     )}
@@ -253,6 +267,15 @@ function ConfigurationPanel({ mode = 'workspace', onOpenUploadModal }) {
                                                 className="w-full px-4 py-3 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors flex items-center gap-2"
                                             >
                                                 HTML
+                                            </button>
+                                            <button
+                                                onClick={handleDownloadDoc}
+                                                className="w-full px-4 py-3 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors flex items-center gap-2"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                Word (.doc)
                                             </button>
                                         </div>
                                     )}
