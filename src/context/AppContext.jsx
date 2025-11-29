@@ -5,10 +5,12 @@ import {
     PROMPT_CHAIN_STEP_1_ANALYST,
     PROMPT_CHAIN_STEP_2_TEST_ENGINEER,
     PROMPT_CHAIN_STEP_3_REVIEWER,
+    PROMPT_CHAIN_STEP_4_IMAGE_VALIDATOR,
 
     PROMPT_CHAIN_REFINE_STEP_1_ANALYST,
     PROMPT_CHAIN_REFINE_STEP_2_ENGINEER,
-    PROMPT_CHAIN_REFINE_STEP_3_REVIEWER
+    PROMPT_CHAIN_REFINE_STEP_3_REVIEWER,
+    PROMPT_CHAIN_REFINE_STEP_4_IMAGE_VALIDATOR
 } from '../lib/prompts';
 import { validateAndCleanImages, compressImageIfNeeded } from '../lib/imageService';
 import {
@@ -188,7 +190,7 @@ export const AppProvider = ({ children }) => {
                         const compressed = await compressImageIfNeeded(imagesToSend[i]);
                         compressedImages.push(compressed);
                     } catch (compressError) {
-                        console.warn(`Failed to compress image ${i + 1}, using original:`, compressError);
+                        console.warn(`Failed to compress image ${i + 1}, using original: `, compressError);
                         compressedImages.push(imagesToSend[i]);
                     }
                 } else {
@@ -202,7 +204,7 @@ export const AppProvider = ({ children }) => {
             setLoading({ state: true, message: 'Paso 1/3: Analista QA examinando evidencias...' });
             const promptStep1 = PROMPT_CHAIN_STEP_1_ANALYST(initialContext);
             const analystOutput = await callAiApi(promptStep1, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message: `Paso 1/3: ${message}` })
+                onStatus: (message) => setLoading({ state: true, message: `Paso 1 / 3: ${message} ` })
             });
             console.log('--- STEP 1 (ANALYST) OUTPUT ---', analystOutput);
 
@@ -214,7 +216,7 @@ export const AppProvider = ({ children }) => {
             // However, to save tokens/bandwidth, we might rely on the text description from Step 1.
             // Let's send images again to be safe, as the prompts rely on "Evidencia X".
             const engineerOutput = await callAiApi(promptStep2, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message: `Paso 2/3: ${message}` })
+                onStatus: (message) => setLoading({ state: true, message: `Paso 2 / 3: ${message} ` })
             });
             console.log('--- STEP 2 (ENGINEER) OUTPUT ---', engineerOutput);
 
@@ -222,12 +224,20 @@ export const AppProvider = ({ children }) => {
             setLoading({ state: true, message: 'Paso 3/3: Revisor QA validando y formateando...' });
             const promptStep3 = PROMPT_CHAIN_STEP_3_REVIEWER(engineerOutput);
             const reviewerOutput = await callAiApi(promptStep3, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message: `Paso 3/3: ${message}` })
+                onStatus: (message) => setLoading({ state: true, message: `Paso 3 / 3: ${message} ` })
             });
             console.log('--- STEP 3 (REVIEWER) OUTPUT ---', reviewerOutput);
 
-            // Use the final output from Step 3
-            const jsonText = reviewerOutput;
+            // STEP 4: IMAGE VALIDATOR (Validate Image-Step Associations)
+            setLoading({ state: true, message: 'Paso 4/4: Validando asociaciones imagen-paso...' });
+            const promptStep4 = PROMPT_CHAIN_STEP_4_IMAGE_VALIDATOR(reviewerOutput, compressedImages.length, analystOutput);
+            const validatorOutput = await callAiApi(promptStep4, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 4/4: ${message}` })
+            });
+            console.log('--- STEP 4 (IMAGE VALIDATOR) OUTPUT ---', validatorOutput);
+
+            // Use the final output from Step 4 (validated associations)
+            const jsonText = validatorOutput;
 
             // Robust JSON extraction
             let cleanedJsonText = jsonText;
@@ -315,7 +325,7 @@ export const AppProvider = ({ children }) => {
                 imageFiles: [...compressedImages],
                 initial_context: initialContext,
                 user_story_id: finalUserStory ? finalUserStory.id : null, // Asociar HU si existe
-                historia_usuario: finalUserStory ? `HU-${finalUserStory.numero}` : null // Legacy field
+                historia_usuario: finalUserStory ? `HU - ${finalUserStory.numero} ` : null // Legacy field
             };
 
             console.log('Saving report with user_story_id:', newReport.user_story_id);
@@ -396,7 +406,7 @@ export const AppProvider = ({ children }) => {
             scrollToReport();
 
         } catch (e) {
-            setError(`Error durante el análisis: ${e.message}`);
+            setError(`Error durante el análisis: ${e.message} `);
             console.error(e);
         } finally {
             setLoading({ state: false, message: '' });
@@ -421,9 +431,9 @@ export const AppProvider = ({ children }) => {
                 const { data: updatedReportData } = await supabase
                     .from('reports')
                     .select(`
-                        *,
-                        report_steps(*),
-                        report_images(*)
+            *,
+                report_steps(*),
+                report_images(*)
                     `)
                     .eq('id', activeReport.id)
                     .single();
@@ -492,9 +502,9 @@ export const AppProvider = ({ children }) => {
                 const { data: updatedReportData } = await supabase
                     .from('reports')
                     .select(`
-                        *,
-                        report_steps(*),
-                        report_images(*)
+                *,
+                report_steps(*),
+                report_images(*)
                     `)
                     .eq('id', activeReport.id)
                     .single();
@@ -652,7 +662,7 @@ export const AppProvider = ({ children }) => {
                     const compressed = await compressImageIfNeeded(imagesToSend[i]);
                     compressedImages.push(compressed);
                 } catch (compressError) {
-                    console.warn(`Failed to compress image ${i + 1}, using original:`, compressError);
+                    console.warn(`Failed to compress image ${i + 1}, using original: `, compressError);
                     compressedImages.push(imagesToSend[i]);
                 }
             }
@@ -665,7 +675,7 @@ export const AppProvider = ({ children }) => {
             setLoading({ state: true, message: 'Paso 1/3: Analista QA interpretando solicitud...' });
             const promptStep1 = PROMPT_CHAIN_REFINE_STEP_1_ANALYST(editedJsonString, userContext);
             const analystOutput = await callAiApi(promptStep1, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message: `Paso 1/3: ${message}` })
+                onStatus: (message) => setLoading({ state: true, message: `Paso 1 / 3: ${message} ` })
             });
             console.log('--- REFINEMENT STEP 1 (ANALYST) OUTPUT ---', analystOutput);
 
@@ -673,7 +683,7 @@ export const AppProvider = ({ children }) => {
             setLoading({ state: true, message: 'Paso 2/3: Ingeniero de Pruebas aplicando cambios...' });
             const promptStep2 = PROMPT_CHAIN_REFINE_STEP_2_ENGINEER(analystOutput, editedJsonString);
             const engineerOutput = await callAiApi(promptStep2, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message: `Paso 2/3: ${message}` })
+                onStatus: (message) => setLoading({ state: true, message: `Paso 2 / 3: ${message} ` })
             });
             console.log('--- REFINEMENT STEP 2 (ENGINEER) OUTPUT ---', engineerOutput);
 
@@ -681,12 +691,20 @@ export const AppProvider = ({ children }) => {
             setLoading({ state: true, message: 'Paso 3/3: Revisor QA validando reporte final...' });
             const promptStep3 = PROMPT_CHAIN_REFINE_STEP_3_REVIEWER(engineerOutput);
             const reviewerOutput = await callAiApi(promptStep3, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message: `Paso 3/3: ${message}` })
+                onStatus: (message) => setLoading({ state: true, message: `Paso 3 / 3: ${message} ` })
             });
             console.log('--- REFINEMENT STEP 3 (REVIEWER) OUTPUT ---', reviewerOutput);
 
-            // Use the final output from Step 3
-            const jsonText = reviewerOutput;
+            // STEP 4: IMAGE VALIDATOR (Validate Image-Step Associations)
+            setLoading({ state: true, message: 'Paso 4/4: Validando asociaciones imagen-paso...' });
+            const promptStep4 = PROMPT_CHAIN_REFINE_STEP_4_IMAGE_VALIDATOR(reviewerOutput, compressedImages.length, analystOutput);
+            const validatorOutput = await callAiApi(promptStep4, compressedImages, {
+                onStatus: (message) => setLoading({ state: true, message: `Paso 4 / 4: ${message} ` })
+            });
+            console.log('--- REFINEMENT STEP 4 (IMAGE VALIDATOR) OUTPUT ---', validatorOutput);
+
+            // Use the final output from Step 4
+            const jsonText = validatorOutput;
             const jsonMatch = jsonText.match(/```json\s*([\s\S]*?)\s*```/) || jsonText.match(/([\s\S]*)/);
             if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
 
@@ -803,7 +821,7 @@ export const AppProvider = ({ children }) => {
                         newReports[activeReportIndex] = refinedReport;
                         return newReports;
                     });
-                    setError(`Refinamiento completado, pero no se pudo guardar en la base de datos: ${dbError.message}`);
+                    setError(`Refinamiento completado, pero no se pudo guardar en la base de datos: ${dbError.message} `);
                 }
             } else {
                 // No database ID, just update locally
@@ -815,7 +833,7 @@ export const AppProvider = ({ children }) => {
             }
 
         } catch (e) {
-            setError(`Error durante el refinamiento: ${e.message}`);
+            setError(`Error durante el refinamiento: ${e.message} `);
             console.error(e);
         } finally {
             setIsRefining(false);
