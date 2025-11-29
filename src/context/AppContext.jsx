@@ -103,6 +103,16 @@ export const AppProvider = ({ children }) => {
         }));
     };
 
+    const resetAnalysisState = () => {
+        setCurrentImageFiles([]);
+        setAnalysisUserStory(null);
+        setInitialContext('');
+        setUserContext('');
+        setActiveReportIndex(0);
+        // Optionally clear reports if "New Analysis" implies clearing the session's temporary reports
+        // setReports([]); 
+    };
+
     useEffect(() => {
         // Initialize database cleanup for temporary reports
         const cleanupFunction = initializeDatabaseCleanup();
@@ -990,10 +1000,10 @@ export const AppProvider = ({ children }) => {
         handleSaveAndRefine,
         closeModal,
         reportRef,
-        scrollToReport,
         // Navegación unificada
         navigationState,
         setNavigationMode,
+        resetAnalysisState,
         updateNavigation,
         // Historias de Usuario
         analysisUserStory,

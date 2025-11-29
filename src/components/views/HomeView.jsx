@@ -18,7 +18,7 @@ const HomeView = () => {
                 <div>
                     <h2 className="text-3xl font-bold text-secondary-900 mb-3">Bienvenido al Analizador IA</h2>
                     <p className="text-secondary-600 text-lg leading-relaxed">
-                        Genera planes de prueba y analiza evidencias automáticamente con el poder de la Inteligencia Artificial.
+                        ¡De imágenes a escenarios de prueba en segundos! Deja que la IA analice tus capturas y documente cada paso automáticamente.
                     </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">

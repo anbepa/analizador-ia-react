@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 
 const Sidebar = () => {
-    const { navigationState, setNavigationMode } = useAppContext();
+    const { navigationState, setNavigationMode, resetAnalysisState } = useAppContext();
     const [isCollapsed, setIsCollapsed] = useState(true);
 
     const handleNavigation = (view) => {
+        if (view === 'home') {
+            resetAnalysisState();
+        }
         setNavigationMode(view);
     };
 
@@ -95,7 +98,7 @@ const NavItem = ({ icon, label, isActive, isCollapsed, onClick }) => {
         <button
             onClick={onClick}
             className={`
-                w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative
+                w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative
                 ${isActive
                     ? 'bg-[#EAF2FF] text-[#007AFF] font-medium'
                     : 'text-secondary-500 hover:bg-secondary-100/50 hover:text-secondary-900'
@@ -107,7 +110,7 @@ const NavItem = ({ icon, label, isActive, isCollapsed, onClick }) => {
             {isActive && !isCollapsed && (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-primary rounded-r-full" />
             )}
-            <div className={`${isActive ? 'text-primary' : 'text-secondary-400 group-hover:text-secondary-600'} transition-colors`}>
+            <div className={`${isActive ? 'text-primary' : 'text-secondary-400 group-hover:text-secondary-600'} transition-colors [&>svg]:w-[18px] [&>svg]:h-[18px]`}>
                 {icon}
             </div>
             {!isCollapsed && (
