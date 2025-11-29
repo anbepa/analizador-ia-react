@@ -27,7 +27,9 @@ const ReportsView = () => {
         reports,
 
         deleteReport,
-        handleUserStoryDelete
+        handleUserStoryDelete,
+        handleCancelRefine,
+        setReportBeforeRefining
     } = useAppContext();
 
     const [storyNumber, setStoryNumber] = useState('');
@@ -75,6 +77,10 @@ const ReportsView = () => {
 
     const handleRefinementClick = () => {
         if (!isRefining) {
+            // Guardar una copia profunda del reporte antes de entrar en modo refinamiento
+            if (activeReport) {
+                setReportBeforeRefining(JSON.parse(JSON.stringify(activeReport)));
+            }
             setIsRefining(true);
             setUserContext('');
         } else {
@@ -262,6 +268,7 @@ const ReportsView = () => {
                                         onDownloadExcel={handleDownloadExcel}
                                         isRefining={isRefining}
                                         onRefine={handleRefinementClick}
+                                        onCancelRefine={handleCancelRefine}
                                         userContext={userContext}
                                         setUserContext={setUserContext}
                                         onSaveRefinement={handleSaveAndRefine}

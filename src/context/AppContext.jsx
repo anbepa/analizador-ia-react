@@ -47,6 +47,7 @@ export const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState({ state: false, message: '' });
     const [error, setError] = useState(null);
     const [isRefining, setIsRefining] = useState(false);
+    const [reportBeforeRefining, setReportBeforeRefining] = useState(null); // Backup del reporte antes de refinar
     const [userContext, setUserContext] = useState('');
     const [modal, setModal] = useState({ show: false, title: '', content: '' });
     const reportRef = useRef(null);
@@ -970,6 +971,23 @@ export const AppProvider = ({ children }) => {
         });
     };
 
+    // Función para cancelar el refinamiento y restaurar el reporte original
+    const handleCancelRefine = () => {
+        if (reportBeforeRefining && activeReportIndex !== -1) {
+            // Restaurar el reporte original desde el backup
+            setReports(prev => {
+                const newReports = [...prev];
+                newReports[activeReportIndex] = reportBeforeRefining;
+                return newReports;
+            });
+        }
+
+        // Limpiar estados de refinamiento
+        setIsRefining(false);
+        setUserContext('');
+        setReportBeforeRefining(null);
+    };
+
     const value = {
         currentImageFiles,
         setCurrentImageFiles,
@@ -1016,7 +1034,9 @@ export const AppProvider = ({ children }) => {
         handleUserStoryDelete,
         // Edición de pasos en refinamiento
         updateStepInActiveReport,
-        deleteStepFromActiveReport
+        deleteStepFromActiveReport,
+        handleCancelRefine,
+        setReportBeforeRefining
     };
 
     return (
