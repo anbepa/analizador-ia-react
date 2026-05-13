@@ -218,10 +218,22 @@ app.use((err, req, res, next) => {
   return next(err)
 })
 
+// Middleware de logging para depuración en Render
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // Servir archivos estáticos del frontend
 const distPath = path.join(__dirname, 'dist');
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
+  
+  // Manejador explícito para la raíz
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+
   app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api')) {
       return res.status(404).json({ error: 'API endpoint not found' });
@@ -229,6 +241,11 @@ if (fs.existsSync(distPath)) {
     res.sendFile(path.join(distPath, 'index.html'));
   });
   console.log(`[SERVER] Serving static files from ${distPath}`);
+} else {
+  // Si no hay dist, responder algo para el health check
+  app.get('/', (req, res) => {
+    res.status(200).send('API Server Running (No frontend build found)');
+  });
 }
 
 const startServer = () => {

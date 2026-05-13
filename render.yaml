@@ -8,7 +8,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 3000
+        value: 10000
       - key: GEMINI_API_KEY
         sync: false
       - key: COPILOT_GITHUB_TOKEN
