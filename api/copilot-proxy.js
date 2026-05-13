@@ -3,6 +3,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { CopilotClient, approveAll } from '@github/copilot-sdk';
+import '@github/copilot'; 
 
 export const config = {
     maxDuration: 120,
@@ -19,9 +21,6 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Importación dinámica dentro del handler para evitar que el bundle inicial sea gigante
-        const { CopilotClient, approveAll } = await import('@github/copilot-sdk');
-        
         const { messages, model = 'gpt-4o' } = req.body;
 
         if (!messages || !Array.isArray(messages)) {
