@@ -21,15 +21,7 @@ export const config = {
     }
 };
 
-let CopilotClient;
-let approveAll;
-try {
-    const sdk = await import('@github/copilot-sdk');
-    CopilotClient = sdk.CopilotClient;
-    approveAll = sdk.approveAll;
-} catch (err) {
-    console.warn('[copilot-proxy] SDK no disponible:', err.message);
-}
+import { CopilotClient, approveAll } from '@github/copilot-sdk';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {

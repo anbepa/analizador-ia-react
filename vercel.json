@@ -3,11 +3,13 @@
   "functions": {
     "api/*.js": {
       "maxDuration": 60,
-      "memory": 1024
+      "memory": 1024,
+      "includeFiles": "node_modules/@github/**"
     },
     "api/*.ts": {
       "maxDuration": 60,
-      "memory": 1024
+      "memory": 1024,
+      "includeFiles": "node_modules/@github/**"
     }
   },
   "routes": [
