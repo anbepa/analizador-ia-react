@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "local-api": "node local-api-server.js",
     "start": "node local-api-server.js",
-    "render:build": "npm install && npm run build"
+    "render:build": "npm install && npm run build",
+    "render:start": "node local-api-server.js"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
