@@ -2,14 +2,10 @@
   "version": 2,
   "functions": {
     "api/*.js": {
-      "maxDuration": 60,
-      "memory": 1024,
-      "includeFiles": "node_modules/@github/**"
+      "maxDuration": 60
     },
     "api/*.ts": {
-      "maxDuration": 60,
-      "memory": 1024,
-      "includeFiles": "node_modules/@github/**"
+      "maxDuration": 60
     }
   },
   "routes": [
