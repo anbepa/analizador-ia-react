@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "functions": {
+    "api/*.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/*.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/copilot-proxy",
+      "dest": "/api/copilot-proxy.js"
+    },
+    {
+      "src": "/api/gemini-proxy",
+      "dest": "/api/gemini-proxy.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
+}

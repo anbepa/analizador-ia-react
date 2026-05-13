@@ -3,6 +3,7 @@ import { readFileAsBase64 } from '../lib/apiService';
 import { uploadVideoToSupabase, isVideoFile } from '../lib/videoService';
 import { useAppContext } from '../context/AppContext';
 import BrowserCapture from './BrowserCapture';
+import OptimizedImage from './OptimizedImage';
 
 function ImageUploader() {
     const { currentImageFiles, setCurrentImageFiles } = useAppContext();
@@ -142,91 +143,45 @@ function ImageUploader() {
                             )}
                         </div>
                     ) : (
-                        <>
-                            {currentImageFiles.length === 0 ? (
-                                // Empty State Content
-                                <div className="flex flex-col items-center gap-6 max-w-md mx-auto p-6">
-                                    {/* Icon */}
-                                    <div className={`w-32 h-32 rounded-full bg-gradient-to-b from-blue-50 to-white shadow-sm flex items-center justify-center mb-2 transition-all duration-500 ${isDragging ? 'scale-110 shadow-md' : 'group-hover:scale-105'}`}>
-                                        <svg className={`w-16 h-16 text-[#007AFF] transition-all duration-300 ${isDragging ? 'opacity-100 scale-110' : 'opacity-80'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <div className="w-full flex flex-col items-center justify-center text-center gap-2 py-10 px-6 border-2 border-dashed border-secondary-200 rounded-[32px] bg-secondary-50/30 hover:bg-primary/5 hover:border-primary/40 transition-all duration-300 group relative cursor-default">
+                            
+                            <div className="w-16 h-16 rounded-2xl bg-white shadow-sm border border-secondary-100 flex items-center justify-center text-primary mb-2 group-hover:scale-110 transition-transform">
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                            </div>
+                            
+                            <div>
+                                <h3 className="text-lg font-bold text-secondary-900 mb-1">Arrastra tus evidencias aquí</h3>
+                                <p className="text-sm text-secondary-500 mb-5">o selecciona cómo deseas agregarlas</p>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row items-center gap-3 w-full justify-center relative z-10">
+                                <label htmlFor="image-upload" className="px-6 py-2.5 rounded-xl font-bold text-sm bg-primary text-white hover:bg-primary/90 cursor-pointer transition-all shadow-sm shadow-primary/20 hover:shadow-md hover:-translate-y-0.5">
+                                    <span className="flex items-center gap-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                                         </svg>
-                                    </div>
-
-                                    {/* Text Content */}
-                                    <div className="space-y-3">
-                                        <h3 className="text-3xl font-bold text-secondary-900 tracking-tight">
-                                            {isDragging ? 'Suelta aquí para comenzar' : 'Comienza tu análisis'}
-                                        </h3>
-                                        {!isDragging && (
-                                            <div className="space-y-1">
-                                                <p className="text-secondary-500 text-lg">
-                                                    Arrastra capturas o haz clic para subir.
-                                                </p>
-                                                <p className="text-sm text-secondary-400 font-medium">
-                                                    Soporta PNG, JPG, MP4.
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Actions */}
-                                    {!isDragging && (
-                                        <div className="flex flex-col items-center gap-4 w-full mt-2">
-                                            <label
-                                                htmlFor="image-upload"
-                                                className="cursor-pointer px-8 py-4 bg-[#007AFF] hover:bg-[#0066CC] text-white rounded-full font-semibold text-lg shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all w-full max-w-xs flex items-center justify-center gap-2"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                                </svg>
-                                                Subir Evidencias
-                                            </label>
-
-                                            <div className="flex items-center gap-4 text-sm font-medium">
-                                                <button
-                                                    onClick={() => browserCaptureRef.current?.startSession()}
-                                                    className="text-[#007AFF] hover:text-[#0055AA] transition-colors flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-blue-50"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                                    </svg>
-                                                    Iniciar Sesión de Captura
-                                                </button>
-                                                <span className="text-secondary-300">|</span>
-                                                <button className="text-secondary-500 hover:text-secondary-700 transition-colors">
-                                                    Ver ejemplo de análisis
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                // Compact State Content
-                                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full py-2">
-                                    <label htmlFor="image-upload" className="flex items-center gap-3 text-secondary-600 cursor-pointer hover:bg-secondary-50 px-4 py-2 rounded-xl transition-colors">
-                                        <div className="w-8 h-8 rounded-full bg-[#007AFF]/10 flex items-center justify-center">
-                                            <svg className="w-4 h-4 text-[#007AFF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                                            </svg>
-                                        </div>
-                                        <span className="font-medium text-sm">Subir archivos</span>
-                                    </label>
-                                    <div className="hidden sm:block w-px h-6 bg-secondary-200"></div>
-                                    <button
-                                        onClick={() => browserCaptureRef.current?.startSession()}
-                                        className="flex items-center gap-3 text-secondary-600 cursor-pointer hover:bg-secondary-50 px-4 py-2 rounded-xl transition-colors"
-                                    >
-                                        <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
-                                            <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                            </svg>
-                                        </div>
-                                        <span className="font-medium text-sm">Capturar pantalla</span>
-                                    </button>
-                                </div>
-                            )}
-                        </>
+                                        Subir Archivos
+                                    </span>
+                                </label>
+                                <button
+                                    onClick={() => browserCaptureRef.current?.startSession()}
+                                    className="px-6 py-2.5 rounded-xl font-bold text-sm bg-white text-secondary-700 border border-secondary-200 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50 transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        </svg>
+                                        Capturar Pantalla
+                                    </span>
+                                </button>
+                            </div>
+                            
+                            <p className="text-xs text-secondary-400 font-medium absolute bottom-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                Soporta PNG, JPG, MP4 • (Ctrl+V) para pegar
+                            </p>
+                        </div>
                     )}
                 </div>
 
@@ -244,11 +199,10 @@ function ImageUploader() {
                                 Evidencias ({currentImageFiles.length})
                             </h3>
 
-                            {/* View Toggle */}
                             <div className="flex bg-secondary-100/50 p-1 rounded-lg">
                                 <button
                                     onClick={() => setViewMode('grid')}
-                                    className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-primary' : 'text-secondary-400 hover:text-secondary-600'}`}
+                                    className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-[#007AFF] text-white shadow-sm' : 'text-secondary-400 hover:text-secondary-600'}`}
                                     title="Vista Cuadrícula"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -257,7 +211,7 @@ function ImageUploader() {
                                 </button>
                                 <button
                                     onClick={() => setViewMode('list')}
-                                    className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-primary' : 'text-secondary-400 hover:text-secondary-600'}`}
+                                    className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-[#007AFF] text-white shadow-sm' : 'text-secondary-400 hover:text-secondary-600'}`}
                                     title="Vista Lista"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -280,25 +234,29 @@ function ImageUploader() {
                                         {file.isVideo ? (
                                             <video src={file.dataURL} className="w-full h-full object-cover" />
                                         ) : (
-                                            <img src={file.dataURL} alt={file.name} className="w-full h-full object-cover" />
+                                            <OptimizedImage src={file.dataURL} alt={file.name} className="w-full h-full object-cover" />
                                         )}
 
                                         {/* Overlay Actions (Grid Mode) */}
                                         {viewMode === 'grid' && (
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center gap-3 backdrop-blur-[2px]">
                                                 <button
                                                     onClick={() => window.open(file.dataURL, '_blank')}
-                                                    className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:scale-110 transition-transform text-secondary-700"
-                                                    title="Ver pantalla completa"
+                                                    className="p-2.5 bg-black/60 rounded-full text-white hover:bg-black hover:scale-110 transition-all shadow-md backdrop-blur-md"
+                                                    title="Ver completo"
                                                 >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                                    </svg>
                                                 </button>
                                                 <button
                                                     onClick={() => handleRemoveImage(index)}
-                                                    className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:scale-110 transition-transform text-danger"
+                                                    className="p-2.5 bg-black/60 rounded-full text-red-400 hover:text-red-300 hover:bg-black hover:scale-110 transition-all shadow-md backdrop-blur-md"
                                                     title="Eliminar"
                                                 >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
                                                 </button>
                                             </div>
                                         )}

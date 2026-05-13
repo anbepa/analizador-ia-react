@@ -38,8 +38,9 @@ const imageToBuffer = async (imageDataURL) => {
  * Genera y descarga un archivo Excel con imágenes de evidencias alineadas por paso
  * @param {Object} testCase - Objeto del caso de prueba
  * @param {Array} images - Array de imágenes del reporte
+ * @param {Function} onProgress - Callback para reportar progreso (0 a 100)
  */
-export const downloadExcelReport = async (testCase, images = []) => {
+export const downloadExcelReport = async (testCase, images = [], onProgress = null) => {
     try {
         console.log('📊 Generando Excel con datos:', testCase);
         console.log('🖼️ Imágenes disponibles:', images);
@@ -53,7 +54,7 @@ export const downloadExcelReport = async (testCase, images = []) => {
             { width: 30 },  // B: Escenario de Prueba
             { width: 35 },  // C: Precondiciones
             { width: 50 },  // D: Paso a Paso
-            { width: 80 },  // E: Evidencias (Ancho para imagen)
+            { width: 100 }, // E: Evidencias (Ancho aumentado para la imagen)
             { width: 35 }   // F: Resultado Esperado
         ];
 
@@ -195,13 +196,14 @@ export const downloadExcelReport = async (testCase, images = []) => {
                                 extension: 'png',
                             });
 
-                            // Altura de fila ajustada a la imagen (aprox 300px para visualización decente)
-                            row.height = 250;
+                            // Altura de fila ajustada a la imagen:
+                            // 350 píxeles / 1.33 ≈ 263 puntos de Excel. Añadimos un pequeño margen para que respire.
+                            row.height = 275;
 
-                            // Insertar imagen centrada en la celda E (columna 5)
+                            // Insertar imagen en la celda E (columna 5)
                             worksheet.addImage(imageId, {
-                                tl: { col: 4, row: currentRowIndex - 1, nativeColOff: 36000, nativeRowOff: 36000 }, // Pequeño padding
-                                ext: { width: 400, height: 300 }, // Tamaño fijo razonable por paso
+                                tl: { col: 4, row: currentRowIndex - 1, nativeColOff: 95250, nativeRowOff: 95250 }, // Padding aprox 10px
+                                ext: { width: 600, height: 350 }, // Tamaño grande, proporción equilibrada
                                 editAs: 'oneCell'
                             });
                         }
@@ -215,6 +217,12 @@ export const downloadExcelReport = async (testCase, images = []) => {
             }
 
             currentRowIndex++;
+
+            if (onProgress) {
+                // El progreso de procesamiento de pasos representa el 80% del trabajo total
+                const progress = Math.round(((i + 1) / pasosArray.length) * 80);
+                onProgress(progress);
+            }
         }
 
         // --- MERGE DE CELDAS COMUNES ---
@@ -228,8 +236,12 @@ export const downloadExcelReport = async (testCase, images = []) => {
             worksheet.mergeCells(`F${startRowIndex}:F${endRowIndex}`); // Resultado Esperado
         }
 
+        if (onProgress) onProgress(85); // Inicio de generación de buffer
+
         // Generar archivo
         const buffer = await workbook.xlsx.writeBuffer();
+        
+        if (onProgress) onProgress(95); // Buffer listo, preparando descarga
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -237,6 +249,8 @@ export const downloadExcelReport = async (testCase, images = []) => {
         link.download = `Caso_Prueba_${testCase.id_caso || 'Generado'}_${new Date().getTime()}.xlsx`;
         link.click();
         window.URL.revokeObjectURL(url);
+
+        if (onProgress) onProgress(100); // Completado
 
         console.log('✅ Excel generado con layout fila-por-paso exitosamente');
         return true;

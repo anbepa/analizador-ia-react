@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar';
 import HomeView from './components/views/HomeView';
 import AnalysisView from './components/views/AnalysisView';
 import ReportsView from './components/views/ReportsView';
+import LoginView from './components/views/LoginView';
 import TicketModal from './components/TicketModal';
 import UploadModal from './components/UploadModal';
 import { useAppContext } from './context/AppContext';
@@ -12,9 +13,15 @@ function App() {
         modal,
         closeModal,
         navigationState,
+        session
     } = useAppContext();
 
     const [showUploadModal, setShowUploadModal] = useState(false);
+
+    // Si no hay sesión, mostrar la pantalla de login
+    if (!session) {
+        return <LoginView />;
+    }
 
     const renderContent = () => {
         switch (navigationState.viewMode) {

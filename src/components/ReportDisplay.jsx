@@ -49,60 +49,59 @@ function ReportDisplay() {
     };
 
     return (
-        <div className="min-h-screen bg-transparent font-sans text-secondary-900">
+        <div className="bg-transparent font-sans text-secondary-900 w-full h-full">
 
             {/* Header Content */}
-            <div className="mb-8 pb-6 border-b border-secondary-200">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        {activeReport.user_stories && (
-                            <span className="inline-block px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">
-                                HU-{activeReport.user_stories.numero}
-                            </span>
-                        )}
-                        {!activeReport.user_stories && activeReport.historia_usuario && (
-                            <span className="inline-block px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">
-                                {activeReport.historia_usuario}
-                            </span>
-                        )}
-                        <span className="inline-block px-3 py-1.5 rounded-lg bg-secondary-100 text-secondary-600 text-xs font-bold uppercase tracking-wider">
-                            ID: {idCaso}
+            <div className="mb-10">
+                <div className="flex items-center gap-3 mb-5">
+                    {activeReport.user_stories && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wide">
+                            HU-{activeReport.user_stories.numero}
                         </span>
+                    )}
+                    {!activeReport.user_stories && activeReport.historia_usuario && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wide">
+                            {activeReport.historia_usuario}
+                        </span>
+                    )}
+                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-secondary-100 text-secondary-600 text-xs font-bold tracking-wide">
+                        ID: {idCaso}
+                    </span>
+                    <div className="h-4 w-px bg-secondary-200 mx-1"></div>
+                    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${estadoGeneral === 'Exitoso' ? 'bg-green-50 text-green-700' :
+                        estadoGeneral === 'Fallido' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'
+                        }`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${estadoGeneral === 'Exitoso' ? 'bg-green-600' :
+                            estadoGeneral === 'Fallido' ? 'bg-red-600' : 'bg-yellow-600'
+                            }`} />
+                        {estadoGeneral}
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${estadoGeneral === 'Exitoso' ? 'bg-green-50 text-green-700' :
-                            estadoGeneral === 'Fallido' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'
-                            }`}>
-                            <div className={`w-2 h-2 rounded-full ${estadoGeneral === 'Exitoso' ? 'bg-green-600' :
-                                estadoGeneral === 'Fallido' ? 'bg-red-600' : 'bg-yellow-600'
-                                }`} />
-                            <span className="text-xs font-bold">{estadoGeneral}</span>
-                        </div>
-                        <span className="text-xs text-secondary-500 font-medium">{pasos.length} pasos</span>
-                    </div>
+                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-secondary-50 text-secondary-500 text-xs font-semibold tracking-wide">
+                        {pasos.length} pasos
+                    </span>
                 </div>
-                <h1 className="text-2xl font-bold text-secondary-900 tracking-tight">
+                <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight leading-tight">
                     {escenarioPrueba}
                 </h1>
             </div>
 
             {/* Tabla de Pasos */}
-            <div className="bg-white rounded-xl border border-secondary-200 overflow-hidden shadow-sm">
+            <div className="bg-white rounded-2xl border border-secondary-200 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-secondary-50 border-b border-secondary-200">
+                        <thead className="bg-secondary-50/50 border-b border-secondary-200">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-700 uppercase tracking-wider w-16">
+                                <th className="px-6 py-4 text-left text-xs font-bold text-secondary-500 uppercase tracking-widest w-16">
                                     #
                                 </th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-700 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-left text-xs font-bold text-secondary-500 uppercase tracking-widest">
                                     Descripción del Paso
                                 </th>
-                                <th className="px-4 py-3 text-center text-xs font-bold text-secondary-700 uppercase tracking-wider w-24">
+                                <th className="px-6 py-4 text-center text-xs font-bold text-secondary-500 uppercase tracking-widest w-32">
                                     Evidencia
                                 </th>
                                 {isRefining && (
-                                    <th className="px-4 py-3 text-center text-xs font-bold text-secondary-700 uppercase tracking-wider w-24">
+                                    <th className="px-6 py-4 text-center text-xs font-bold text-secondary-500 uppercase tracking-widest w-24">
                                         Acciones
                                     </th>
                                 )}
@@ -124,15 +123,15 @@ function ReportDisplay() {
                                 const hasImage = imgIndex >= 0 && activeReportImages[imgIndex];
 
                                 return (
-                                    <tr key={index} className="hover:bg-secondary-50/50 transition-colors">
-                                        <td className="px-4 py-4 align-top">
-                                            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                                    <tr key={index} className={`hover:bg-primary/[0.03] transition-colors group ${index % 2 === 0 ? 'bg-white' : 'bg-secondary-50/40'}`}>
+                                        <td className="px-6 py-5 align-top">
+                                            <div className="w-8 h-8 rounded-full bg-secondary-100 text-secondary-600 flex items-center justify-center font-bold text-sm shadow-sm group-hover:bg-primary group-hover:text-white transition-colors">
                                                 {numeroPaso}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-4 align-top">
+                                        <td className="px-6 py-5 align-top">
                                             <p
-                                                className={`text-sm text-secondary-900 font-medium leading-relaxed ${isRefining ? 'border border-dashed border-primary/30 rounded px-2 py-1 focus:outline-none focus:border-primary focus:bg-primary/5' : ''}`}
+                                                className={`text-[15px] text-secondary-800 font-medium leading-relaxed ${isRefining ? 'border border-dashed border-primary/30 rounded-lg px-3 py-2 focus:outline-none focus:border-primary focus:bg-primary/5 transition-all' : ''}`}
                                                 contentEditable={isRefining}
                                                 suppressContentEditableWarning={true}
                                                 onBlur={(e) => {
@@ -146,36 +145,43 @@ function ReportDisplay() {
                                                 {descripcion}
                                             </p>
                                         </td>
-                                        <td className="px-4 py-4 align-top text-center">
+                                        <td className="px-6 py-5 align-top text-center">
                                             {hasImage ? (
                                                 <button
                                                     onClick={() => setQuickLookImage(activeReportImages[imgIndex])}
-                                                    className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                                                    className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-primary/5 text-primary hover:bg-primary/15 transition-colors shadow-sm"
                                                     title="Ver evidencia"
+                                                    aria-label="Ver evidencia"
                                                 >
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                     </svg>
                                                 </button>
                                             ) : (
-                                                <span className="text-xs text-secondary-400">-</span>
+                                                <span className="text-xs text-secondary-300 font-medium mt-2 block">-</span>
                                             )}
                                         </td>
                                         {isRefining && (
-                                            <td className="px-4 py-4 align-top text-center">
+                                            <td className="px-6 py-5 align-top text-center">
+                                                <div className="relative group/tooltip">
                                                 <button
                                                     onClick={() => {
                                                         if (window.confirm('¿Eliminar este paso?')) {
                                                             deleteStepFromActiveReport(numeroPaso);
                                                         }
                                                     }}
-                                                    className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                                                    title="Eliminar paso"
+                                                    className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors shadow-sm"
+                                                    aria-label="Eliminar paso"
                                                 >
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                     </svg>
                                                 </button>
+                                                {/* Tooltip */}
+                                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[11px] font-medium text-white bg-secondary-800 rounded-lg whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                                                    Eliminar paso
+                                                </span>
+                                            </div>
                                             </td>
                                         )}
                                     </tr>
@@ -187,16 +193,49 @@ function ReportDisplay() {
             </div>
 
             {/* Resultado Obtenido General */}
-            {(activeReport.resultado_obtenido || activeReport.Conclusion_General_Flujo) && (
-                <div className="mt-6 bg-white rounded-xl border border-secondary-200 overflow-hidden shadow-sm p-6">
-                    <h3 className="text-sm font-bold text-secondary-700 uppercase tracking-wider mb-3">
-                        Resultado Obtenido
-                    </h3>
-                    <p className="text-sm text-secondary-900 leading-relaxed">
-                        {activeReport.resultado_obtenido || activeReport.Conclusion_General_Flujo}
-                    </p>
-                </div>
-            )}
+            {(activeReport.resultado_obtenido || activeReport.Conclusion_General_Flujo) && (() => {
+                const resultado = activeReport.resultado_obtenido || activeReport.Conclusion_General_Flujo;
+                const estado = activeReport.estado_general || '';
+                const isExitoso = estado === 'Exitoso';
+                const isFallido = estado === 'Fallido';
+
+                const colorScheme = isExitoso
+                    ? { bg: 'from-green-50 to-transparent', border: 'border-green-200', iconBg: 'bg-green-100', iconColor: 'text-green-600', titleColor: 'text-green-800', textColor: 'text-green-900' }
+                    : isFallido
+                    ? { bg: 'from-red-50 to-transparent', border: 'border-red-200', iconBg: 'bg-red-100', iconColor: 'text-red-600', titleColor: 'text-red-800', textColor: 'text-red-900' }
+                    : { bg: 'from-orange-50 to-transparent', border: 'border-orange-200', iconBg: 'bg-orange-100', iconColor: 'text-orange-500', titleColor: 'text-orange-800', textColor: 'text-orange-900' };
+
+                return (
+                    <div className={`mt-8 bg-gradient-to-br ${colorScheme.bg} rounded-2xl border ${colorScheme.border} overflow-hidden p-6 md:p-8`}>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className={`w-9 h-9 rounded-full ${colorScheme.iconBg} flex items-center justify-center ${colorScheme.iconColor}`}>
+                                {isExitoso ? (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                ) : isFallido ? (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                )}
+                            </div>
+                            <div>
+                                <h3 className={`text-xs font-bold uppercase tracking-widest ${colorScheme.titleColor}`}>
+                                    Resultado Obtenido
+                                </h3>
+                                <span className={`text-xs font-semibold ${colorScheme.iconColor}`}>{estado}</span>
+                            </div>
+                        </div>
+                        <p className={`text-[15px] leading-relaxed font-medium ${colorScheme.textColor}`}>
+                            {resultado}
+                        </p>
+                    </div>
+                );
+            })()}
 
             {/* Quick Look Modal */}
             {quickLookImage && (
@@ -205,7 +244,7 @@ function ReportDisplay() {
                     onClick={() => setQuickLookImage(null)}
                 >
                     <div className="relative max-w-[90vw] max-h-[90vh] p-4">
-                        <img
+                        <OptimizedImage
                             src={quickLookImage.dataURL}
                             alt="Vista previa"
                             className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain border-2 border-white/20"

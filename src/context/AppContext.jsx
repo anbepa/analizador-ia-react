@@ -15,9 +15,10 @@ import {
     makeReportPermanent,
     addStepToReport,
     deleteStepFromReport as deleteStepFromDB,
+    deleteUserStory,
     searchUserStories,
     createUserStory,
-    deleteUserStory
+    loadImagesForReport
 } from '../lib/databaseService';
 import { supabase } from '../lib/supabaseClient';
 
@@ -54,28 +55,106 @@ export const AppProvider = ({ children }) => {
     const [analysisUserStory, setAnalysisUserStory] = useState(null); // HU seleccionada para el análisis actual
     const [filterUserStory, setFilterUserStory] = useState(null); // HU seleccionada para filtrar reportes
     const [userStorySuggestions, setUserStorySuggestions] = useState([]); // Sugerencias de autocompletado
+    const [selectedModel, setSelectedModel] = useState('gpt-4o'); // Modelo seleccionado: 'gpt-4o' (Copilot)
+    const [session, setSession] = useState(null); // Sesión de Supabase
+    const [githubToken, setGithubToken] = useState(null); // Token de GitHub (gho_) extraído de la sesión
+    const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0 });
+
+    // Listener para la sesión de Supabase
+    useEffect(() => {
+        /**
+         * Persiste el provider_token de GitHub en Supabase DB.
+         * Esto funciona tanto en local como en producción (Vercel):
+         * el token se guarda UNA vez al hacer login y se recupera
+         * desde la DB en cualquier sesión restaurada posterior.
+         */
+        const persistGithubToken = async (session) => {
+            if (!session?.provider_token || !session?.user?.id) return;
+            try {
+                await supabase.from('user_github_tokens').upsert({
+                    user_id: session.user.id,
+                    provider_token: session.provider_token,
+                    provider_refresh_token: session.provider_refresh_token || null,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'user_id' });
+            } catch (err) {
+                console.warn('[Auth] No se pudo persistir el token de GitHub:', err.message);
+            }
+        };
+
+        /**
+         * Recupera el provider_token desde Supabase DB cuando
+         * la sesión restaurada no lo incluye (recargas de página).
+         */
+        const loadGithubTokenFromDB = async (session) => {
+            if (!session?.user?.id) return null;
+            try {
+                const { data } = await supabase
+                    .from('user_github_tokens')
+                    .select('provider_token')
+                    .eq('user_id', session.user.id)
+                    .single();
+                return data?.provider_token || null;
+            } catch {
+                return null;
+            }
+        };
+
+        const initSession = async (session) => {
+            setSession(session);
+            if (session?.provider_token) {
+                // Token disponible (login fresco) → persistir en DB y en sessionStorage
+                sessionStorage.setItem('gh_provider_token', session.provider_token);
+                setGithubToken(session.provider_token);
+                await persistGithubToken(session);
+            } else if (session) {
+                // Sesión restaurada sin provider_token → intentar recuperar
+                let token = sessionStorage.getItem('gh_provider_token');
+                if (!token) token = await loadGithubTokenFromDB(session);
+                if (token) {
+                    sessionStorage.setItem('gh_provider_token', token);
+                    setGithubToken(token);
+                }
+            } else {
+                // Logout → limpiar todo
+                sessionStorage.removeItem('gh_provider_token');
+                setGithubToken(null);
+            }
+            // Limpiar la URL por seguridad (quitar access_token del hash)
+            if (window.location.hash && window.location.hash.includes('access_token')) {
+                window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+            }
+        };
+
+        // Sesión inicial
+        supabase.auth.getSession().then(({ data: { session } }) => initSession(session));
+
+        // Cambios de sesión (login, logout, refresh)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            initSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
 
     const activeReport = useMemo(() => reports[activeReportIndex] || null, [reports, activeReportIndex]);
     const activeReportImages = useMemo(() => activeReport?.imageFiles || [], [activeReport]);
 
     const canGenerate = useMemo(() => {
-        const result = currentImageFiles.length > 0 && !loading.state && !!analysisUserStory;
+        const result = currentImageFiles.length > 0 && !loading.state && !!analysisUserStory && !!session;
         console.log('🔍 canGenerate check:', {
             hasImages: currentImageFiles.length > 0,
             notLoading: !loading.state,
             hasUserStory: !!analysisUserStory,
-            analysisUserStory,
+            hasSession: !!session,
             result
         });
         return result;
-    }, [currentImageFiles, loading.state, analysisUserStory]);
+    }, [currentImageFiles, loading.state, analysisUserStory, session]);
 
     const canRefine = useMemo(() => {
-        // Verificar si hay imágenes asociadas al reporte (ya sea en imageFiles o cargadas de BD)
-        const hasImages = (activeReport?.imageFiles && activeReport.imageFiles.length > 0) ||
-            (activeReportImages && activeReportImages.length > 0);
-        return activeReport && hasImages && !loading.state;
-    }, [activeReport, activeReportImages, loading.state]);
+        return activeReport && !loading.state;
+    }, [activeReport, loading.state]);
 
     const canDownload = useMemo(() => activeReport && !loading.state, [activeReport, loading.state]);
 
@@ -427,15 +506,8 @@ export const AppProvider = ({ children }) => {
                     return;
                 }
 
-                // Cargar reportes con filtro si existe
-                const filters = {};
-                if (filterUserStory) {
-                    filters.userStoryId = filterUserStory.id;
-                }
-
-                const dbReports = await loadReportsFromDB(filters);
-                // Siempre actualizar reportes, incluso si está vacío (para reflejar el filtro)
-                setReports(dbReports || []);
+                // Cargar reportes iniciales
+                await refreshReports(1);
 
             } catch (err) {
                 console.error("Error al cargar reportes desde la base de datos:", err);
@@ -502,7 +574,10 @@ export const AppProvider = ({ children }) => {
                 : PROMPT_FLOW_ANALYSIS_FROM_IMAGES(initialContext);
 
             const jsonText = await callAiApi(prompt, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message })
+                onStatus: (message) => setLoading({ state: true, message }),
+                model: selectedModel,
+                authToken: githubToken,
+                supabaseToken: session?.access_token || null
             });
 
             // Robust JSON extraction
@@ -591,70 +666,47 @@ export const AppProvider = ({ children }) => {
                 imageFiles: [...compressedImages],
                 initial_context: initialContext,
                 user_story_id: finalUserStory ? finalUserStory.id : null, // Asociar HU si existe
-                historia_usuario: finalUserStory ? `HU-${finalUserStory.numero}` : null // Legacy field
+                historia_usuario: finalUserStory ? `HU-${finalUserStory.numero}` : null, // Legacy field
+                user_id: session?.user?.id // Asociar con el usuario actual
             };
 
             console.log('Saving report with user_story_id:', newReport.user_story_id);
 
 
 
-            // Save to database as temporary initially
+            // Save to database as permanent directly
             try {
                 let savedReport;
                 try {
-                    savedReport = await saveReportToDB(newReport, true); // Save as temporary
+                    savedReport = await saveReportToDB(newReport, false); // Save as permanent directly
                 } catch (firstError) {
                     // Check for FK violation on user_story_id
                     if (firstError.code === '23503' && firstError.message.includes('user_story_id')) {
                         console.warn("FK Violation on user_story_id. Retrying without HU association...", firstError);
                         // Retry without user_story_id
                         const fallbackReport = { ...newReport, user_story_id: null };
-                        savedReport = await saveReportToDB(fallbackReport, true);
+                        savedReport = await saveReportToDB(fallbackReport, false);
                         setError("Reporte guardado, pero hubo un problema al vincular la Historia de Usuario. Se guardó sin vinculación.");
                     } else {
                         throw firstError;
                     }
                 }
 
+                // Important: keep the imageFiles with their dataURLs in the local state
+                // to avoid triggering a lazy load fetch immediately.
+                const finalReportForState = {
+                    ...savedReport,
+                    imageFiles: newReport.imageFiles // Preserve local images (with base64)
+                };
+
                 setReports(prev => {
-                    const newReports = [...prev, savedReport];
+                    const newReports = [...prev, finalReportForState];
                     setActiveReportIndex(newReports.length - 1);
                     return newReports;
                 });
 
-                // Auto-make permanent after successful generation
-                if (savedReport.id) {
-                    try {
-                        const permanentReport = await makeReportPermanent(savedReport.id);
-
-                        // Reload the complete report with images from database
-                        const reloadedReports = await loadReportsFromDB();
-                        const currentReport = reloadedReports.find(r => r.id === savedReport.id);
-
-                        if (currentReport) {
-                            setReports(prev => {
-                                const newReports = [...prev];
-                                newReports[newReports.length - 1] = currentReport;
-                                return newReports;
-                            });
-
-                        } else {
-                            // Fallback to combining saved data with permanent status
-                            const updatedReport = { ...savedReport, ...permanentReport, is_temp: false };
-                            setReports(prev => {
-                                const newReports = [...prev];
-                                newReports[newReports.length - 1] = updatedReport;
-                                return newReports;
-                            });
-
-                        }
-                        // Limpiar las imágenes cargadas después de un análisis exitoso
-                        setCurrentImageFiles([]);
-                    } catch (permanentError) {
-                        console.warn("Report saved but couldn't make permanent:", permanentError);
-                        // Report is still saved, just remains temporary
-                    }
-                }
+                // Limpiar las imágenes cargadas después de un análisis exitoso
+                setCurrentImageFiles([]);
             } catch (dbError) {
                 console.warn("Failed to save to database, keeping local copy:", dbError);
                 // Fallback to local state only
@@ -912,32 +964,51 @@ export const AppProvider = ({ children }) => {
 
         try {
             // Validate and clean images before sending to API
-            let imagesToSend = validateAndCleanImages(activeReport.imageFiles);
-
-            if (imagesToSend.length === 0) {
-                throw new Error("No hay imágenes válidas para el análisis. Por favor, verifica que las imágenes estén cargadas correctamente.");
-            }
-
-            setLoading({ state: true, message: `Preparando ${imagesToSend.length} imágenes para análisis...` });
-
-            // Compress large images to avoid API issues
+            let imagesToSend = validateAndCleanImages(activeReport.imageFiles || activeReportImages || []);
             const compressedImages = [];
-            for (let i = 0; i < imagesToSend.length; i++) {
-                setLoading({ state: true, message: `Optimizando imagen ${i + 1} de ${imagesToSend.length}...` });
-                try {
-                    const compressed = await compressImageIfNeeded(imagesToSend[i]);
-                    compressedImages.push(compressed);
-                } catch (compressError) {
-                    console.warn(`Failed to compress image ${i + 1}, using original:`, compressError);
-                    compressedImages.push(imagesToSend[i]);
+
+            if (imagesToSend.length > 0) {
+                setLoading({ state: true, message: `Preparando ${imagesToSend.length} imágenes para análisis...` });
+                // Compress large images to avoid API issues
+                for (let i = 0; i < imagesToSend.length; i++) {
+                    setLoading({ state: true, message: `Optimizando imagen ${i + 1} de ${imagesToSend.length}...` });
+                    try {
+                        const compressed = await compressImageIfNeeded(imagesToSend[i]);
+                        compressedImages.push(compressed);
+                    } catch (compressError) {
+                        console.warn(`Failed to compress image ${i + 1}, using original:`, compressError);
+                        compressedImages.push(imagesToSend[i]);
+                    }
                 }
             }
 
             setLoading({ state: true, message: 'Enviando a IA para refinamiento...' });
 
+            // Asegurar que tenemos el token de GitHub antes de llamar al proxy
+            let tokenParaLlamada = githubToken;
+            if (!tokenParaLlamada) {
+                // Intentar recuperar desde sessionStorage (persistido en login previo)
+                tokenParaLlamada = sessionStorage.getItem('gh_provider_token');
+            }
+            if (!tokenParaLlamada) {
+                // Último recurso: consultar la sesión activa de Supabase
+                const { data: { session: currentSession } } = await supabase.auth.getSession();
+                tokenParaLlamada = currentSession?.provider_token || null;
+                if (tokenParaLlamada) {
+                    sessionStorage.setItem('gh_provider_token', tokenParaLlamada);
+                    setGithubToken(tokenParaLlamada);
+                }
+            }
+            if (!tokenParaLlamada) {
+                throw new Error('No se encontró el token de GitHub. Por favor, cierra sesión y vuelve a entrar con GitHub.');
+            }
+
             const prompt = PROMPT_REFINE_FLOW_ANALYSIS_FROM_IMAGES_AND_CONTEXT(editedJsonString);
             const jsonText = await callAiApi(prompt, compressedImages, {
-                onStatus: (message) => setLoading({ state: true, message })
+                onStatus: (message) => setLoading({ state: true, message }),
+                model: selectedModel,
+                authToken: tokenParaLlamada,
+                supabaseToken: session?.access_token || null
             });
             const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/s) || jsonText.match(/([\s\S]*)/);
             if (!jsonMatch) throw new Error("La respuesta de la API no contiene un bloque JSON válido.");
@@ -1028,25 +1099,12 @@ export const AppProvider = ({ children }) => {
                     // Update the current report with the refined version
                     setReports(prev => {
                         const newReports = [...prev];
-                        newReports[activeReportIndex] = updatedReport;
+                        newReports[activeReportIndex] = { ...refinedReport, ...updatedReport };
                         return newReports;
                     });
 
                     setLoading({ state: true, message: 'Refinamiento guardado exitosamente' });
                     console.log('Refinement completed and saved successfully');
-
-                    // Recargar TODOS los reportes desde la BD para asegurar persistencia
-                    setLoading({ state: true, message: 'Recargando reportes desde base de datos...' });
-                    const allReports = await loadReportsFromDB();
-                    setReports(allReports);
-
-                    // Encontrar el índice del reporte actualizado en la nueva lista
-                    const updatedIndex = allReports.findIndex(r => r.id === activeReport.id);
-                    if (updatedIndex !== -1) {
-                        setActiveReportIndex(updatedIndex);
-                    }
-
-                    console.log('All reports reloaded from database, total:', allReports.length);
                 } catch (dbError) {
                     console.error("Failed to update refined report in database:", dbError);
                     // Fallback to local update
@@ -1101,6 +1159,31 @@ export const AppProvider = ({ children }) => {
         }
     };
 
+    const deleteReportsBulk = async (indices) => {
+        // Filtrar los reportes a eliminar
+        const reportsToDelete = indices.map(index => reports[index]).filter(Boolean);
+        const idsToDelete = reportsToDelete.map(r => r.id).filter(Boolean);
+
+        // Delete from database
+        if (idsToDelete.length > 0) {
+            try {
+                // Assuming deleteReportFromDB works for single ID. 
+                // Alternatively, we can use Promise.all for now
+                await Promise.all(idsToDelete.map(id => deleteReportFromDB(id)));
+            } catch (dbError) {
+                console.warn("Failed to delete some reports from database:", dbError);
+                setError("Ocurrió un error al intentar eliminar algunos reportes de la base de datos.");
+                // Proceed to delete successful ones or just refresh? Let's just continue
+            }
+        }
+
+        // Update local state
+        setReports(prev => prev.filter((_, i) => !indices.includes(i)));
+        
+        // Reset active index just in case
+        setActiveReportIndex(-1);
+    };
+
     const updateReportName = async (index, newName) => {
         const reportToUpdate = reports[index];
         if (!reportToUpdate) return;
@@ -1149,14 +1232,14 @@ export const AppProvider = ({ children }) => {
             setUserStorySuggestions([]);
             return [];
         }
-        const stories = await searchUserStories(query);
+        const stories = await searchUserStories(query, session?.user?.id);
         setUserStorySuggestions(stories);
         return stories;
     };
 
     const handleUserStoryCreate = async (numero, title) => {
         try {
-            const newStory = await createUserStory(numero, title);
+            const newStory = await createUserStory(numero, title, session?.user?.id);
             return newStory;
         } catch (error) {
             console.error("Error creating user story:", error);
@@ -1223,6 +1306,65 @@ export const AppProvider = ({ children }) => {
         });
     };
 
+    const handleLogin = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'github',
+            options: {
+                redirectTo: window.location.origin
+            }
+        });
+        if (error) {
+            setError('Error al iniciar sesión con GitHub: ' + error.message);
+        }
+    };
+
+    const handleLogout = async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            setError('Error al cerrar sesión: ' + error.message);
+        } else {
+            setReports([]); // Opcional: Limpiar reportes al cerrar sesión
+            setSession(null);
+            setGithubToken(null);
+        }
+    };
+
+    const refreshReports = async (page = pagination.page) => {
+        try {
+            setLoading({ state: true, message: 'Cargando reportes...' });
+            
+            const filters = {
+                page,
+                pageSize: pagination.pageSize,
+                userId: session?.user?.id
+            };
+
+            if (filterUserStory) {
+                filters.userStoryId = filterUserStory.id;
+            }
+
+            const result = await loadReportsFromDB(filters);
+            
+            const newReports = result.reports || [];
+            setReports(newReports);
+            setPagination(prev => ({ ...prev, page, total: result.total || 0 }));
+            
+            if (newReports.length > 0) {
+                setActiveReportIndex(0);
+            }
+
+        } catch (err) {
+            console.error("Error al refrescar reportes:", err);
+            setError("No se pudieron cargar los reportes.");
+        } finally {
+            setLoading({ state: false, message: '' });
+        }
+    };
+
+    const changePage = (newPage) => {
+        refreshReports(newPage);
+    };
+
     const value = {
         currentImageFiles,
         setCurrentImageFiles,
@@ -1234,6 +1376,7 @@ export const AppProvider = ({ children }) => {
         activeReportIndex,
         selectReport,
         deleteReport,
+        deleteReportsBulk,
         updateReportName,
         handleMakeReportPermanent,
         loading,
@@ -1269,7 +1412,17 @@ export const AppProvider = ({ children }) => {
         handleUserStoryDelete,
         // Edición de pasos en refinamiento
         updateStepInActiveReport,
-        deleteStepFromActiveReport
+        deleteStepFromActiveReport,
+        // Auth
+        session,
+        githubToken,
+        handleLogin,
+        handleLogout,
+        selectedModel,
+        setSelectedModel,
+        pagination,
+        changePage,
+        refreshReports
     };
 
     return (

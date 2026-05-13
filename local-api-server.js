@@ -21,44 +21,15 @@ const ffprobePath = require('@ffprobe-installer/ffprobe').path
 ffmpeg.setFfmpegPath(ffmpegPath)
 ffmpeg.setFfprobePath(ffprobePath)
 
-let GoogleGenerativeAI
-let GoogleAIFileManager
+let CopilotClient;
+let approveAll;
 try {
-  ; ({ GoogleGenerativeAI } = require('@google/generative-ai'))
-    ; ({ GoogleAIFileManager } = require('@google/generative-ai/server'))
+  const sdk = require('@github/copilot-sdk');
+  CopilotClient = sdk.CopilotClient;
+  approveAll = sdk.approveAll;
+  console.log('[INFO] @github/copilot-sdk cargado correctamente');
 } catch (error) {
-  console.warn('[WARN] @google/generative-ai no está instalado. Usando una implementación mínima con fetch.', error?.message)
-
-  GoogleGenerativeAI = class {
-    constructor(apiKey) {
-      this.apiKey = apiKey
-    }
-
-    getGenerativeModel({ model }) {
-      return {
-        generateContent: async ({ contents, generationConfig }) => {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${this.apiKey}`
-
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents, generationConfig }),
-          })
-
-          if (!response.ok) {
-            const errorBody = await response.json().catch(() => null)
-            const message = errorBody?.error?.message || 'Error al llamar a Gemini'
-            const err = new Error(message)
-            err.details = errorBody
-            throw err
-          }
-
-          const data = await response.json()
-          return { response: data }
-        },
-      }
-    }
-  }
+  console.warn('[WARN] @github/copilot-sdk no está instalado.', error?.message);
 }
 
 const app = express()
@@ -69,106 +40,132 @@ app.use(cors())
 app.use(express.json({ limit: BODY_LIMIT }))
 app.use(express.urlencoded({ limit: BODY_LIMIT, extended: true }))
 
+const GITHUB_TOKEN = process.env.COPILOT_GITHUB_TOKEN;
 
-
-// Helper to download file from URL to temp path
-async function downloadFile(url, destPath) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed to download file: ${response.statusText}`);
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  fs.writeFileSync(destPath, buffer);
+if (!GITHUB_TOKEN) {
+    console.warn('[WARN] COPILOT_GITHUB_TOKEN no configurada en .env.local. Se requerirá token del cliente.');
 }
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', copilot: !!GITHUB_TOKEN });
+});
 
-app.post('/api/gemini-proxy', async (req, res) => {
+app.post('/api/copilot-proxy', async (req, res) => {
   try {
-    const apiKey = process.env.GEMINI_API_KEY
+    const authHeader = req.headers.authorization;
+    const clientToken = (authHeader && authHeader.startsWith('Bearer ')) ? authHeader.split(' ')[1] : null;
+    const envToken = process.env.COPILOT_GITHUB_TOKEN || process.env.GITHUB_TOKEN || null;
 
-    if (!apiKey) {
-      console.error('[ERROR] GEMINI_API_KEY no configurada en .env.local')
-      return res.status(500).json({
-        error: 'GEMINI_API_KEY not configured',
-        message: 'Configure GEMINI_API_KEY en .env.local',
-      })
+    // Decidir estrategia de autenticación
+    // 1. Si viene token del cliente (OAuth GitHub), usarlo directamente
+    // 2. Si hay token en .env.local, usarlo como fallback
+    // 3. Si no hay token, usar el usuario local de Copilot (VS Code autenticado)
+    const useLocalUser = !clientToken && !envToken;
+    const githubToken = clientToken || envToken || null;
+
+    if (useLocalUser) {
+      console.log('[API] No token provided - using local Copilot user session');
+    } else {
+      console.log('[API] Using GitHub token from', clientToken ? 'client OAuth' : '.env.local');
     }
 
-    const { payload, hasVideo } = req.body
-    const { contents, generationConfig } = payload || req.body
+    if (!CopilotClient) {
+      return res.status(500).json({
+        error: 'Copilot SDK not loaded',
+        message: 'El SDK de Copilot no se pudo cargar en el servidor.',
+      });
+    }
 
-    console.log(`[API] Gemini API call received (action: ${req.body.action || 'direct'}, hasVideo: ${hasVideo})`)
+    const { messages, model = 'gpt-4o' } = req.body;
 
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    console.log(`[API] Copilot API call received (model: ${model}, strategy: ${useLocalUser ? 'local-user' : 'token'})`);
 
-    // If request has video, we need to process it via File API
-    if (hasVideo && GoogleAIFileManager) {
-      const fileManager = new GoogleAIFileManager(apiKey);
+    const clientConfig = useLocalUser
+      ? { useLoggedInUser: true }
+      : { gitHubToken: githubToken, useLoggedInUser: false };
 
-      // Iterate through parts to find video URLs
-      for (const part of contents[0].parts) {
-        if (part.file_data && part.file_data.file_uri && part.file_data.file_uri.startsWith('http')) {
-          console.log('[API] Processing video from URL:', part.file_data.file_uri);
+    const client = new CopilotClient(clientConfig);
+    
+    await client.start();
 
-          const tempFilePath = path.join(os.tmpdir(), `gemini_video_${Date.now()}.mp4`);
+    // Extract text and images from the messages
+    const lastMessage = messages[messages.length - 1];
+    let textPrompt = '';
+    const attachments = [];
 
-          try {
-            // 1. Download video from Supabase URL
-            await downloadFile(part.file_data.file_uri, tempFilePath);
-            console.log('[API] Video downloaded to temp file');
-
-            // 2. Upload to Google AI File API
-            const uploadResult = await fileManager.uploadFile(tempFilePath, {
-              mimeType: part.file_data.mime_type,
-              displayName: "Video Analysis Upload"
+    if (typeof lastMessage.content === 'string') {
+      textPrompt = lastMessage.content;
+    } else if (Array.isArray(lastMessage.content)) {
+      lastMessage.content.forEach(part => {
+        if (part.type === 'text') {
+          textPrompt += part.text;
+        } else if (part.type === 'image_url' && part.image_url && part.image_url.url) {
+          const url = part.image_url.url;
+          // Extract base64 and mimeType from data URL
+          const matches = url.match(/^data:([^;]+);base64,(.+)$/);
+          if (matches) {
+            attachments.push({
+              type: 'blob',
+              mimeType: matches[1],
+              data: matches[2]
             });
-            console.log(`[API] Uploaded file: ${uploadResult.file.displayName} as ${uploadResult.file.uri}`);
-
-            // 3. Wait for processing to complete
-            let file = await fileManager.getFile(uploadResult.file.name);
-            while (file.state === "PROCESSING") {
-              console.log('[API] Waiting for video processing...');
-              await new Promise((resolve) => setTimeout(resolve, 2000));
-              file = await fileManager.getFile(uploadResult.file.name);
-            }
-
-            if (file.state === "FAILED") {
-              throw new Error("Video processing failed.");
-            }
-            console.log(`[API] Video processing complete: ${file.uri}`);
-
-            // 4. Update the part with the correct file URI for Gemini
-            part.file_data.file_uri = file.uri;
-
-          } catch (err) {
-            console.error('[ERROR] Video processing error:', err);
-            throw err;
-          } finally {
-            // Cleanup temp file
-            if (fs.existsSync(tempFilePath)) {
-              fs.unlinkSync(tempFilePath);
-            }
           }
         }
-      }
+      });
     }
 
-    const result = await model.generateContent({
-      contents,
-      generationConfig,
-    })
+    const session = await client.createSession({
+      model: model,
+      onPermissionRequest: approveAll
+    });
 
-    console.log('[SUCCESS] Gemini response successful')
-    res.status(200).json(result.response)
+    console.log(`[API] Sending prompt to Copilot with ${attachments.length} attachments`);
+
+    const response = await session.sendAndWait({
+      prompt: textPrompt,
+      attachments: attachments
+    });
+
+    console.log('[DEBUG] Copilot raw response:', JSON.stringify(response, null, 2));
+
+    // The SDK response structure might vary, let's try to find the content
+    let content = '';
+    if (typeof response === 'string') {
+      content = response;
+    } else if (response.data && response.data.content) {
+      // Structure found in logs: response.data.content
+      content = response.data.content;
+    } else if (response.content && typeof response.content === 'string') {
+      content = response.content;
+    } else if (response.text && typeof response.text === 'string') {
+      content = response.text;
+    } else if (Array.isArray(response.content)) {
+      // If it's an array of message parts
+      content = response.content.map(part => part.text || '').join('');
+    } else {
+      content = JSON.stringify(response);
+    }
+
+    console.log('[SUCCESS] Copilot response successful');
+    // Format the response to be compatible with what the frontend expects (OpenAI-like)
+    res.status(200).json({
+      choices: [
+        {
+          message: {
+            content: content
+          }
+        }
+      ]
+    });
   } catch (error) {
-    console.error('[ERROR] Gemini API error:', error.message)
-    res.status(500).json({ error: error.message })
+    console.error('[ERROR] Copilot API error:', error.message);
+    res.status(500).json({ error: error.message });
   }
 })
 
 app.use((err, req, res, next) => {
   if (err?.type === 'entity.too.large') {
-    console.error('[ERROR] Payload too large for Gemini proxy', err.message)
     return res.status(413).json({
       error: 'Payload too large',
       message: 'El payload excede el límite permitido. Reduce el tamaño o cantidad de imágenes y vuelve a intentarlo.'
@@ -209,8 +206,7 @@ const killPort = (port) => {
 killPort(PORT).then(() => {
   app.listen(PORT, () => {
     console.log(`\n[SERVER] Local API server running on http://localhost:${PORT}`)
-    console.log(`[ENDPOINT] http://localhost:${PORT}/api/gemini-proxy`)
-    console.log(`[API_KEY] GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configured' : 'Missing'}`)
+    console.log(`[ENDPOINT] http://localhost:${PORT}/api/copilot-proxy`)
     console.log(`[FFMPEG] Path: ${ffmpegPath}`)
     console.log(`[FFPROBE] Path: ${ffprobePath}\n`)
   })

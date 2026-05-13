@@ -1,8 +1,85 @@
 import { supabase } from './supabaseClient.js';
 
 /**
- * Simple Image Service - Only Base64 storage
+ * Simple Image Service - Supabase Storage Migration
  */
+
+const BUCKET_NAME = 'reports';
+
+/**
+ * Helper to convert Base64 to Blob
+ */
+const base64ToBlob = (base64, type) => {
+  try {
+    const parts = base64.split(',');
+    const byteString = atob(parts[parts.length - 1]);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type });
+  } catch (e) {
+    console.error('Error in base64ToBlob:', e);
+    return null;
+  }
+};
+
+/**
+ * Helper to upload file to Supabase Storage
+ */
+const uploadToStorage = async (reportId, file, index) => {
+  try {
+    let blob;
+    let fileName = (file.name || `image_${Date.now()}_${index}.png`)
+      .replace(/\s+/g, '_')
+      .replace(/[^\w\.-]/g, '');
+    let contentType = file.type || 'image/png';
+
+    if (file.isVideo || (file.type && file.type.startsWith('video/'))) {
+      // Si ya es una URL (video de Supabase), no subir de nuevo
+      if (typeof file.dataURL === 'string' && file.dataURL.startsWith('http')) {
+        return { url: file.dataURL, path: null };
+      }
+      // Si es un Blob/File de video, subirlo
+      blob = file;
+      fileName = `video_${Date.now()}_${index}.mp4`;
+      contentType = file.type || 'video/mp4';
+    } else {
+      // Es una imagen Base64 - Generar un nombre seguro sin caracteres especiales
+      const extension = contentType.split('/')[1] || 'png';
+      fileName = `evidence_${index}_${Date.now()}.${extension}`;
+      blob = base64ToBlob(file.dataURL, contentType);
+      if (!blob) throw new Error('Failed to convert base64 to blob');
+    }
+
+    const path = `${reportId}/${fileName}`;
+    
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(path, blob, {
+        contentType,
+        upsert: true
+      });
+
+    if (error) {
+      console.error('DETALLE ERROR STORAGE:', error);
+      if (error.message === 'Bucket not found') {
+        console.error('ERROR: El bucket "reports" no existe. Por favor créalo en el dashboard de Supabase y ponlo como público.');
+      }
+      throw error;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(path);
+
+    return { url: publicUrl, path: data.path };
+  } catch (error) {
+    console.error('Error uploading to storage:', error);
+    return { url: file.dataURL, path: null }; // Fallback to base64 if upload fails
+  }
+};
 
 /**
  * Validate and clean image/video data for API consumption
@@ -171,23 +248,10 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
     const imageFile = imageFiles[i];
 
     try {
-      let base64Data = null;
-      let videoUrl = null;
-      let isVideo = false;
-
-      if (imageFile.isVideo || (imageFile.type && imageFile.type.startsWith('video/'))) {
-        isVideo = true;
-        videoUrl = imageFile.dataURL; // This is the Supabase URL
-      } else if (imageFile instanceof File) {
-        base64Data = await fileToBase64(imageFile);
-      } else if (imageFile.dataURL) {
-        base64Data = imageFile.dataURL;
-      } else if (imageFile.dataUrl) {
-        base64Data = imageFile.dataUrl;
-      } else {
-        console.warn('Skipping invalid image file:', imageFile);
-        continue;
-      }
+      console.log(`Uploading evidence ${i + 1}/${imageFiles.length} to storage...`);
+      const { url, path } = await uploadToStorage(reportId, imageFile, i);
+      
+      const isVideo = imageFile.isVideo || (imageFile.type && imageFile.type.startsWith('video/'));
 
       // Find step associations for this image
       const associations = imageStepAssociations.filter(assoc => assoc.imageIndex === i);
@@ -195,15 +259,17 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
       const commonData = {
         report_id: reportId,
         file_name: imageFile.name || (isVideo ? `video_${i + 1}.mp4` : `imagen_${i + 1}`),
-        image_data: base64Data, // Null for videos
-        video_url: videoUrl,    // Null for images
+        image_data: path ? null : imageFile.dataURL, // Solo guardar Base64 si falló la subida
+        image_url: url,
+        storage_path: path,
+        video_url: isVideo ? url : null,
         is_video: isVideo,
         from_video_frame: imageFile.fromVideoFrame || false,
         step_number: imageFile.stepNumber || null,
         file_type: imageFile.type || (isVideo ? 'video/mp4' : 'image/png'),
         file_size: imageFile.size || 0,
         image_order: i,
-        is_stored_in_storage: !!videoUrl,
+        is_stored_in_storage: !!path,
         is_temp: isTemporary
       };
 
@@ -238,7 +304,7 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
     const { data, error } = await supabase
       .from('report_images')
       .insert(batch)
-      .select('id, file_name, file_size, file_type, step_id, step_image_type, image_order, is_video, video_url');
+      .select('id, file_name, file_size, file_type, step_id, step_image_type, image_order, is_video, video_url, image_url, storage_path');
 
     if (error) {
       console.error('Error saving images batch:', error);
@@ -252,11 +318,10 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
 
   // Supabase preserves insertion order within each batch; batches maintain overall ordering via concatenation
   return savedRows.map((row, index) => {
-    const source = imagesToInsert[index];
     return {
       id: row.id,
       name: row.file_name,
-      dataURL: row.is_video ? row.video_url : source.image_data,
+      dataURL: row.image_url || row.video_url || row.image_data,
       size: row.file_size,
       type: row.file_type,
       stepId: row.step_id,
@@ -287,7 +352,7 @@ export const loadImagesForReport = async (reportId) => {
     return (data || []).map(img => ({
       id: img.id,
       name: img.file_name,
-      dataURL: img.is_video ? img.video_url : img.image_data,
+      dataURL: img.image_url || img.image_data || img.video_url,
       size: img.file_size,
       type: img.file_type,
       isVideo: img.is_video,
@@ -310,7 +375,7 @@ export const loadImagesForReports = async (reportIds = []) => {
   try {
     const { data, error } = await supabase
       .from('report_images')
-      .select('id, report_id, file_name, file_size, file_type, image_data, video_url, is_video, from_video_frame, step_number, image_order, step_image_type')
+      .select('id, report_id, file_name, file_size, file_type, image_data, image_url, video_url, is_video, from_video_frame, step_number, image_order, step_image_type')
       .in('report_id', reportIds)
       .order('image_order');
 

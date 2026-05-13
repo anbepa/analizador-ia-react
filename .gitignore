@@ -25,3 +25,4 @@ environments/.env.local
 *.njsproj
 *.sln
 *.sw?
+.vercel

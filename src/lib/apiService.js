@@ -1,47 +1,48 @@
-import { enqueueGeminiCall } from './geminiService';
-
 export async function callAiApi(prompt, files, options = {}) {
+    return await callCopilotApi(prompt, files, options);
+}
+
+export async function callCopilotApi(prompt, files, options = {}) {
     const onStatus = options.onStatus;
-    const model = options.model || 'gemini-2.0-flash'; // Default to 2.0 Flash for video support
+    const model = options.model || 'gpt-4o';
+    const authToken = options.authToken || null;  // provider_token de GitHub OAuth
+    const supabaseToken = options.supabaseToken || null; // JWT de Supabase (para DB lookup en Vercel)
 
-    const apiUrl = '/api/gemini-proxy';
+    const apiUrl = '/api/copilot-proxy';
     const headers = { 'Content-Type': 'application/json' };
+    
+    // Token de GitHub OAuth (para login frescos)
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+    // JWT de Supabase (para recuperar token desde DB en producción/Vercel)
+    if (supabaseToken) {
+        headers['X-Supabase-Token'] = supabaseToken;
+    }
 
-    const geminiParts = [{ text: prompt }];
-    let hasVideo = false;
+    const messages = [
+        {
+            role: 'user',
+            content: [
+                { type: 'text', text: prompt }
+            ]
+        }
+    ];
 
-    // Process files (images or videos)
+    // Adjuntar imágenes
     files.forEach(file => {
-        if (file.isVideo && file.dataURL) {
-            // It's a video URL from Supabase
-            hasVideo = true;
-            geminiParts.push({
-                file_data: {
-                    mime_type: file.type || 'video/mp4',
-                    file_uri: file.dataURL // We send the URL, backend will handle it
-                }
-            });
-        } else if (file.dataURL && file.dataURL.includes(',')) {
-            // It's a base64 image
-            const base64Data = file.dataURL.split(',')[1];
-            const mimeType = file.dataURL.split(',')[0].match(/data:([^;]+)/)?.[1] || file.type || 'image/png';
-
-            geminiParts.push({
-                inline_data: {
-                    mime_type: mimeType,
-                    data: base64Data
-                }
+        if (file.dataURL && file.dataURL.includes(',')) {
+            messages[0].content.push({
+                type: 'image_url',
+                image_url: { url: file.dataURL }
             });
         }
     });
 
-    const body = {
-        model,
-        contents: [{ parts: geminiParts }],
-        hasVideo // Flag to tell backend to handle video
-    };
+    const body = { model, messages };
 
     const performRequest = async () => {
+        onStatus?.('Enviando solicitud a Copilot...');
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers,
@@ -49,57 +50,16 @@ export async function callAiApi(prompt, files, options = {}) {
         });
 
         if (!response.ok) {
-            const responseText = await response.text().catch(() => '');
-            let errorBody = responseText;
-
-            if (responseText) {
-                try {
-                    errorBody = JSON.parse(responseText);
-                } catch {
-                    errorBody = responseText;
-                }
-            }
-
-            let errorMessage = 'Error desconocido en la API';
-
-            if (response.status === 413) {
-                errorMessage = 'El payload enviado es demasiado grande para el proxy. Reduce el tamaño o la cantidad de imágenes e intenta de nuevo.';
-            } else if (typeof errorBody === 'object' && errorBody.error) {
-                if (errorBody.error.message) {
-                    const geminiError = errorBody.error.message;
-                    if (geminiError.includes('Unable to process input image')) {
-                        errorMessage = "Una o más imágenes no pudieron ser procesadas. Esto puede ser debido a:\n" +
-                            "• Imágenes corruptas o en formato no válido\n" +
-                            "• Imágenes demasiado grandes (máximo recomendado: 10MB)\n" +
-                            "• Contenido de imagen no reconocible\n\n" +
-                            "Sugerencias:\n" +
-                            "• Verifica que las imágenes se vean correctamente\n" +
-                            "• Intenta con imágenes más pequeñas\n" +
-                            "• Usa formatos comunes (PNG, JPG, WEBP)";
-                    } else if (geminiError.includes('quota') || geminiError.includes('limit')) {
-                        errorMessage = 'Se ha excedido el límite de la API de Gemini. Intenta más tarde o verifica tu cuota.';
-                    } else {
-                        errorMessage = `Error de Gemini: ${geminiError}`;
-                    }
-                } else {
-                    errorMessage = typeof errorBody.error === 'string' ? errorBody.error : JSON.stringify(errorBody.error);
-                }
-            } else if (typeof errorBody === 'string' && errorBody.trim().length > 0) {
-                errorMessage = errorBody;
-            }
-
-            const error = new Error(errorMessage);
-            error.status = response.status;
-            error.details = errorBody;
-            throw error;
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || errorData.error || 'Error en la API de Copilot');
         }
 
         return response.json();
     };
 
-    const result = await enqueueGeminiCall(performRequest, { onStatus });
-
-    return result.candidates[0].content.parts[0].text;
+    // Use the same queue logic if needed, or call directly
+    const result = await performRequest();
+    return result.choices[0].message.content;
 }
 
 export function readFileAsBase64(file) {

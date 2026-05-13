@@ -98,11 +98,13 @@ const BrowserCapture = React.forwardRef(({ onCapture, showTrigger = true }, ref)
     };
 
     return (
-        <div className="mt-6 pt-6 border-t border-secondary-200">
-            <div className="text-center mb-4">
-                <p className="text-secondary-600 font-medium mb-2">Captura de Pantalla</p>
-                <p className="text-sm text-secondary-500">Inicia una sesión para capturar un flujo de imágenes</p>
-            </div>
+        <div className={isSessionActive ? "mt-6 pt-6 border-t border-secondary-200" : ""}>
+            {showTrigger && (
+                <div className="text-center mb-4">
+                    <p className="text-secondary-600 font-medium mb-2">Captura de Pantalla</p>
+                    <p className="text-sm text-secondary-500">Inicia una sesión para capturar un flujo de imágenes</p>
+                </div>
+            )}
 
             {!isSessionActive ? (
                 showTrigger ? (

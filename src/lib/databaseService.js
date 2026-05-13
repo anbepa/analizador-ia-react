@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient.js';
-import { storeImagesForReport, loadImagesForReports } from './imageService.js';
+import { storeImagesForReport, loadImagesForReports, loadImagesForReport } from './imageService.js';
 
 /**
  * Generate a session ID for the current browser session
@@ -14,9 +14,9 @@ const getSessionId = () => {
 };
 
 /**
- * Search user stories by code or title
+ * Search user stories by code or title (filtered by user)
  */
-export const searchUserStories = async (query) => {
+export const searchUserStories = async (query, userId = null) => {
   try {
     if (!query) return [];
 
@@ -27,6 +27,11 @@ export const searchUserStories = async (query) => {
       .from('user_stories')
       .select('*')
       .limit(10);
+    
+    // Filtrar por usuario si se proporciona
+    if (userId) {
+      dbQuery = dbQuery.eq('user_id', userId);
+    }
 
     if (isNumber) {
       dbQuery = dbQuery.or(`numero.eq.${query},title.ilike.%${query}%`);
@@ -47,11 +52,14 @@ export const searchUserStories = async (query) => {
 /**
  * Create a new user story
  */
-export const createUserStory = async (numero, title) => {
+export const createUserStory = async (numero, title, userId = null) => {
   try {
+    const insertData = { numero: parseInt(numero), title };
+    if (userId) insertData.user_id = userId;
+
     const { data, error } = await supabase
       .from('user_stories')
-      .insert([{ numero: parseInt(numero), title }])
+      .insert([insertData])
       .select()
       .single();
 
@@ -92,10 +100,8 @@ export const saveReport = async (reportData, isTemporary = false) => {
     const videoFile = imageFiles && imageFiles.find(f => f.isVideo || (f.type && f.type.startsWith('video/')));
     const videoUrl = videoFile ? videoFile.dataURL : null;
 
-    // Save basic report data - incluye campos nuevos Y legacy para compatibilidad total
-    const { data: report, error: reportError } = await supabase
-      .from('test_scenarios')
-      .insert([{
+    // Save basic report data
+    const reportToInsert = {
         // Campos nuevos de casos de prueba
         id_caso: otherData.id_caso || null,
         escenario_prueba: otherData.escenario_prueba || otherData.Nombre_del_Escenario || 'Caso de Prueba',
@@ -103,11 +109,11 @@ export const saveReport = async (reportData, isTemporary = false) => {
         resultado_esperado: otherData.resultado_esperado || otherData.Resultado_Esperado_General_Flujo || null,
         resultado_obtenido: otherData.resultado_obtenido || otherData.Conclusion_General_Flujo || null,
         historia_usuario: otherData.historia_usuario || null,
-        user_story_id: otherData.user_story_id || null, // Nuevo campo FK
+        user_story_id: otherData.user_story_id || null, 
         set_escenarios: otherData.set_escenarios || null,
         fecha_ejecucion: otherData.fecha_ejecucion || new Date().toISOString().split('T')[0],
         estado_general: otherData.estado_general || 'Pendiente',
-        // Campos legacy (requeridos por la BD)
+        // Campos legacy
         nombre_del_escenario: otherData.escenario_prueba || otherData.Nombre_del_Escenario || 'Caso de Prueba',
         resultado_esperado_general_flujo: otherData.resultado_esperado || otherData.Resultado_Esperado_General_Flujo || null,
         conclusion_general_flujo: otherData.resultado_obtenido || otherData.Conclusion_General_Flujo || null,
@@ -117,7 +123,16 @@ export const saveReport = async (reportData, isTemporary = false) => {
         video_url: videoUrl,
         is_temp: isTemporary,
         session_id: isTemporary ? getSessionId() : null
-      }])
+    };
+
+    // Añadir user_id si se proporciona en reportData
+    if (otherData.user_id) {
+        reportToInsert.user_id = otherData.user_id;
+    }
+
+    const { data: report, error: reportError } = await supabase
+      .from('test_scenarios')
+      .insert([reportToInsert])
       .select()
       .single();
 
@@ -439,45 +454,23 @@ export const updateReport = async (reportId, reportData) => {
       console.log('Steps updated successfully:', steps.length, 'steps inserted');
     }
 
-    // Update report images if any
-    if (imageFiles && imageFiles.length > 0) {
-      console.log('Updating images for report:', reportId, imageFiles.length, 'images');
+      // Update report images if any
+      if (imageFiles && imageFiles.length > 0) {
+        console.log('Updating images for report:', reportId, imageFiles.length, 'images');
 
-      // Delete existing images first
-      const { error: deleteImagesError } = await supabase
-        .from('report_images')
-        .delete()
-        .eq('report_id', reportId);
+        // Delete existing images first
+        const { error: deleteImagesError } = await supabase
+          .from('report_images')
+          .delete()
+          .eq('report_id', reportId);
 
-      if (deleteImagesError) {
-        console.warn('Error deleting existing images:', deleteImagesError);
+        if (deleteImagesError) {
+          console.warn('Error deleting existing images:', deleteImagesError);
+        }
+
+        // Insert updated images using the storage-optimized service
+        await storeImagesForReport(reportId, imageFiles, Pasos_Analizados, false);
       }
-
-      // Insert updated images
-      const imagesToInsert = imageFiles.map((image, index) => ({
-        report_id: reportId,
-        image_order: index + 1,
-        image_data: image.dataURL || image.dataUrl || image.data,
-        file_name: image.name || `image_${index + 1}`,
-        file_type: image.type || 'image/png',
-        file_size: image.size || null,
-        step_image_type: 'general',
-        is_stored_in_storage: false,
-        is_temp: false
-      }));
-
-      const { data: images, error: imagesError } = await supabase
-        .from('report_images')
-        .insert(imagesToInsert)
-        .select();
-
-      if (imagesError) {
-        console.error('Error inserting updated images:', imagesError);
-        throw imagesError;
-      }
-
-      console.log('Images updated successfully:', images.length, 'images inserted');
-    }
 
     // Return complete report with the original structure for compatibility
     console.log('Report update completed successfully');
@@ -618,48 +611,95 @@ export const loadPermanentReports = async (filters = {}) => {
   try {
     const sessionId = getSessionId();
 
-    // Start building the query
+    // Construir la consulta base con relaciones para cargar todo en una sola petición
     let query = supabase
       .from('test_scenarios')
       .select(`
         *,
+        report_images (
+          id, 
+          report_id, 
+          file_name, 
+          file_size, 
+          file_type, 
+          image_url, 
+          video_url, 
+          is_video, 
+          from_video_frame, 
+          step_number,
+          image_order
+        ),
         test_scenario_steps (*),
         user_stories (numero, title)
       `)
-      .or(`is_temp.eq.false,and(is_temp.eq.true,session_id.eq.${sessionId})`)
-      .order('created_at', { ascending: false });
+      .or(`is_temp.eq.false,and(is_temp.eq.true,session_id.eq.${sessionId})`);
+
+    // Filtrar por usuario si se proporciona en los filtros
+    if (filters.userId) {
+      query = query.eq('user_id', filters.userId);
+    }
+
+    query = query.order('created_at', { ascending: false });
 
     // Apply filters
     if (filters.userStoryId) {
       query = query.eq('user_story_id', filters.userStoryId);
     }
 
-    const { data: reports, error } = await query;
+    // Pagination
+    const page = filters.page || 1;
+    const pageSize = filters.pageSize || 10;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Get total count and data in one request
+    const { data: reports, error, count } = await query
+      .range(from, to)
+      .select(`
+        *,
+        report_images (
+          id, 
+          report_id, 
+          file_name, 
+          file_size, 
+          file_type, 
+          image_url, 
+          video_url, 
+          is_video, 
+          from_video_frame, 
+          step_number,
+          image_order
+        ),
+        test_scenario_steps (*),
+        user_stories (numero, title)
+      `, { count: 'exact' });
 
     if (error) throw error;
     if (!reports) return [];
 
-    // Load all images in a single query and group them by report to avoid N+1 calls
-    const reportIds = reports.map((report) => report.id);
-    const images = await loadImagesForReports(reportIds);
-    const imagesByReport = images.reduce((acc, image) => {
-      if (!acc[image.report_id]) acc[image.report_id] = [];
-      acc[image.report_id].push(image);
-      return acc;
-    }, {});
-
     // Reconstruct the original format for compatibility
     const reportsWithImages = reports.map((report) => {
-      const imageFiles = (imagesByReport[report.id] || []).map((img) => ({
-        id: img.id,
-        name: img.file_name,
-        dataURL: img.is_video ? img.video_url : img.image_data,
-        size: img.file_size,
-        type: img.file_type,
-        isVideo: img.is_video,
-        fromVideoFrame: img.from_video_frame || false,
-        stepNumber: img.step_number || null
-      }));
+      const imageFiles = (report.report_images || [])
+        .sort((a, b) => (a.image_order || 0) - (b.image_order || 0))
+        .map((img) => ({
+          id: img.id,
+          name: img.file_name,
+          dataURL: img.image_url || img.video_url,
+          size: img.file_size,
+          type: img.file_type,
+          isVideo: img.is_video,
+          fromVideoFrame: img.from_video_frame || false,
+          stepNumber: img.step_number || null
+        }));
+
+      const Pasos_Analizados = (report.test_scenario_steps || [])
+        .sort((a, b) => (a.numero_paso || 0) - (b.numero_paso || 0))
+        .map(step => ({
+          id: step.id,
+          numero_paso: step.numero_paso,
+          descripcion: step.descripcion_accion_observada || step.descripcion,
+          imagen_referencia: step.imagen_referencia
+        }));
 
       return {
         // Nuevos campos de casos de prueba
@@ -678,19 +718,8 @@ export const loadPermanentReports = async (filters = {}) => {
         Nombre_del_Escenario: report.escenario_prueba || report.nombre_del_escenario,
         Resultado_Esperado_General_Flujo: report.resultado_esperado || report.resultado_esperado_general_flujo,
         Conclusion_General_Flujo: report.resultado_obtenido || report.conclusion_general_flujo,
-        user_provided_additional_context: report.user_provided_additional_context,
-        initial_context: report.initial_context,
-        Pasos_Analizados: (report.test_scenario_steps || []).sort((a, b) => a.numero_paso - b.numero_paso).map(step => ({
-          ...step,
-          numero: step.numero_paso,
-          descripcion: step.descripcion_accion_observada,
-          imagen_referencia: step.imagen_referencia
-        })),
-        pasos: (report.test_scenario_steps || []).sort((a, b) => a.numero_paso - b.numero_paso).map(step => ({
-          numero_paso: step.numero_paso,
-          descripcion: step.descripcion_accion_observada,
-          imagen_referencia: step.imagen_referencia
-        })),
+        Pasos_Analizados,
+        pasos: Pasos_Analizados,
         id: report.id,
         created_at: report.created_at,
         updated_at: report.updated_at,
@@ -700,7 +729,10 @@ export const loadPermanentReports = async (filters = {}) => {
       };
     });
 
-    return reportsWithImages;
+    return {
+      reports: reportsWithImages,
+      total: count || 0
+    };
 
   } catch (error) {
     console.error('Error loading permanent reports:', error);
@@ -803,4 +835,4 @@ export const initializeDatabaseCleanup = () => {
     // Final cleanup
     cleanup();
   };
-};
+};export { loadImagesForReport };
