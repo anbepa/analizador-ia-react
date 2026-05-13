@@ -1,0 +1,13 @@
+# Ignorar archivos locales pesados en el despliegue de Vercel
+.playwright-mcp/
+Escenario4/
+*.png
+*.jpg
+*.jpeg
+*.sql
+*.log
+local-api-server.js
+docs/
+.env.local
+node_modules/
+dist/
