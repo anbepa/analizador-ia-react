@@ -72,4 +72,4 @@ Sigue estos pasos para instalar y ejecutar el proyecto en tu máquina local.
 -   `npm run dev`: Inicia la aplicación en modo de desarrollo.
 -   `npm run build`: Compila la aplicación para producción.
 -   `npm run lint`: Ejecuta el linter de ESLint.
--   `npm run preview`: Sirve la compilación de producción localmente.
+-   `npm run preview`: Sirve la compilación de producción localmente.# Re-deploy
