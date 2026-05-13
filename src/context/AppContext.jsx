@@ -536,13 +536,13 @@ export const AppProvider = ({ children }) => {
         }));
     };
 
-    const handleAnalysis = async (refinement = false, payload = null) => {
+    const handleAnalysis = async (refinement = false, payload = null, overrideImages = null) => {
         setLoading({ state: true, message: refinement ? 'Refinando análisis...' : 'Realizando análisis inicial...' });
         setError(null);
 
         try {
             // Validate and clean images before sending to API
-            let imagesToSend = validateAndCleanImages(currentImageFiles);
+            let imagesToSend = overrideImages || validateAndCleanImages(currentImageFiles);
 
             if (imagesToSend.length === 0) {
                 throw new Error("No hay imágenes válidas para el análisis. Por favor, carga imágenes válidas primero.");
