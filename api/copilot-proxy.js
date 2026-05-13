@@ -16,7 +16,7 @@ export const config = {
     maxDuration: 120,
     api: {
         bodyParser: {
-            sizeLimit: process.env.COPILOT_PROXY_BODY_LIMIT || '64mb'
+            sizeLimit: '64mb'
         }
     }
 };

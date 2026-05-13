@@ -6,7 +6,7 @@ export const config = {
     maxDuration: 60,
     api: {
         bodyParser: {
-            sizeLimit: process.env.GEMINI_PROXY_BODY_LIMIT || '25mb'
+            sizeLimit: '25mb'
         }
     }
 };
