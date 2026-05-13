@@ -52,8 +52,8 @@ app.use(cors())
 app.use(express.json({ limit: BODY_LIMIT }))
 app.use(express.urlencoded({ limit: BODY_LIMIT, extended: true }))
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
+// Health check endpoints
+app.get(['/api/health', '/api/status'], (req, res) => {
     res.json({ 
       status: 'ok', 
       copilot: !!CopilotClient,
