@@ -2,7 +2,6 @@
 /* global process */
 import { createRequire } from 'module'
 import fs from 'fs'
-import os from 'os'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { exec } from 'child_process'
@@ -12,14 +11,25 @@ const __dirname = path.dirname(__filename)
 
 const require = createRequire(import.meta.url)
 
-require('dotenv').config({ path: '.env.local', override: true })
+// Cargar variables de entorno
+const envPath = fs.existsSync('.env.local') ? '.env.local' : '.env'
+require('dotenv').config({ path: envPath, override: true })
+
 const express = require('express')
 const cors = require('cors')
 const ffmpeg = require('fluent-ffmpeg')
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
-const ffprobePath = require('@ffprobe-installer/ffprobe').path
-ffmpeg.setFfmpegPath(ffmpegPath)
-ffmpeg.setFfprobePath(ffprobePath)
+const { createClient } = require('@supabase/supabase-js')
+
+// Configurar rutas de FFmpeg
+try {
+  const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
+  const ffprobePath = require('@ffprobe-installer/ffprobe').path
+  ffmpeg.setFfmpegPath(ffmpegPath)
+  ffmpeg.setFfprobePath(ffprobePath)
+  console.log(`[INFO] FFmpeg path: ${ffmpegPath}`)
+} catch (e) {
+  console.warn('[WARN] No se pudo configurar FFmpeg automáticamente:', e.message)
+}
 
 let CopilotClient;
 let approveAll;
@@ -27,9 +37,11 @@ try {
   const sdk = require('@github/copilot-sdk');
   CopilotClient = sdk.CopilotClient;
   approveAll = sdk.approveAll;
+  // Importar el core de copilot para asegurar que esté cargado (ayuda en algunos entornos)
+  try { require('@github/copilot'); } catch (e) { /* ignore */ }
   console.log('[INFO] @github/copilot-sdk cargado correctamente');
 } catch (error) {
-  console.warn('[WARN] @github/copilot-sdk no está instalado.', error?.message);
+  console.warn('[WARN] @github/copilot-sdk no se pudo cargar.', error?.message);
 }
 
 const app = express()
@@ -40,35 +52,49 @@ app.use(cors())
 app.use(express.json({ limit: BODY_LIMIT }))
 app.use(express.urlencoded({ limit: BODY_LIMIT, extended: true }))
 
-const GITHUB_TOKEN = process.env.COPILOT_GITHUB_TOKEN;
-
-if (!GITHUB_TOKEN) {
-    console.warn('[WARN] COPILOT_GITHUB_TOKEN no configurada en .env.local. Se requerirá token del cliente.');
-}
-
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', copilot: !!GITHUB_TOKEN });
+    res.json({ 
+      status: 'ok', 
+      copilot: !!CopilotClient,
+      ffmpeg: !!ffmpeg
+    });
 });
 
+// --- COPILOT PROXY ---
 app.post('/api/copilot-proxy', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    const clientToken = (authHeader && authHeader.startsWith('Bearer ')) ? authHeader.split(' ')[1] : null;
-    const envToken = process.env.COPILOT_GITHUB_TOKEN || process.env.GITHUB_TOKEN || null;
+    let githubToken = (authHeader && authHeader.startsWith('Bearer ')) ? authHeader.split(' ')[1] : null;
 
-    // Decidir estrategia de autenticación
-    // 1. Si viene token del cliente (OAuth GitHub), usarlo directamente
-    // 2. Si hay token en .env.local, usarlo como fallback
-    // 3. Si no hay token, usar el usuario local de Copilot (VS Code autenticado)
-    const useLocalUser = !clientToken && !envToken;
-    const githubToken = clientToken || envToken || null;
-
-    if (useLocalUser) {
-      console.log('[API] No token provided - using local Copilot user session');
-    } else {
-      console.log('[API] Using GitHub token from', clientToken ? 'client OAuth' : '.env.local');
+    // Si no hay token en el header, intentar recuperarlo de Supabase (igual que en Vercel)
+    if (!githubToken) {
+      const supabaseToken = req.headers['x-supabase-token'];
+      if (supabaseToken && process.env.VITE_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const supabaseAdmin = createClient(
+          process.env.VITE_SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+        const { data: { user } } = await supabaseAdmin.auth.getUser(supabaseToken);
+        if (user?.id) {
+          const { data } = await supabaseAdmin
+            .from('user_github_tokens')
+            .select('provider_token')
+            .eq('user_id', user.id)
+            .single();
+          if (data?.provider_token) {
+            githubToken = data.provider_token;
+          }
+        }
+      }
     }
+
+    // Fallback al token de entorno
+    if (!githubToken) {
+      githubToken = process.env.COPILOT_GITHUB_TOKEN || process.env.GITHUB_TOKEN || null;
+    }
+
+    const useLocalUser = !githubToken;
 
     if (!CopilotClient) {
       return res.status(500).json({
@@ -77,19 +103,22 @@ app.post('/api/copilot-proxy', async (req, res) => {
       });
     }
 
-    const { messages, model = 'gpt-4o' } = req.body;
+    if (!githubToken && !useLocalUser) {
+        return res.status(401).json({
+            error: 'GitHub token no disponible',
+            message: 'Inicia sesión con GitHub para continuar.'
+        });
+    }
 
-    console.log(`[API] Copilot API call received (model: ${model}, strategy: ${useLocalUser ? 'local-user' : 'token'})`);
+    const { messages, model = 'gpt-4o' } = req.body;
 
     const clientConfig = useLocalUser
       ? { useLoggedInUser: true }
       : { gitHubToken: githubToken, useLoggedInUser: false };
 
     const client = new CopilotClient(clientConfig);
-    
     await client.start();
 
-    // Extract text and images from the messages
     const lastMessage = messages[messages.length - 1];
     let textPrompt = '';
     const attachments = [];
@@ -102,7 +131,6 @@ app.post('/api/copilot-proxy', async (req, res) => {
           textPrompt += part.text;
         } else if (part.type === 'image_url' && part.image_url && part.image_url.url) {
           const url = part.image_url.url;
-          // Extract base64 and mimeType from data URL
           const matches = url.match(/^data:([^;]+);base64,(.+)$/);
           if (matches) {
             attachments.push({
@@ -120,43 +148,28 @@ app.post('/api/copilot-proxy', async (req, res) => {
       onPermissionRequest: approveAll
     });
 
-    console.log(`[API] Sending prompt to Copilot with ${attachments.length} attachments`);
-
     const response = await session.sendAndWait({
       prompt: textPrompt,
       attachments: attachments
     });
 
-    console.log('[DEBUG] Copilot raw response:', JSON.stringify(response, null, 2));
-
-    // The SDK response structure might vary, let's try to find the content
     let content = '';
     if (typeof response === 'string') {
       content = response;
     } else if (response.data && response.data.content) {
-      // Structure found in logs: response.data.content
       content = response.data.content;
     } else if (response.content && typeof response.content === 'string') {
       content = response.content;
     } else if (response.text && typeof response.text === 'string') {
       content = response.text;
     } else if (Array.isArray(response.content)) {
-      // If it's an array of message parts
       content = response.content.map(part => part.text || '').join('');
     } else {
       content = JSON.stringify(response);
     }
 
-    console.log('[SUCCESS] Copilot response successful');
-    // Format the response to be compatible with what the frontend expects (OpenAI-like)
     res.status(200).json({
-      choices: [
-        {
-          message: {
-            content: content
-          }
-        }
-      ]
+      choices: [{ message: { content: content } }]
     });
   } catch (error) {
     console.error('[ERROR] Copilot API error:', error.message);
@@ -164,50 +177,77 @@ app.post('/api/copilot-proxy', async (req, res) => {
   }
 })
 
+// --- GEMINI PROXY ---
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+app.post('/api/gemini-proxy', async (req, res) => {
+    if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ userMessage: 'La API key de Gemini no está configurada.', error: 'GEMINI_API_KEY is missing' });
+    }
+
+    const { model, contents, system_instruction: systemInstruction } = req.body;
+
+    if (!model || !contents) {
+        return res.status(400).json({ error: 'Payload inválido. Se requieren "model" y "contents".' });
+    }
+
+    const url = `${GEMINI_API_URL}/${encodeURIComponent(model)}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents, system_instruction: systemInstruction })
+        });
+
+        const data = await response.json();
+        return res.status(response.status).json(data);
+    } catch (error) {
+        console.error('[ERROR] Gemini Proxy error:', error.message);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
 app.use((err, req, res, next) => {
   if (err?.type === 'entity.too.large') {
     return res.status(413).json({
       error: 'Payload too large',
-      message: 'El payload excede el límite permitido. Reduce el tamaño o cantidad de imágenes y vuelve a intentarlo.'
+      message: 'El payload excede el límite permitido.'
     })
   }
   return next(err)
 })
 
-// Servir archivos estáticos del frontend (React build)
+// Servir archivos estáticos del frontend
 const distPath = path.join(__dirname, 'dist');
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
-  console.log(`[SERVER] Serving static files from ${distPath}`);
-
-  // Manejar cualquier otra ruta devolviendo index.html (SPA fallback)
-  // Esto debe ir DESPUÉS de las rutas de API
   app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api')) {
       return res.status(404).json({ error: 'API endpoint not found' });
     }
     res.sendFile(path.join(distPath, 'index.html'));
   });
-} else {
-  console.warn(`[WARN] 'dist' directory not found. Frontend will not be served. Run 'npm run build' first.`);
+  console.log(`[SERVER] Serving static files from ${distPath}`);
 }
 
-const killPort = (port) => {
-  return new Promise((resolve) => {
-    exec(`lsof -ti :${port} | xargs kill -9`, (error) => {
-      if (!error) {
-        console.log(`[SERVER] Process on port ${port} killed.`);
-      }
-      setTimeout(resolve, 1000);
-    });
-  });
+const startServer = () => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n[SERVER] Running on port ${PORT}`)
+  })
 };
 
-killPort(PORT).then(() => {
-  app.listen(PORT, () => {
-    console.log(`\n[SERVER] Local API server running on http://localhost:${PORT}`)
-    console.log(`[ENDPOINT] http://localhost:${PORT}/api/copilot-proxy`)
-    console.log(`[FFMPEG] Path: ${ffmpegPath}`)
-    console.log(`[FFPROBE] Path: ${ffprobePath}\n`)
-  })
-});
+// En local, podemos intentar liberar el puerto, en Render no es necesario
+if (process.env.NODE_ENV !== 'production' && !process.env.RENDER) {
+  const killPort = (port) => {
+    return new Promise((resolve) => {
+      exec(`lsof -ti :${port} | xargs kill -9`, () => {
+        setTimeout(resolve, 500);
+      });
+    });
+  };
+  killPort(PORT).then(startServer);
+} else {
+  startServer();
+}
+

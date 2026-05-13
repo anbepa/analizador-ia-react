@@ -2,10 +2,8 @@
   "version": 2,
   "functions": {
     "api/*.js": {
-      "maxDuration": 60
-    },
-    "api/*.ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "excludeFiles": "node_modules/@github/copilot-darwin-*/**"
     }
   },
   "routes": [
