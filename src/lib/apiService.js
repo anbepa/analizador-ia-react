@@ -3,8 +3,9 @@ export async function callAiApi(prompt, files, options = {}) {
 }
 
 export async function callCopilotApi(prompt, files, options = {}) {
+    console.log('[API] Calling Copilot Proxy with', files.length, 'images');
     const onStatus = options.onStatus;
-    const model = options.model || 'gpt-4o';
+    const model = options.model || 'gpt-4.1';
     const authToken = options.authToken || null;  // provider_token de GitHub OAuth
     const supabaseToken = options.supabaseToken || null; // JWT de Supabase (para DB lookup en Vercel)
 
@@ -29,13 +30,18 @@ export async function callCopilotApi(prompt, files, options = {}) {
         }
     ];
 
-    // Adjuntar imágenes
+    // Adjuntar imágenes (soportar base64 y URLs remotas)
     files.forEach(file => {
-        if (file.dataURL && file.dataURL.includes(',')) {
-            messages[0].content.push({
-                type: 'image_url',
-                image_url: { url: file.dataURL }
-            });
+        if (file.dataURL) {
+            const isBase64 = file.dataURL.startsWith('data:image/');
+            const isRemoteUrl = file.dataURL.startsWith('http');
+            
+            if (isBase64 || isRemoteUrl) {
+                messages[0].content.push({
+                    type: 'image_url',
+                    image_url: { url: file.dataURL }
+                });
+            }
         }
     });
 

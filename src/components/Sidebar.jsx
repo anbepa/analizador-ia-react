@@ -7,7 +7,9 @@ const Sidebar = () => {
         setNavigationMode,
         session,
         handleLogin,
-        handleLogout
+        handleLogout,
+        selectedModel,
+        setSelectedModel
     } = useAppContext();
     const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -85,6 +87,33 @@ const Sidebar = () => {
                     onClick={() => handleNavigation('reports')}
                 />
             </nav>
+
+            {/* Model Selector - Parametric IA Engine */}
+            <div className={`px-4 mb-4 transition-all duration-300 ${isCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
+                <div className="bg-white/50 border border-secondary-200/60 rounded-2xl p-3 shadow-sm">
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-secondary-500 uppercase tracking-wider mb-2 ml-1">
+                        <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        Motor de Análisis
+                    </label>
+                    <div className="relative group">
+                        <select 
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            className="w-full text-xs font-bold text-secondary-900 bg-white border border-secondary-200 rounded-xl py-2 pl-3 pr-8 focus:ring-2 focus:ring-primary/10 focus:border-primary appearance-none cursor-pointer transition-all hover:border-primary/30"
+                        >
+                            <option value="gpt-4o">Copilot (GPT-4o) - Rápido</option>
+                            <option value="gpt-4.1">Copilot (GPT-4.1) - Pro</option>
+                            <option value="gpt-4">Copilot (GPT-4) - Preciso</option>
+                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo - Lite</option>
+                        </select>
+                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-secondary-400 group-hover:text-primary transition-colors">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             {/* Footer / User Profile */}
             <div className="p-4 border-t border-secondary-200/60">

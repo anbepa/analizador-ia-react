@@ -210,28 +210,6 @@ function ImageUploader() {
                                     </span>
                                 </div>
                             </div>
-
-                            <div className="h-8 w-px bg-secondary-200 hidden sm:block" />
-
-                            {/* Selector Modelo IA */}
-                            <div className="flex flex-col min-w-[200px]">
-                                <label className="text-[10px] font-bold text-secondary-500 uppercase tracking-wider mb-0.5 ml-1">Motor de Análisis</label>
-                                <div className="relative group">
-                                    <select 
-                                        value={selectedModel}
-                                        onChange={(e) => setSelectedModel(e.target.value)}
-                                        disabled={loading.state}
-                                        className="w-full text-xs font-bold text-secondary-900 bg-white border border-secondary-200 rounded-xl py-1.5 pl-3 pr-8 focus:ring-2 focus:ring-primary/10 focus:border-primary appearance-none cursor-pointer transition-all"
-                                    >
-                                        <option value="gpt-4o">Copilot (GPT-4o) - Rápido</option>
-                                        <option value="gpt-4.1">Copilot (GPT-4.1) - Pro</option>
-                                        <option value="gpt-4">Copilot (GPT-4) - Preciso</option>
-                                    </select>
-                                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-secondary-400 group-hover:text-primary transition-colors">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         <div className="flex items-center gap-3">

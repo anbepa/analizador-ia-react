@@ -55,7 +55,7 @@ export const AppProvider = ({ children }) => {
     const [analysisUserStory, setAnalysisUserStory] = useState(null); // HU seleccionada para el análisis actual
     const [filterUserStory, setFilterUserStory] = useState(null); // HU seleccionada para filtrar reportes
     const [userStorySuggestions, setUserStorySuggestions] = useState([]); // Sugerencias de autocompletado
-    const [selectedModel, setSelectedModel] = useState('gpt-4o'); // Modelo seleccionado: 'gpt-4o' (Copilot)
+    const [selectedModel, setSelectedModel] = useState('gpt-4.1'); // Modelo seleccionado: 'gpt-4.1' (Copilot) por defecto
     const [session, setSession] = useState(null); // Sesión de Supabase
     const [githubToken, setGithubToken] = useState(null); // Token de GitHub (gho_) extraído de la sesión
     const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0 });
@@ -1268,7 +1268,7 @@ export const AppProvider = ({ children }) => {
     };
 
     // Funciones para edición de pasos durante refinamiento
-    const updateStepInActiveReport = (stepNumber, updatedData) => {
+    const updateStepInActiveReport = async (stepNumber, updatedData) => {
         if (!activeReport || activeReportIndex === -1) return;
 
         const updatedReport = { ...activeReport };
@@ -1280,15 +1280,38 @@ export const AppProvider = ({ children }) => {
                 ...updatedData
             };
 
+            // Update local state first for responsiveness
             setReports(prev => {
                 const newReports = [...prev];
                 newReports[activeReportIndex] = updatedReport;
                 return newReports;
             });
+
+            // Persist to DB if the report has an ID
+            if (updatedReport.id) {
+                try {
+                    const savedReport = await updateReportInDB(updatedReport.id, {
+                        Pasos_Analizados: updatedReport.Pasos_Analizados,
+                        imageFiles: updatedReport.imageFiles || activeReportImages
+                    });
+                    
+                    // Sync state with DB response
+                    if (savedReport) {
+                        setReports(prev => {
+                            const newReports = [...prev];
+                            newReports[activeReportIndex] = { ...newReports[activeReportIndex], ...savedReport };
+                            return newReports;
+                        });
+                    }
+                } catch (err) {
+                    console.error("Error persisting step update:", err);
+                    setError("El cambio se realizó localmente pero no se pudo guardar en la base de datos.");
+                }
+            }
         }
     };
 
-    const deleteStepFromActiveReport = (stepNumber) => {
+    const deleteStepFromActiveReport = async (stepNumber) => {
         if (!activeReport || activeReportIndex === -1) return;
 
         const updatedReport = { ...activeReport };
@@ -1299,11 +1322,75 @@ export const AppProvider = ({ children }) => {
                 numero_paso: index + 1 // Renumerar
             }));
 
+        // Update local state
         setReports(prev => {
             const newReports = [...prev];
             newReports[activeReportIndex] = updatedReport;
             return newReports;
         });
+
+        // Persist to DB if the report has an ID
+        if (updatedReport.id) {
+            try {
+                const savedReport = await updateReportInDB(updatedReport.id, {
+                    Pasos_Analizados: updatedReport.Pasos_Analizados,
+                    imageFiles: updatedReport.imageFiles || activeReportImages
+                });
+                
+                // Sync state with DB response
+                if (savedReport) {
+                    setReports(prev => {
+                        const newReports = [...prev];
+                        newReports[activeReportIndex] = { ...newReports[activeReportIndex], ...savedReport };
+                        return newReports;
+                    });
+                }
+            } catch (err) {
+                console.error("Error persisting step deletion:", err);
+                setError("El paso se eliminó localmente pero no se pudo actualizar en la base de datos.");
+            }
+        }
+    };
+
+    const deleteStepsBulkFromActiveReport = async (stepNumbers) => {
+        if (!activeReport || activeReportIndex === -1 || stepNumbers.length === 0) return;
+
+        const updatedReport = { ...activeReport };
+        updatedReport.Pasos_Analizados = updatedReport.Pasos_Analizados
+            .filter(p => !stepNumbers.includes(p.numero_paso))
+            .map((paso, index) => ({
+                ...paso,
+                numero_paso: index + 1 // Renumerar
+            }));
+
+        // Update local state immediately
+        setReports(prev => {
+            const newReports = [...prev];
+            newReports[activeReportIndex] = updatedReport;
+            return newReports;
+        });
+
+        // Persist to DB if the report has an ID
+        if (updatedReport.id) {
+            try {
+                const savedReport = await updateReportInDB(updatedReport.id, {
+                    Pasos_Analizados: updatedReport.Pasos_Analizados,
+                    imageFiles: updatedReport.imageFiles || activeReportImages
+                });
+                
+                // Sync state with DB response
+                if (savedReport) {
+                    setReports(prev => {
+                        const newReports = [...prev];
+                        newReports[activeReportIndex] = { ...newReports[activeReportIndex], ...savedReport };
+                        return newReports;
+                    });
+                }
+            } catch (err) {
+                console.error("Error persisting bulk step deletion:", err);
+                setError("Los pasos se eliminaron localmente pero no se pudo actualizar en la base de datos.");
+            }
+        }
     };
 
     const handleLogin = async () => {
@@ -1413,6 +1500,7 @@ export const AppProvider = ({ children }) => {
         // Edición de pasos en refinamiento
         updateStepInActiveReport,
         deleteStepFromActiveReport,
+        deleteStepsBulkFromActiveReport,
         // Auth
         session,
         githubToken,

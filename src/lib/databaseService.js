@@ -309,7 +309,7 @@ export const updateStepInReport = async (reportId, stepId, stepData) => {
 
     // Update the report's updated_at timestamp
     await supabase
-      .from('reports')
+      .from('test_scenarios')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', reportId);
 
@@ -382,32 +382,45 @@ export const getDatabaseStats = async () => {
 export const updateReport = async (reportId, reportData) => {
   try {
     console.log('Updating report in database:', reportId, reportData);
-    const { imageFiles, Pasos_Analizados, ...otherData } = reportData;
+    const { imageFiles, Pasos_Analizados: steps1, pasos: steps2, ...otherData } = reportData;
+    const Pasos_Analizados = steps1 || steps2;
 
     // Update basic report data - incluye campos nuevos Y legacy para compatibilidad total
+    // Preparar objeto de actualización dinámico para no borrar campos existentes
+    const updatePayload = {
+        updated_at: new Date().toISOString()
+    };
+
+    // Campos de texto y metadatos
+    if (otherData.id_caso !== undefined) updatePayload.id_caso = otherData.id_caso;
+    if (otherData.escenario_prueba !== undefined || otherData.Nombre_del_Escenario !== undefined) {
+        const val = otherData.escenario_prueba || otherData.Nombre_del_Escenario;
+        updatePayload.escenario_prueba = val;
+        updatePayload.nombre_del_escenario = val;
+    }
+    if (otherData.precondiciones !== undefined) updatePayload.precondiciones = otherData.precondiciones;
+    if (otherData.resultado_esperado !== undefined || otherData.Resultado_Esperado_General_Flujo !== undefined) {
+        const val = otherData.resultado_esperado || otherData.Resultado_Esperado_General_Flujo;
+        updatePayload.resultado_esperado = val;
+        updatePayload.resultado_esperado_general_flujo = val;
+    }
+    if (otherData.resultado_obtenido !== undefined || otherData.Conclusion_General_Flujo !== undefined) {
+        const val = otherData.resultado_obtenido || otherData.Conclusion_General_Flujo;
+        updatePayload.resultado_obtenido = val;
+        updatePayload.conclusion_general_flujo = val;
+    }
+    if (otherData.historia_usuario !== undefined) updatePayload.historia_usuario = otherData.historia_usuario;
+    if (otherData.user_story_id !== undefined) updatePayload.user_story_id = otherData.user_story_id;
+    if (otherData.set_escenarios !== undefined) updatePayload.set_escenarios = otherData.set_escenarios;
+    if (otherData.fecha_ejecucion !== undefined) updatePayload.fecha_ejecucion = otherData.fecha_ejecucion;
+    if (otherData.estado_general !== undefined) updatePayload.estado_general = otherData.estado_general;
+    if (otherData.user_provided_additional_context !== undefined) updatePayload.user_provided_additional_context = otherData.user_provided_additional_context;
+    if (otherData.initial_context !== undefined) updatePayload.initial_context = otherData.initial_context;
+    if (otherData.user_id !== undefined) updatePayload.user_id = otherData.user_id;
+
     const { data: report, error: reportError } = await supabase
       .from('test_scenarios')
-      .update({
-        // Campos nuevos de casos de prueba
-        id_caso: otherData.id_caso || null,
-        escenario_prueba: otherData.escenario_prueba || otherData.Nombre_del_Escenario || 'Caso de Prueba',
-        precondiciones: otherData.precondiciones || null,
-        resultado_esperado: otherData.resultado_esperado || otherData.Resultado_Esperado_General_Flujo || null,
-        resultado_obtenido: otherData.resultado_obtenido || otherData.Conclusion_General_Flujo || null,
-        historia_usuario: otherData.historia_usuario || null,
-        user_story_id: otherData.user_story_id || null, // Nuevo campo FK
-        set_escenarios: otherData.set_escenarios || null,
-        fecha_ejecucion: otherData.fecha_ejecucion || new Date().toISOString().split('T')[0],
-        estado_general: otherData.estado_general || 'Pendiente',
-        // Campos legacy (requeridos por la BD)
-        nombre_del_escenario: otherData.escenario_prueba || otherData.Nombre_del_Escenario || 'Caso de Prueba',
-        resultado_esperado_general_flujo: otherData.resultado_esperado || otherData.Resultado_Esperado_General_Flujo || null,
-        conclusion_general_flujo: otherData.resultado_obtenido || otherData.Conclusion_General_Flujo || null,
-        // Campos comunes
-        user_provided_additional_context: otherData.user_provided_additional_context || null,
-        initial_context: otherData.initial_context || null,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', reportId)
       .select()
       .single();
@@ -419,6 +432,7 @@ export const updateReport = async (reportId, reportData) => {
 
     console.log('Report updated successfully, now updating steps...');
 
+    let steps = null;
     // Update report steps if any
     if (Pasos_Analizados && Pasos_Analizados.length > 0) {
       console.log('Deleting existing steps for report:', reportId);
@@ -441,10 +455,12 @@ export const updateReport = async (reportId, reportData) => {
         imagen_referencia: paso.imagen_referencia || null
       }));
 
-      const { data: steps, error: stepsError } = await supabase
+      const { data: insertedSteps, error: stepsError } = await supabase
         .from('test_scenario_steps')
         .insert(stepsToInsert)
         .select();
+      
+      steps = insertedSteps;
 
       if (stepsError) {
         console.error('Error inserting updated steps:', stepsError);
@@ -454,29 +470,32 @@ export const updateReport = async (reportId, reportData) => {
       console.log('Steps updated successfully:', steps.length, 'steps inserted');
     }
 
-      // Update report images if any
-      if (imageFiles && imageFiles.length > 0) {
-        console.log('Updating images for report:', reportId, imageFiles.length, 'images');
+    let updatedImages = imageFiles;
+    // Update report images if any
+    if (imageFiles && imageFiles.length > 0) {
+      console.log('Updating images for report:', reportId, imageFiles.length, 'images');
 
-        // Delete existing images first
-        const { error: deleteImagesError } = await supabase
-          .from('report_images')
-          .delete()
-          .eq('report_id', reportId);
+      // Delete existing images first
+      const { error: deleteImagesError } = await supabase
+        .from('report_images')
+        .delete()
+        .eq('report_id', reportId);
 
-        if (deleteImagesError) {
-          console.warn('Error deleting existing images:', deleteImagesError);
-        }
-
-        // Insert updated images using the storage-optimized service
-        await storeImagesForReport(reportId, imageFiles, Pasos_Analizados, false);
+      if (deleteImagesError) {
+        console.warn('Error deleting existing images:', deleteImagesError);
       }
+
+      // Insert updated images using the storage-optimized service
+      // IMPORTANTE: Usar 'steps' (los recién insertados con sus nuevos IDs) para la asociación, no 'Pasos_Analizados'
+      updatedImages = await storeImagesForReport(reportId, imageFiles, steps || Pasos_Analizados, false);
+    }
 
     // Return complete report with the original structure for compatibility
     console.log('Report update completed successfully');
     return {
       ...reportData,
       id: reportId,
+      imageFiles: updatedImages,
       updated_at: report.updated_at
     };
 
@@ -664,6 +683,7 @@ export const loadPermanentReports = async (filters = {}) => {
           file_size, 
           file_type, 
           image_url, 
+          image_data,
           video_url, 
           is_video, 
           from_video_frame, 
@@ -684,7 +704,7 @@ export const loadPermanentReports = async (filters = {}) => {
         .map((img) => ({
           id: img.id,
           name: img.file_name,
-          dataURL: img.image_url || img.video_url,
+          dataURL: img.image_url || img.image_data || img.video_url,
           size: img.file_size,
           type: img.file_type,
           isVideo: img.is_video,

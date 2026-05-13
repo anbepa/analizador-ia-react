@@ -36,11 +36,12 @@ const uploadToStorage = async (reportId, file, index) => {
       .replace(/[^\w\.-]/g, '');
     let contentType = file.type || 'image/png';
 
+    // Si ya es una URL (Supabase o externa), no subir de nuevo
+    if (typeof file.dataURL === 'string' && file.dataURL.startsWith('http')) {
+      return { url: file.dataURL, path: file.storagePath || null };
+    }
+
     if (file.isVideo || (file.type && file.type.startsWith('video/'))) {
-      // Si ya es una URL (video de Supabase), no subir de nuevo
-      if (typeof file.dataURL === 'string' && file.dataURL.startsWith('http')) {
-        return { url: file.dataURL, path: null };
-      }
       // Si es un Blob/File de video, subirlo
       blob = file;
       fileName = `video_${Date.now()}_${index}.mp4`;
@@ -147,38 +148,56 @@ export const compressImageIfNeeded = async (file, maxWidth = 1920, maxHeight = 1
     const ctx = canvas.getContext('2d');
     const img = new Image();
 
+    // Enable CORS for remote images
+    if (typeof file.dataURL === 'string' && file.dataURL.startsWith('http')) {
+      img.crossOrigin = 'Anonymous';
+    }
+
+    // Safety timeout to prevent hanging the entire analysis
+    const timeout = setTimeout(() => {
+      console.warn('Compression timeout for:', file.name || 'image');
+      resolve(file);
+    }, 10000); // 10 seconds timeout
+
     img.onload = () => {
-      // Calculate new dimensions
-      let { width, height } = img;
+      clearTimeout(timeout);
+      try {
+        // Calculate new dimensions
+        let { width, height } = img;
 
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        if (height > maxHeight) {
+          width = (width * maxHeight) / height;
+          height = maxHeight;
+        }
+
+        // Set canvas size and draw image
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to base64
+        const compressedDataURL = canvas.toDataURL('image/jpeg', quality);
+
+        resolve({
+          ...file,
+          dataURL: compressedDataURL,
+          originalSize: file.dataURL.length,
+          compressedSize: compressedDataURL.length
+        });
+      } catch (err) {
+        console.warn('Failed to compress image due to error (possibly CORS):', err);
+        resolve(file);
       }
-
-      if (height > maxHeight) {
-        width = (width * maxHeight) / height;
-        height = maxHeight;
-      }
-
-      // Set canvas size and draw image
-      canvas.width = width;
-      canvas.height = height;
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Convert to base64
-      const compressedDataURL = canvas.toDataURL('image/jpeg', quality);
-
-      resolve({
-        ...file,
-        dataURL: compressedDataURL,
-        originalSize: file.dataURL.length,
-        compressedSize: compressedDataURL.length
-      });
     };
 
     img.onerror = () => {
-      console.warn('Failed to compress image, using original');
+      clearTimeout(timeout);
+      console.warn('Failed to load image for compression, using original');
       resolve(file);
     };
 
@@ -317,7 +336,7 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
   }
 
   // Supabase preserves insertion order within each batch; batches maintain overall ordering via concatenation
-  return savedRows.map((row, index) => {
+  return savedRows.map((row) => {
     return {
       id: row.id,
       name: row.file_name,
@@ -325,8 +344,10 @@ export const storeImagesForReport = async (reportId, imageFiles, steps = null, i
       size: row.file_size,
       type: row.file_type,
       stepId: row.step_id,
+      stepNumber: row.step_number || null,
       stepImageType: row.step_image_type,
-      isVideo: row.is_video
+      isVideo: row.is_video,
+      storagePath: row.storage_path
     };
   });
 };
