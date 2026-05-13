@@ -103,6 +103,11 @@ const ReportsView = () => {
     const filteredReports = useMemo(() => {
         if (!reports) return [];
 
+        // Por defecto, si no hay filtros activos (HU seleccionada o búsqueda de texto), retornar vacío
+        if (!filterUserStory && !searchQuery.trim()) {
+            return [];
+        }
+
         let processed = reports
             .map((r, i) => ({
                 ...r,
@@ -119,7 +124,8 @@ const ReportsView = () => {
             processed = processed.filter(r => {
                 const scenarioName = (r.escenario_prueba || r.Nombre_del_Escenario || '').toLowerCase();
                 const idCaso = (r.id_caso || '').toString().toLowerCase();
-                return scenarioName.includes(query) || idCaso.includes(query);
+                const huNum = (r.user_story_data?.numero || '').toString().toLowerCase();
+                return scenarioName.includes(query) || idCaso.includes(query) || huNum.includes(query);
             });
         }
 
@@ -389,15 +395,29 @@ const ReportsView = () => {
                                     <h2 className="text-sm font-bold text-secondary-700 uppercase tracking-wider">
                                         Resultados de la búsqueda
                                     </h2>
-                                    <span className="text-sm text-secondary-500">
-                                        Mostrando {((pagination.page - 1) * pagination.pageSize) + 1}-{Math.min(pagination.page * pagination.pageSize, pagination.total)} de {pagination.total} elementos
-                                    </span>
+                                    {filteredReports.length > 0 && (
+                                        <span className="text-sm text-secondary-500">
+                                            Mostrando {((pagination.page - 1) * pagination.pageSize) + 1}-{Math.min(pagination.page * pagination.pageSize, pagination.total)} de {pagination.total} elementos
+                                        </span>
+                                    )}
                                 </div>
                             )}
 
                             {filteredReports.length === 0 ? (
-                                <div className="p-12 text-center">
-                                    <p className="text-secondary-500">No se encontraron escenarios con los filtros aplicados</p>
+                                <div className="p-16 text-center">
+                                    <div className="w-16 h-16 bg-secondary-100 rounded-full flex items-center justify-center mx-auto mb-4 text-secondary-400">
+                                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-sm font-bold text-secondary-900 mb-1">
+                                        {!filterUserStory && !searchQuery ? 'Comienza una búsqueda' : 'No se encontraron resultados'}
+                                    </h3>
+                                    <p className="text-xs text-secondary-500 max-w-xs mx-auto">
+                                        {!filterUserStory && !searchQuery 
+                                            ? 'Ingresa un número de HU o el nombre de un escenario para consultar los registros.' 
+                                            : 'Intenta ajustar los filtros para encontrar lo que buscas.'}
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
@@ -413,6 +433,7 @@ const ReportsView = () => {
                                                     />
                                                 </th>
                                                 <th className="px-4 py-3 text-left text-xs font-bold text-secondary-700 uppercase tracking-wider">ID Caso</th>
+                                                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-700 uppercase tracking-wider">HU</th>
                                                 <th className="px-6 py-3 text-left text-xs font-bold text-secondary-700 uppercase tracking-wider">Nombre del Escenario</th>
                                                 <th className="px-6 py-3 text-left text-xs font-bold text-secondary-700 uppercase tracking-wider">Pasos</th>
                                                 <th className="px-6 py-3 text-left text-xs font-bold text-secondary-700 uppercase tracking-wider">Estado</th>
@@ -423,6 +444,7 @@ const ReportsView = () => {
                                             {filteredReports.map((report, index) => {
                                                 const stepCount = (report.pasos || report.Pasos_Analizados || []).length;
                                                 const estado = report.estado_general || 'Pendiente';
+                                                const huNumero = report.user_story_data?.numero || report.historia_usuario?.replace('HU-', '') || 'N/A';
 
                                                 return (
                                                     <tr
@@ -440,6 +462,11 @@ const ReportsView = () => {
                                                         </td>
                                                         <td className="px-4 py-4">
                                                             <span className="text-sm font-semibold text-secondary-900">{report.id_caso || 'N/A'}</span>
+                                                        </td>
+                                                        <td className="px-4 py-4">
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-primary/10 text-primary uppercase">
+                                                                HU-{huNumero}
+                                                            </span>
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <span className="text-sm font-medium text-secondary-900 hover:text-primary transition-colors">{report.escenario_prueba || report.Nombre_del_Escenario || 'Sin nombre'}</span>
