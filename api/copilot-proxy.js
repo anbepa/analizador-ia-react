@@ -22,6 +22,7 @@ export const config = {
 };
 
 import { CopilotClient, approveAll } from '@github/copilot-sdk';
+import '@github/copilot'; 
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {

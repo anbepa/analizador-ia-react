@@ -2,10 +2,12 @@
   "version": 2,
   "functions": {
     "api/*.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "node_modules/@github/copilot/**"
     },
     "api/*.ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "node_modules/@github/copilot/**"
     }
   },
   "routes": [
