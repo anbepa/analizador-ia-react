@@ -2,8 +2,7 @@
   "version": 2,
   "functions": {
     "api/**/*.{js,ts}": {
-      "maxDuration": 60,
-      "excludeFiles": "**/node_modules/@github/copilot/{**/darwin-*,**/win32-*,**/linux-arm64,**/arm64,**/windows,**/mac}/**"
+      "maxDuration": 60
     }
   },
   "routes": [

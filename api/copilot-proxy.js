@@ -4,6 +4,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { CopilotClient, approveAll } from '@github/copilot-sdk';
+import '@github/copilot'; 
 
 export const config = {
     maxDuration: 120,
