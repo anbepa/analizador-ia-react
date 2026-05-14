@@ -3,7 +3,7 @@
   "functions": {
     "api/**/*.{js,ts}": {
       "maxDuration": 60,
-      "excludeFiles": "node_modules/{@github/copilot-darwin-*,@github/copilot-win32-*,@ffmpeg-installer/**,@ffprobe-installer/**,**/*.map,**/*.ts,**/*.md}"
+      "excludeFiles": "**/node_modules/@github/copilot/{**/darwin-*,**/win32-*,**/linux-arm64,**/arm64,**/windows,**/mac}/**"
     }
   },
   "routes": [

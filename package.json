@@ -11,7 +11,8 @@
     "local-api": "node local-api-server.js",
     "start": "node local-api-server.js",
     "render:build": "npm install && npm run build",
-    "render:start": "node local-api-server.js"
+    "render:start": "node local-api-server.js",
+    "postinstall": "if [ \"$VERCEL\" = \"1\" ]; then find node_modules/@github -name '*darwin*' -exec rm -rf {} + && find node_modules/@github -name '*win32*' -exec rm -rf {} + && find node_modules/@github -name '*arm64*' -exec rm -rf {} +; fi"
   },
   "dependencies": {
     "@github/copilot": "^1.0.46",
