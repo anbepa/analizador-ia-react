@@ -47,20 +47,39 @@ export async function callCopilotApi(prompt, files, options = {}) {
 
     const body = { model, messages };
 
-    const performRequest = async () => {
+    const performRequest = async (retries = 3, delay = 2000) => {
         onStatus?.('Enviando solicitud a Copilot...');
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(body)
-        });
+        
+        for (let i = 0; i < retries; i++) {
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(body)
+                });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || errorData.error || 'Error en la API de Copilot');
+                // Si recibimos un 503, 502 o 504, es probable que el servidor se esté despertando o esté temporalmente saturado
+                if (response.status === 503 || response.status === 502 || response.status === 504) {
+                    console.warn(`[API] Intento ${i + 1} falló con estado ${response.status}. Reintentando en ${delay}ms...`);
+                    if (i < retries - 1) {
+                        onStatus?.(`Servidor despertando... (Intento ${i + 2}/${retries})`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || errorData.error || 'Error en la API de Copilot');
+                }
+
+                return await response.json();
+            } catch (err) {
+                if (i === retries - 1) throw err;
+                console.error(`[API] Error en intento ${i + 1}:`, err);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
         }
-
-        return response.json();
     };
 
     // Use the same queue logic if needed, or call directly
