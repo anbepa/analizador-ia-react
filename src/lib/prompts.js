@@ -190,6 +190,9 @@ export const PROMPT_FLOW_ANALYSIS_FROM_IMAGES = (annotationsContext = '') => `
     }
     \`\`\`
     
+    **CONTEXTO ADICIONAL DEL USUARIO (PRIORIDAD MÁXIMA):**
+    ${annotationsContext ? `"${annotationsContext}"` : 'Ninguno proporcionado por el usuario.'}
+
     **IMPORTANTE:**
     1. RESPONDER ÚNICAMENTE EN ESPAÑOL.
     2. USAR EXACTAMENTE LAS CLAVES JSON DEFINIDAS ARRIBA: "id_caso", "escenario_prueba", "pasos", "numero_paso", "descripcion", "imagen_referencia", "resultado_esperado", "resultado_obtenido", "estado_general"
