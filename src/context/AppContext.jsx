@@ -1321,6 +1321,9 @@ export const AppProvider = ({ children }) => {
                 ...paso,
                 numero_paso: index + 1 // Renumerar
             }));
+        
+        // Sync with legacy field if present
+        updatedReport.pasos = updatedReport.Pasos_Analizados;
 
         // Update local state
         setReports(prev => {
@@ -1362,6 +1365,9 @@ export const AppProvider = ({ children }) => {
                 ...paso,
                 numero_paso: index + 1 // Renumerar
             }));
+        
+        // Sync with legacy field if present
+        updatedReport.pasos = updatedReport.Pasos_Analizados;
 
         // Update local state immediately
         setReports(prev => {
