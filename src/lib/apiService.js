@@ -1,4 +1,8 @@
 export async function callAiApi(prompt, files, options = {}) {
+    const model = options.model || '';
+    if (model.toLowerCase().includes('gemini')) {
+        return await callGeminiApi(prompt, files, options);
+    }
     return await callCopilotApi(prompt, files, options);
 }
 
@@ -85,6 +89,85 @@ export async function callCopilotApi(prompt, files, options = {}) {
     // Use the same queue logic if needed, or call directly
     const result = await performRequest();
     return result.choices[0].message.content;
+}
+
+export async function callGeminiApi(prompt, files, options = {}) {
+    console.log('[API] Calling Gemini Proxy with', files.length, 'images');
+    const onStatus = options.onStatus;
+    const model = options.model || 'gemini-1.5-flash';
+
+    const apiUrl = '/api/gemini-proxy';
+    const headers = { 'Content-Type': 'application/json' };
+
+    const contents = [
+        {
+            role: 'user',
+            parts: [
+                { text: prompt }
+            ]
+        }
+    ];
+
+    // Adjuntar imágenes
+    for (const file of files) {
+        if (file.dataURL) {
+            const matches = file.dataURL.match(/^data:([^;]+);base64,(.+)$/);
+            if (matches) {
+                contents[0].parts.push({
+                    inline_data: {
+                        mime_type: matches[1],
+                        data: matches[2]
+                    }
+                });
+            }
+        }
+    }
+
+    const body = { model, contents };
+
+    const performRequest = async (retries = 3, delay = 2000) => {
+        onStatus?.('Enviando solicitud a Gemini...');
+        
+        for (let i = 0; i < retries; i++) {
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(body)
+                });
+
+                if (response.status === 429 || response.status === 503 || response.status === 504) {
+                    console.warn(`[API] Gemini Intento ${i + 1} falló con estado ${response.status}. Reintentando en ${delay}ms...`);
+                    if (i < retries - 1) {
+                        onStatus?.(`Servidor reintentando... (Intento ${i + 2}/${retries})`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 2;
+                        continue;
+                    }
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.userMessage || errorData.error || 'Error en la API de Gemini');
+                }
+
+                return await response.json();
+            } catch (err) {
+                if (i === retries - 1) throw err;
+                console.error(`[API] Gemini Error en intento ${i + 1}:`, err);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    };
+
+    const result = await performRequest();
+    
+    // Extraer texto de la respuesta de Gemini
+    if (result.candidates && result.candidates[0]?.content?.parts) {
+        return result.candidates[0].content.parts.map(p => p.text).join('');
+    }
+    
+    throw new Error('Respuesta de Gemini en formato inesperado');
 }
 
 export function readFileAsBase64(file) {
